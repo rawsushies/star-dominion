@@ -27,7 +27,7 @@ import { SCREENS } from '../screens';
 
 const GROUPS: ScreenId[][] = [
   ['map'],
-  ['kingdom', 'planets', 'system'],
+  ['kingdom', 'council', 'planets', 'system'],
   ['fleets', 'military', 'heroes'],
   ['economy', 'industry', 'construction', 'trade'],
   ['research', 'techtree'],

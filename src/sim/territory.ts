@@ -30,6 +30,11 @@ export function ownedSystems(state: GameState, empireId: number): number[] {
   return (ownerMap(state).get(empireId) ?? []).slice();
 }
 
+/** Is the realm at war with anyone? */
+export function warBetweenAny(state: GameState, a: number): boolean {
+  return state.wars.some((w) => w.attackers.includes(a) || w.defenders.includes(a));
+}
+
 export function warBetween(state: GameState, a: number, b: number) {
   return state.wars.find(
     (w) => (w.attackers.includes(a) && w.defenders.includes(b)) || (w.attackers.includes(b) && w.defenders.includes(a)),

@@ -3,6 +3,7 @@
 // economy/population/research per empire -> monthly systems -> AI.
 
 import { eraMonthly } from './eras';
+import { governanceMonthly, ensureHouses } from './governance';
 import { createCharacter, assign, charactersMonthly, refreshCandidates } from './characters';
 import { civilisationPower } from './power';
 import { MAX_ERA } from './data/eras';
@@ -208,6 +209,7 @@ export function newGame(settings: Partial<GameSettings> = {}): GameState {
     e.explored = [];
     for (const id of [e.capitalSystemId, ...adj[e.capitalSystemId]]) markExplored(state, e, id);
   }
+  for (const e of state.empires) ensureHouses(state, e);
   refreshCandidates(state);
   updateStats(state);
   log(state, { kind: 'start', severity: 'info', title: 'A new reign begins', text: `${state.empires[0].ruler} ascends the throne of the ${state.empires[0].name}. The galaxy awaits.`, empires: [0] });
@@ -366,6 +368,7 @@ function monthly(state: GameState) {
   randomEvents(state);
   eliminationCheck(state);
   charactersMonthly(state, (a, b, v, label) => addMemory(state, a, b, 'envoy', v, 0.5, label));
+  governanceMonthly(state);
   if (state.tick % 360 === 0) refreshCandidates(state);
   updateStats(state);
   eraMonthly(state);

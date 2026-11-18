@@ -91,6 +91,7 @@ export function createCharacter(state: GameState, ownerId: number, role: CharRol
     bio: [],
     record: { battlesWon: 0, battlesLost: 0, worldsTaken: 0, monthsServed: 0 },
   };
+  if (e?.houses?.length && chance(rng, 0.35)) c.houseId = pick(rng, e.houses).id;
   const origin = pick(rng, ORIGINS).replace('{home}', home).replace('{realm}', e?.name ?? 'the crown');
   c.bio.push({ tick: state.tick, text: `${c.name}, ${origin}, ${opts.status === 'candidate' ? 'seeks a place in the service of' : 'serves'} the ${e?.name ?? 'realm'} as ${def.label.toLowerCase()}.` });
   state.characters.push(c);

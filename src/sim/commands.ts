@@ -1,4 +1,5 @@
 import { TECH_BY_ID } from './data/techs';
+import { canIssueDecree, issueDecree, revokeDecree, canResolvePetition, resolvePetition, houseById, canActOnHouse, actOnHouse } from './governance';
 import { ERAS } from './data/eras';
 // Command layer: the only way the UI or the AI changes game state. Every
 // command is validated against the rules (ownership, costs, tech, limits).
@@ -49,6 +50,10 @@ export type Command =
   | { type: 'unequipItem'; charId: number; slot: EquipSlot }
   | { type: 'captive'; charId: number; action: 'pardon' | 'recruit' | 'ransom' }
   | { type: 'payRansom'; charId: number }
+  | { type: 'issueDecree'; decree: string }
+  | { type: 'revokeDecree'; decree: string }
+  | { type: 'resolvePetition'; petitionId: number; option: number }
+  | { type: 'houseAction'; houseId: number; action: 'grant' | 'suppress' | 'honour' }
   | { type: 'setResearch'; tech: string }
   | { type: 'queueResearch'; tech: string }
   | { type: 'dequeueResearch'; tech: string }
@@ -355,6 +360,30 @@ export function execute(state: GameState, empireId: number, cmd: Command): Comma
       e.stock.credits += price;
       releaseCaptive(state, c, `Ransomed back from the ${e.name} for ${price} credits.`);
       return { ok: true, message: `Ransomed for ${price} credits` };
+    }
+    case 'issueDecree': {
+      const why = canIssueDecree(state, e, cmd.decree);
+      if (why) return fail(why);
+      issueDecree(state, e, cmd.decree);
+      return OK;
+    }
+    case 'revokeDecree': {
+      if (!e.decrees?.some((d) => d.id === cmd.decree)) return fail('That decree is not in force');
+      revokeDecree(state, e, cmd.decree);
+      return OK;
+    }
+    case 'resolvePetition': {
+      const why = canResolvePetition(e, cmd.petitionId, cmd.option);
+      if (why) return fail(why);
+      resolvePetition(state, e, cmd.petitionId, cmd.option);
+      return OK;
+    }
+    case 'houseAction': {
+      const h = houseById(e, cmd.houseId);
+      const why = canActOnHouse(state, e, h, cmd.action);
+      if (why) return fail(why);
+      actOnHouse(state, e, h!, cmd.action);
+      return OK;
     }
     case 'payRansom': {
       const c = charById(state, cmd.charId);

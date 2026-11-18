@@ -129,7 +129,7 @@ function HeroDetail({ c }: { c: Character }) {
         <div className="grow">
           <h2 className="serif" style={{ margin: 0 }}>{c.name}</h2>
           <div className="muted">{ROLES[c.role].label}, level {c.level} of {MAX_LEVEL}. {ROLES[c.role].serves}.</div>
-          <div className="hint">{ROLES[c.role].description}</div>
+          <div className="hint">{ROLES[c.role].description}{c.houseId != null && g.empires[c.ownerId]?.houses?.find((h) => h.id === c.houseId) ? ` Of House ${g.empires[c.ownerId].houses!.find((h) => h.id === c.houseId)!.name}.` : ''}</div>
         </div>
       </div>
       <div className="stat-strip" style={{ marginTop: 12 }}>

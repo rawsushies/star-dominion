@@ -19,6 +19,8 @@ import { canAfford, log, nextId } from './util';
 import { charactersOf, captivesHeldBy, canLearn, rosterLimit, recruitCost, recruitChance, ransomPrice, provinceGovernor, effectiveAttrs } from './characters';
 import { SKILLS, ROLES } from './data/characters';
 import { COUNCIL_SEATS } from './data/council';
+import { canIssueDecree, canActOnHouse, inRevolt, maxDecrees } from './governance';
+import { PETITION_BY_ID } from './data/governance';
 import { next, chance } from './rng';
 import type { BuildingId, Empire, Fleet, GameState, PeaceTerm, Planet, ShipClass, TreatyType } from './types';
 import type { TechCategory } from './data/techs';
@@ -37,6 +39,7 @@ export function runAI(state: GameState, e: Empire) {
   operations(state, e);
   if (state.tick % 30 < 5) diplomacy(state, e);
   if (state.tick % 15 < 5) characters(state, e);
+  if (state.tick % 30 >= 10 && state.tick % 30 < 15) governance(state, e);
 }
 
 // ---------------------------------------------------------------- economy
@@ -639,5 +642,47 @@ function characters(state: GameState, e: Empire) {
   for (const c of state.characters) {
     if (c.status !== 'captive' || c.ownerId !== e.id) continue;
     if (e.stock.credits > ransomPrice(c) + 500) execute(state, e.id, { type: 'payRansom', charId: c.id });
+  }
+}
+
+// ---------------------------------------------------------------- governance
+
+function governance(state: GameState, e: Empire) {
+  const value = (r: Record<string, number> | undefined) => Object.entries(r ?? {}).reduce((a, [k, v]) => a + v * (k === 'influence' ? 4 : k === 'credits' ? 0.5 : 1), 0);
+  // answer the council's petitions
+  for (const p of [...(e.petitions ?? [])]) {
+    const def = PETITION_BY_ID[p.def];
+    const h = e.houses?.find((x) => x.id === p.houseId);
+    let best = -1, bestScore = -Infinity;
+    def.options.forEach((o, i) => {
+      if (Object.entries(o.cost ?? {}).some(([k, v]) => (e.stock[k as keyof typeof e.stock] ?? 0) < v * 2)) return;
+      const timed = o.timed ? Object.entries(o.timed.mods).reduce((a, [, v]) => a + v * 120, 0) : 0;
+      const sc = (o.house ?? 0) * ((h?.power ?? 30) / 40) * (h && h.loyalty < 40 ? 1.8 : 1) + (o.allHouses ?? 0) * 3 + (o.member ?? 0) * 0.6 + value(o.gain) * 0.1 - value(o.cost) * 0.06 + timed;
+      if (sc > bestScore) { bestScore = sc; best = i; }
+    });
+    if (best >= 0) execute(state, e.id, { type: 'resolvePetition', petitionId: p.id, option: best });
+  }
+  // keep the houses in hand
+  for (const h of e.houses ?? []) {
+    if (inRevolt(state, h) || h.loyalty < 30) {
+      if (!canActOnHouse(state, e, h, 'suppress') && (e.personality.aggression > 0.5 || inRevolt(state, h))) execute(state, e.id, { type: 'houseAction', houseId: h.id, action: 'suppress' });
+      else if (e.stock.influence > 60) execute(state, e.id, { type: 'houseAction', houseId: h.id, action: 'grant' });
+    }
+  }
+  // decrees
+  if ((e.decrees?.length ?? 0) >= maxDecrees(state, e) || e.stock.influence < 110) return;
+  const wants: string[] = [];
+  const stab = e.stats?.avgStability ?? 50;
+  if (stab < 40) wants.push('festival', 'martial_law', 'tax_relief');
+  if (state.wars.some((w) => w.attackers.includes(e.id) || w.defenders.includes(e.id))) wants.push('war_footing', 'conscription');
+  if (e.stock.credits < 200 && stab > 50 && !(e.houses ?? []).some((h) => h.ambition === 'low_taxes' && h.loyalty < 45)) wants.push('tax_levy');
+  if (e.personality.science > 0.5) wants.push('research_grant');
+  if (e.personality.mercantile > 0.5) wants.push('trade_charter');
+  if (e.personality.expansion > 0.5) wants.push('census');
+  wants.push('building_programme', 'forge_quotas');
+  for (const id of wants) {
+    if (canIssueDecree(state, e, id)) continue;
+    execute(state, e.id, { type: 'issueDecree', decree: id });
+    break;
   }
 }

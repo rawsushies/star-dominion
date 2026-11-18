@@ -211,6 +211,9 @@ export interface CapitalState {
   queue: CapitalJob[];
 }
 
+export interface ActiveDecree { id: string; until: number; strength: number }
+export interface Petition { id: number; def: string; houseId: number | null; memberId: number | null; sectorId: number | null; tick: number; expires: number }
+
 /** A noble house of the realm (sim/governance.ts). */
 export interface GreatHouse {
   id: number;
@@ -284,6 +287,12 @@ export interface Empire {
   capital?: CapitalState;
   /** great houses of the realm */
   houses?: GreatHouse[];
+  /** royal decrees in force */
+  decrees?: ActiveDecree[];
+  /** decree id -> tick from which it may be issued again */
+  decreeCooldowns?: Record<string, number>;
+  /** matters awaiting the council's decision */
+  petitions?: Petition[];
   /** civilisational era index (see data/eras.ts) */
   era: number;
   aiNextTick: number;
