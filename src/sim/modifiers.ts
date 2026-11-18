@@ -6,6 +6,7 @@ import { GOVERNMENTS, POLICY_BY_ID } from './data/governments';
 import { TECH_BY_ID } from './data/techs';
 import { MEGA_BY_ID } from './data/megastructures';
 import { ERAS } from './data/eras';
+import { councilMods, councilSig } from './characters';
 import type { Empire, GameState } from './types';
 
 export type Mods = Record<string, number>;
@@ -43,6 +44,7 @@ function signature(state: GameState, e: Empire, megas: { id: string; stage: numb
     state.settings.difficulty,
     e.isPlayer ? 1 : 0,
     e.era ?? 0,
+    councilSig(state, e),
   ].join('|');
 }
 
@@ -82,6 +84,7 @@ function compute(state: GameState, e: Empire) {
   }
   for (const m of megas) add(MEGA_BY_ID[m.id]?.modsPerStage, m.stage);
   for (let i = 1; i <= (e.era ?? 0) && i < ERAS.length; i++) add(ERAS[i].mods);
+  add(councilMods(state, e));
   for (const tm of e.timedMods) mods[tm.key] = (mods[tm.key] ?? 0) + tm.value;
   // Difficulty: AI bonuses (never applied to the player).
   if (!e.isPlayer && e.kind === 'major') {

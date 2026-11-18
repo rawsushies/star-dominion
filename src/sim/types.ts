@@ -165,11 +165,78 @@ export interface Fleet {
   retreatCooldown: number;
 }
 
-export interface Admiral {
+export type CharAssignment =
+  | { kind: 'fleet'; fleetId: number }
+  | { kind: 'province'; sectorId: number }
+  | { kind: 'planet'; planetId: number }
+  | { kind: 'envoy'; empireId: number }
+  | { kind: 'council'; seat: string };
+
+/** A notable person of a realm: commander, governor, scholar, envoy or agent. */
+export interface Character {
+  id: number;
+  /** realm the character serves (or, for a candidate, the realm they may join) */
+  ownerId: number;
+  /** realm the character was born to */
+  originId: number;
+  name: string;
+  role: import('./data/characters').CharRole;
+  level: number;
+  xp: number;
+  skillPoints: number;
+  skills: Record<string, number>;
+  attrs: Record<import('./data/characters').Attr, number>;
+  traits: string[];
+  loyalty: number;
+  ambition: { kind: import('./data/characters').AmbitionKind; unmetMonths: number };
+  status: 'candidate' | 'active' | 'captive' | 'dead' | 'retired';
+  /** realm holding a captive */
+  captorId?: number | null;
+  capturedTick?: number;
+  assignment: CharAssignment | null;
+  equipment: Partial<Record<import('./data/characters').EquipSlot, string>>;
+  born: number;
+  /** great house (governance) */
+  houseId?: number | null;
+  bio: { tick: number; text: string }[];
+  /** stats for the record */
+  record: { battlesWon: number; battlesLost: number; worldsTaken: number; monthsServed: number };
+}
+
+/** Imperial capital city (sim/capital.ts). */
+export interface CapitalBuilding { level: number; plot: number }
+export interface CapitalJob { building: string; toLevel: number; plot: number; progress: number; total: number }
+export interface CapitalState {
+  buildings: Record<string, CapitalBuilding>;
+  queue: CapitalJob[];
+}
+
+/** A noble house of the realm (sim/governance.ts). */
+export interface GreatHouse {
+  id: number;
+  name: string;
+  motto: string;
+  color: string;
+  /** influence at court and in the provinces, 0..100 */
+  power: number;
+  /** loyalty to the crown, 0..100 */
+  loyalty: number;
+  /** what the house wants */
+  ambition: 'seat' | 'war' | 'low_taxes' | 'province' | 'wealth' | 'piety';
+  /** months the current ambition has been ignored */
+  grievance: number;
+  /** provinces (sectors) where the house holds land */
+  provinces: number[];
+  /** tick until which the house is in open revolt (0 = at peace) */
+  revoltUntil: number;
+}
+
+/** @deprecated pre-character saves stored admirals separately; migrated on load. */
+export interface LegacyAdmiral {
   id: number;
   ownerId: number;
   name: string;
-  skill: number; // 1..10
+  skill: number;
   xp: number;
   trait: 'tactician' | 'aggressive' | 'logistician' | 'cautious' | 'gunner';
   fleetId: number | null;
@@ -209,6 +276,14 @@ export interface Empire {
   warExhaustion: number; // 0..100
   emblem: number; // emblem variant index
   ruler: string;
+  /** royal council: seat id -> character id */
+  council?: Record<string, number | null>;
+  /** commissioned or found equipment not yet worn */
+  armory?: string[];
+  /** imperial capital city */
+  capital?: CapitalState;
+  /** great houses of the realm */
+  houses?: GreatHouse[];
   /** civilisational era index (see data/eras.ts) */
   era: number;
   aiNextTick: number;
@@ -327,7 +402,7 @@ export interface GameState {
   planets: Planet[];
   empires: Empire[];
   fleets: Record<string, Fleet>;
-  admirals: Admiral[];
+  characters: Character[];
   opinions: Record<string, OpinionMemory[]>; // key "a>b" = how a feels about b
   treaties: Treaty[];
   wars: War[];

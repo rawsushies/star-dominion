@@ -9,27 +9,28 @@ import { armed, claimCost, hostileArmedPresence, isHostile, setSystemOwner, supp
 import { log, nextId, pay } from './util';
 import { range } from './rng';
 import { planetHab, computeLedger } from './economy';
-import type { Admiral, Empire, Fleet, GameState, Ship, ShipClass } from './types';
+import type { Empire, Fleet, GameState, Ship, ShipClass, Character } from './types';
+import { fleetLeader, fleetLeaderBonus, grantXp, unassign, type LeaderBonus } from './characters';
+import { ITEM_BY_ID } from './data/characters';
 
 export interface ShipStats {
   hull: number; armor: number; shields: number; damage: number; strike: number;
   tracking: number; evasion: number; speed: number; pd: number; pierce: number;
 }
 
-export function shipStats(state: GameState, e: Empire, cls: ShipClass, admiral?: Admiral | null): ShipStats {
+/** Effective ship stats for an empire, optionally with a fleet leader's bonuses. */
+export function shipStats(state: GameState, e: Empire, cls: ShipClass, leader?: LeaderBonus | null): ShipStats {
   const d = SHIPS[cls];
   const m = empireMods(state, e);
   let dmgMult = 1 + mod(m, 'shipDamage');
   let tracking = d.tracking + mod(m, 'tracking');
   let evasion = d.evasion + mod(m, 'evasion');
   let speed = d.speed * (1 + mod(m, 'shipSpeed'));
-  if (admiral) {
-    dmgMult += admiral.skill * 0.03;
-    tracking += admiral.skill * 0.008;
-    if (admiral.trait === 'gunner') dmgMult += 0.1;
-    if (admiral.trait === 'aggressive') dmgMult += 0.12;
-    if (admiral.trait === 'tactician') evasion += 0.05;
-    if (admiral.trait === 'logistician') speed *= 1.1;
+  if (leader) {
+    dmgMult += leader.dmg;
+    tracking += leader.tracking;
+    evasion += leader.evasion;
+    speed *= 1 + leader.speed;
   }
   return {
     hull: d.hull * (1 + mod(m, 'shipHull')),
@@ -45,16 +46,16 @@ export function shipStats(state: GameState, e: Empire, cls: ShipClass, admiral?:
   };
 }
 
-export function admiralOf(state: GameState, f: Fleet): Admiral | null {
-  if (f.admiralId == null) return null;
-  return state.admirals.find((a) => a.id === f.admiralId && a.alive) ?? null;
+/** The character leading a fleet (admiral, general or explorer), if any. */
+export function admiralOf(state: GameState, f: Fleet): Character | null {
+  return fleetLeader(state, f);
 }
 
 export function fleetSpeed(state: GameState, f: Fleet): number {
   const e = state.empires[f.ownerId];
-  const adm = admiralOf(state, f);
+  const lb = fleetLeaderBonus(state, f);
   let s = Infinity;
-  for (const sh of f.ships) s = Math.min(s, shipStats(state, e, sh.cls, adm).speed);
+  for (const sh of f.ships) s = Math.min(s, shipStats(state, e, sh.cls, lb).speed);
   return s === Infinity ? 0 : s;
 }
 
@@ -62,7 +63,7 @@ export function fleetSpeed(state: GameState, f: Fleet): number {
 export function fleetPower(state: GameState, f: Fleet): number {
   const e = state.empires[f.ownerId];
   if (!e) return 0;
-  const adm = admiralOf(state, f);
+  const adm = fleetLeaderBonus(state, f);
   let dmg = 0;
   let hp = 0;
   for (const sh of f.ships) {
@@ -118,10 +119,8 @@ export function ordinal(n: number): string {
 }
 
 export function removeFleet(state: GameState, f: Fleet) {
-  if (f.admiralId != null) {
-    const a = state.admirals.find((x) => x.id === f.admiralId);
-    if (a) a.fleetId = null;
-  }
+  const leader = fleetLeader(state, f);
+  if (leader) unassign(state, leader);
   delete state.fleets[f.id];
 }
 
@@ -183,15 +182,20 @@ function arrive(state: GameState, f: Fleet) {
 function discover(state: GameState, e: Empire, f: Fleet) {
   const sys = state.galaxy.systems[f.systemId];
   if (e.kind !== 'major') return;
+  const disc = 1 + fleetLeaderBonus(state, f).discovery;
+  const lead = fleetLeader(state, f);
+  if (lead) grantXp(state, lead, 25);
   if (sys.features.includes('derelict')) {
-    const gain = 60 + Math.round(range(state.rng, 0, 80));
+    const gain = Math.round((60 + range(state.rng, 0, 80)) * disc);
+    if (range(state.rng, 0, 1) < 0.25 * disc) { (e.armory ??= []).push('derelict_charts'); log(state, { kind: 'discovery', severity: 'good', title: 'Star charts recovered', text: `${f.name} recovered ${ITEM_BY_ID.derelict_charts.label.toLowerCase()} from a derelict in ${sys.name}. It waits in your armoury.`, empires: [e.id], systemId: sys.id }); }
     e.stock.alloys += gain;
     sys.features = sys.features.filter((x) => x !== 'derelict');
     log(state, { kind: 'discovery', severity: 'good', title: 'Derelict salvaged', text: `${f.name} stripped a derelict hulk in ${sys.name} for ${gain} alloys.`, empires: [e.id], systemId: sys.id });
   }
   if (sys.features.includes('ancient_ruins') && !sys.ruinsSurveyed && !sys.features.includes('guardian')) {
     sys.ruinsSurveyed = true;
-    const rp = 150 + Math.round(range(state.rng, 0, 200));
+    const rp = Math.round((150 + range(state.rng, 0, 200)) * disc);
+    if (range(state.rng, 0, 1) < 0.3 * disc) { (e.armory ??= []).push('precursor_shard'); log(state, { kind: 'discovery', severity: 'good', title: 'Precursor shard found', text: `Among the ruins of ${sys.name} lay a ${ITEM_BY_ID.precursor_shard.label.toLowerCase()}. It waits in your armoury.`, empires: [e.id], systemId: sys.id }); }
     e.research.progress += rp;
     log(state, { kind: 'discovery', severity: 'good', title: 'Ancient ruins surveyed', text: `Survey teams decoded precursor archives in ${sys.name}: +${rp} research toward current project.`, empires: [e.id], systemId: sys.id });
   }
@@ -208,7 +212,7 @@ export function supplyAndRepair(state: GameState, engaged: Set<number>) {
     if (!net) { net = supplyNetwork(state, f.ownerId); nets.set(f.ownerId, net); }
     const m = empireMods(state, e);
     const inSupply = net.has(f.systemId) && f.progress === 0;
-    const adm = admiralOf(state, f);
+    const lb = fleetLeaderBonus(state, f);
     const hasTender = f.ships.some((s) => SHIPS[s.cls].supplyAura);
     if (armed(f) && f.progress === 0) state.patrolled[`${f.ownerId}:${f.systemId}`] = state.tick;
     if (inSupply) {
@@ -216,13 +220,13 @@ export function supplyAndRepair(state: GameState, engaged: Set<number>) {
     } else {
       let drain = 1.4 * (1 + mod(m, 'supplyDrain'));
       if (hasTender) drain *= 0.35;
-      if (adm?.trait === 'logistician') drain *= 0.6;
+      drain *= Math.max(0.2, 1 + lb.supply);
       f.supply = Math.max(0, f.supply - drain);
     }
     if (engaged.has(f.id)) continue;
     const repairRate = (inSupply ? 0.04 : hasTender ? 0.015 : 0) * (1 + mod(m, 'repair'));
     for (const s of f.ships) {
-      const st = shipStats(state, e, s.cls, adm);
+      const st = shipStats(state, e, s.cls, lb);
       if (repairRate > 0) {
         s.hull = Math.min(st.hull, s.hull + st.hull * repairRate);
         s.armor = Math.min(st.armor, (s.armor ?? st.armor) + st.armor * repairRate);
@@ -347,14 +351,17 @@ function tryInvade(state: GameState, f: Fleet, planetId: number) {
   const rep = computeLedger(state, defender).planets[planetId];
   const garrison = rep?.garrison ?? 4;
   const shield = (c.buildings.planetary_shield ?? 0) > 0 ? 0.6 : 1;
-  const att = f.troops * range(state.rng, 0.85, 1.15) * shield * (f.supply > 0 ? 1 : 0.7);
+  const general = fleetLeader(state, f);
+  const att = f.troops * (1 + fleetLeaderBonus(state, f).troops) * range(state.rng, 0.85, 1.15) * shield * (f.supply > 0 ? 1 : 0.7);
   const def = garrison * range(state.rng, 0.85, 1.15);
   // Transports land; they are consumed either way.
   f.ships = f.ships.filter((s) => s.cls !== 'transport');
   const landed = f.troops;
   f.troops = 0;
   f.order = { type: 'idle' };
+  if (general) grantXp(state, general, att > def ? 60 : 20);
   if (att > def) {
+    if (general) { general.record.worldsTaken++; general.bio.push({ tick: state.tick, text: `Led the capture of ${p.name}.` }); }
     conquerPlanet(state, planetId, f.ownerId);
     log(state, { kind: 'invasion', severity: e.isPlayer ? 'good' : 'danger', title: `${p.name} captured`, text: `${e.name} landed ${Math.round(landed)} divisions and overwhelmed a garrison of ${Math.round(garrison)}.`, empires: [f.ownerId, defender.id], planetId, systemId: p.systemId });
   } else {

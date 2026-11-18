@@ -13,6 +13,7 @@ import { IntelScreen } from './Intel';
 import { ConstructionScreen } from './Construction';
 import { TradeScreen } from './Trade';
 import { JournalScreen } from './Journal';
+import { HeroesScreen } from './Heroes';
 
 export const SCREENS: Record<Exclude<ScreenId, 'map'>, ComponentType> = {
   kingdom: KingdomScreen,
@@ -29,4 +30,5 @@ export const SCREENS: Record<Exclude<ScreenId, 'map'>, ComponentType> = {
   construction: ConstructionScreen,
   trade: TradeScreen,
   journal: JournalScreen,
+  heroes: HeroesScreen,
 };

@@ -51,6 +51,7 @@ These Firebase web keys identify the project and are not secrets. Access is cont
 - **Era:** edit `src/sim/data/eras.ts`. Requirements are declarative and are evaluated by `src/sim/eras.ts`.
 - **Building, ship or megastructure:** add it to the matching file in `src/sim/data/`. Construction and the AI pick it up from the data.
 - **Command:** extend the `Command` union and the `execute()` switch in `src/sim/commands.ts`. Validate there, never in the UI.
+- **Character content:** roles, traits, skills, ambitions and items live in `src/sim/data/characters.ts`; council seats in `src/sim/data/council.ts`. Effects are named keys (`dmg`, `output`, `stability`…) read by `src/sim/characters.ts`.
 - **Screen:** create it in `src/ui/screens/`, register it in `screens/index.ts`, `ScreenId` (`store.ts`), `NAV` (`Chrome.tsx`), the neocom groups (`Hud.tsx`) and the icons (`icons.tsx`). Wrap it in `<Sheet>` so it renders inside a window.
 
 ## Conventions
@@ -75,7 +76,7 @@ This log is updated at each milestone, so work can resume after any interruption
 |---|---|---|---|
 | 1 | Energy-based Kardashev index (`sim/power.ts`) | Done | `tests/power.test.ts`; 30-year soak: realms at K 0.80–0.88, one reaches Type I (K 1.07) |
 | 2 | 3D barred-spiral galaxy, 10,000 systems, 3D renderer and navigation | Done | `tests/galaxy3d.test.ts` (connectivity, structure, sectors, A* optimality, lazy-body determinism, 10k simulation under 20 ms/day); Playwright: picking, double-click to enter, zoom and pan |
-| 3 | Characters and Hall of Heroes | In progress | |
+| 3 | Characters and Hall of Heroes | Done | `tests/characters.test.ts` (8): founding court, v1 legacy-admiral migration, validated recruit/assign/learn/dismiss, roster limit, council and leader modifiers, salaries, capture with pardon/ransom/recruit and peace-time exchange, AI keeps posts filled over 3 years; Playwright: recruit and assign in the Hall of Heroes |
 | 4 | Governance: council, decrees, houses, provinces | Pending | |
 | 5 | Imperial capital builder | Pending | |
 | 6 | Resource operations and logistics | Pending | |

@@ -8,6 +8,7 @@
 import { DEFENSE_PLATFORM, SHIPS, STARBASE, type HullSize } from './data/ships';
 import { empireMods, mod } from './modifiers';
 import { admiralOf, adjustWarScoreForEvent, removeFleet, routeFleet, shipStats } from './fleets';
+import { fleetLeaderBonus, grantXp, leaderOfLostFleet } from './characters';
 import { armed, friends, isHostile, setSystemOwner } from './territory';
 import { costValue, log, nextId } from './util';
 import { range, weighted, chance } from './rng';
@@ -97,7 +98,7 @@ function fightAt(state: GameState, sid: number, fleets: Fleet[], engaged: Set<nu
   const units: Unit[] = [];
   const addFleet = (f: Fleet, side: 0 | 1) => {
     const e = state.empires[f.ownerId];
-    const adm = admiralOf(state, f);
+    const adm = fleetLeaderBonus(state, f);
     const supplyMult = f.supply > 0 ? 1 : 0.7;
     for (const s of f.ships) {
       const d = SHIPS[s.cls];
@@ -285,20 +286,16 @@ function fightAt(state: GameState, sid: number, fleets: Fleet[], engaged: Set<nu
     const other = s === 0 ? 1 : 0;
     for (const w of sides[other]) for (const l of sides[s]) adjustWarScoreForEvent(state, w, l, Math.min(12, lostValue[s] / 250));
   }
-  // Remove empty fleets, kill admirals of destroyed fleets
+  // Remove empty fleets; their leaders are captured, killed or escape
   for (const f of fleets) {
     if (state.fleets[f.id] && f.ships.length === 0) {
-      const adm = admiralOf(state, f);
-      if (adm && chance(state.rng, 0.5)) {
-        adm.alive = false;
-        log(state, { kind: 'admiral', severity: 'danger', title: `Admiral ${adm.name} killed`, text: `Lost with the ${f.name} at ${sys.name}.`, empires: [f.ownerId], systemId: sid });
-      }
+      const foes = side0.has(f.ownerId) ? sides[1] : sides[0];
+      const captor = foes.find((id) => state.empires[id]?.kind === 'major') ?? foes.find((id) => state.empires[id]?.kind === 'minor') ?? null;
+      leaderOfLostFleet(state, f, captor);
       removeFleet(state, f);
-    } else if (adm(f)) {
-      // admirals gain experience from battle
-      const a = admiralOf(state, f)!;
-      a.xp += 1;
-      if (a.xp >= a.skill * 12 && a.skill < 10) { a.skill++; a.xp = 0; }
+    } else {
+      const lead = admiralOf(state, f);
+      if (lead) grantXp(state, lead, 6);
     }
   }
   // Retreat: badly outmatched non-aggressive fleets disengage toward friendly space.
@@ -314,7 +311,7 @@ function fightAt(state: GameState, sid: number, fleets: Fleet[], engaged: Set<nu
     const outmatched = theirs > 0 && mine / theirs < (f.stance === 'aggressive' ? 0.15 : 0.45);
     const a = admiralOf(state, f);
     if ((civ || outmatched || f.stance === 'passive') && f.retreatCooldown <= 0 && theirs > 0) {
-      if (a?.trait === 'cautious' || civ || chance(state.rng, 0.6)) retreat(state, f);
+      if ((a && fleetLeaderBonus(state, f).retreat) || civ || chance(state.rng, 0.6)) retreat(state, f);
     }
   }
   // Conclusion
@@ -323,10 +320,17 @@ function fightAt(state: GameState, sid: number, fleets: Fleet[], engaged: Set<nu
   if (!left0 || !left1) {
     rep.ongoing = false;
     rep.winner = left0 && !left1 ? 0 : left1 && !left0 ? 1 : -1;
+    if (rep.winner >= 0) {
+      const winners = new Set(rep.winner === 0 ? sides[0] : sides[1]);
+      for (const f of fleets) {
+        if (!state.fleets[f.id] || !winners.has(f.ownerId)) continue;
+        const lead = admiralOf(state, f);
+        if (lead) { lead.record.battlesWon++; grantXp(state, lead, 40); lead.bio.push({ tick: state.tick, text: `Won a battle at ${sys.name}.` }); }
+      }
+    }
     concludeLog(state, rep);
     captureIfUndefended(state, sid);
   }
-  function adm(f: Fleet) { return admiralOf(state, f) != null; }
 }
 
 function concludeLog(state: GameState, rep: BattleReport) {

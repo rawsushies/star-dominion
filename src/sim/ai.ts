@@ -16,6 +16,9 @@ import { empireMods, hasTech } from './modifiers';
 import { planetHab } from './economy';
 import { adjacency, jumpDistances, findPath } from './galaxy';
 import { canAfford, log, nextId } from './util';
+import { charactersOf, captivesHeldBy, canLearn, rosterLimit, recruitCost, recruitChance, ransomPrice, provinceGovernor, effectiveAttrs } from './characters';
+import { SKILLS, ROLES } from './data/characters';
+import { COUNCIL_SEATS } from './data/council';
 import { next, chance } from './rng';
 import type { BuildingId, Empire, Fleet, GameState, PeaceTerm, Planet, ShipClass, TreatyType } from './types';
 import type { TechCategory } from './data/techs';
@@ -33,6 +36,7 @@ export function runAI(state: GameState, e: Empire) {
   }
   operations(state, e);
   if (state.tick % 30 < 5) diplomacy(state, e);
+  if (state.tick % 15 < 5) characters(state, e);
 }
 
 // ---------------------------------------------------------------- economy
@@ -245,13 +249,6 @@ function military(state: GameState, e: Empire) {
     if (fs.length < 2) continue;
     fs.sort((a, b) => b.ships.length - a.ships.length);
     for (const o of fs.slice(1)) execute(state, e.id, { type: 'mergeFleets', fleetId: fs[0].id, otherId: o.id });
-  }
-  const admirals = state.admirals.filter((a) => a.ownerId === e.id && a.alive);
-  const main = mainFleet(state, e);
-  if (main && main.admiralId == null) {
-    const free = admirals.find((a) => a.fleetId == null || !state.fleets[a.fleetId]);
-    if (free) execute(state, e.id, { type: 'assignAdmiral', fleetId: main.id, admiralId: free.id });
-    else if (e.stock.credits > 600 && admirals.length < 3) execute(state, e.id, { type: 'recruitAdmiral' });
   }
 }
 
@@ -546,3 +543,101 @@ export function runRaiders(state: GameState) {
 }
 
 export { BUILDINGS };
+
+// ---------------------------------------------------------------- characters
+
+/** AI realms manage their people with the same commands as the player:
+ *  fill the council and the main fleet, recruit for empty posts, appoint
+ *  governors, spend skill points and deal with prisoners. */
+function characters(state: GameState, e: Empire) {
+  const mine = () => charactersOf(state, e.id);
+  const idle = (roles: string[]) => mine().filter((c) => !c.assignment && roles.includes(c.role));
+  const score = (c: { role: keyof typeof ROLES }, attrs: Record<string, number>) => ROLES[c.role].primary.reduce((s, a, i) => s + attrs[a] * (3 - i), 0);
+  const best = <T extends import('./types').Character>(list: T[]) => list.slice().sort((a, b) => score(b, effectiveAttrs(b)) - score(a, effectiveAttrs(a)))[0];
+
+  // spend skill points: cheapest available skill in order of definition
+  for (const c of mine()) {
+    while (c.skillPoints > 0) {
+      const s = SKILLS.find((k) => k.role === c.role && !canLearn(c, k.id));
+      if (!s) break;
+      if (!execute(state, e.id, { type: 'learnSkill', charId: c.id, skill: s.id }).ok) break;
+    }
+  }
+
+  // council seats
+  e.council ??= {};
+  for (const seat of COUNCIL_SEATS) {
+    if (e.council[seat.id] != null && state.characters.find((c) => c.id === e.council![seat.id] && c.status === 'active')) continue;
+    const c = best(idle(seat.roles));
+    if (c) execute(state, e.id, { type: 'assignCharacter', charId: c.id, assignment: { kind: 'council', seat: seat.id } });
+  }
+
+  // main fleet commander
+  const main = mainFleet(state, e);
+  if (main && !mine().some((c) => c.assignment?.kind === 'fleet' && c.assignment.fleetId === main.id)) {
+    const c = best(idle(['admiral']));
+    if (c) execute(state, e.id, { type: 'assignCharacter', charId: c.id, assignment: { kind: 'fleet', fleetId: main.id } });
+  }
+  // other war fleets get any remaining admirals or generals
+  for (const f of Object.values(state.fleets)) {
+    if (f.ownerId !== e.id || isCivilianFleet(f) || f.id === main?.id) continue;
+    if (mine().some((c) => c.assignment?.kind === 'fleet' && c.assignment.fleetId === f.id)) continue;
+    const c = best(idle(['admiral', 'general']));
+    if (!c) break;
+    execute(state, e.id, { type: 'assignCharacter', charId: c.id, assignment: { kind: 'fleet', fleetId: f.id } });
+  }
+
+  // governors: the province with most colonies first
+  const sectorWeight = new Map<number, number>();
+  for (const p of state.planets) {
+    if (p.colony?.ownerId !== e.id) continue;
+    const sec = state.galaxy.systems[p.systemId]?.sector;
+    if (sec != null) sectorWeight.set(sec, (sectorWeight.get(sec) ?? 0) + 1);
+  }
+  for (const [sec] of [...sectorWeight].sort((a, b) => b[1] - a[1])) {
+    if (provinceGovernor(state, e.id, sec)) continue;
+    const c = best(idle(['governor']));
+    if (!c) break;
+    execute(state, e.id, { type: 'assignCharacter', charId: c.id, assignment: { kind: 'province', sectorId: sec } });
+  }
+
+  // industrialists to the most developed world; diplomats to the most important court
+  for (const c of idle(['industrialist'])) {
+    const world = state.planets.filter((p) => p.colony?.ownerId === e.id && !mine().some((x) => x.assignment?.kind === 'planet' && x.assignment.planetId === p.id))
+      .sort((a, b) => b.colony!.pops - a.colony!.pops)[0];
+    if (!world) break;
+    execute(state, e.id, { type: 'assignCharacter', charId: c.id, assignment: { kind: 'planet', planetId: world.id } });
+  }
+  for (const c of idle(['diplomat'])) {
+    const court = state.empires.filter((t) => t.alive && t.id !== e.id && (t.kind === 'major' || t.kind === 'minor') && hasContact(state, e.id, t.id)
+      && !warBetween(state, e.id, t.id) && !mine().some((x) => x.assignment?.kind === 'envoy' && x.assignment.empireId === t.id))[0];
+    if (!court) break;
+    execute(state, e.id, { type: 'assignCharacter', charId: c.id, assignment: { kind: 'envoy', empireId: court.id } });
+  }
+
+  // recruit for the most pressing gap, if the purse allows
+  if (mine().length < rosterLimit(state, e)) {
+    const want: string[] = [];
+    for (const seat of COUNCIL_SEATS) if (e.council[seat.id] == null) want.push(...seat.roles);
+    if (main && !mine().some((c) => c.role === 'admiral')) want.unshift('admiral');
+    if (sectorWeight.size > mine().filter((c) => c.role === 'governor').length) want.push('governor');
+    const cands = state.characters.filter((c) => c.status === 'candidate' && c.ownerId === e.id && want.includes(c.role));
+    const pickC = cands.sort((a, b) => want.indexOf(a.role) - want.indexOf(b.role) || b.level - a.level)[0];
+    if (pickC) {
+      const cost = recruitCost(pickC);
+      if (e.stock.credits > cost.credits + 300 && e.stock.influence > cost.influence + 20) execute(state, e.id, { type: 'recruitCharacter', charId: pickC.id });
+    }
+  }
+
+  // prisoners we hold: recruit a willing one, ransom the rest after a while
+  for (const c of captivesHeldBy(state, e.id)) {
+    const held = state.tick - (c.capturedTick ?? state.tick);
+    if (mine().length < rosterLimit(state, e) && recruitChance(state, c) >= 0.5) execute(state, e.id, { type: 'captive', charId: c.id, action: 'recruit' });
+    else if (held > 360) execute(state, e.id, { type: 'captive', charId: c.id, action: held > 720 ? 'pardon' : 'ransom' });
+  }
+  // our people held abroad: buy them back when rich
+  for (const c of state.characters) {
+    if (c.status !== 'captive' || c.ownerId !== e.id) continue;
+    if (e.stock.credits > ransomPrice(c) + 500) execute(state, e.id, { type: 'payRansom', charId: c.id });
+  }
+}

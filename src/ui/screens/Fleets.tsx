@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useUI, useGame } from '../store';
 import { SHIPS, SHIP_ORDER } from '../../sim/data/ships';
-import { fleetPower, admiralOf, shipStats, fleetSpeed, fleetCommand } from '../../sim/fleets';
-import { ADMIRAL_COST } from '../../sim/commands';
+import { fleetPower, shipStats, fleetSpeed, fleetCommand } from '../../sim/fleets';
+import { charactersOf, fleetLeaderBonus, describeAssignment } from '../../sim/characters';
+import { ROLES, TRAIT_BY_ID } from '../../sim/data/characters';
 import { getLedger } from '../../sim/engine';
 import { costValue } from '../../sim/util';
-import { Sheet, Section, Meter, CostView, cls, fmt } from '../components/common';
+import { Sheet, Section, Meter, cls, fmt } from '../components/common';
 import { orderText } from '../components/ContextPanel';
 import { focusSystem } from '../components/MapView';
 import type { Fleet } from '../../sim/types';
@@ -17,7 +18,7 @@ export function FleetsScreen() {
   const L = getLedger(g, me);
   const fleets = Object.values(g.fleets).filter((f) => f.ownerId === g.playerId).sort((a, b) => fleetPower(g, b) - fleetPower(g, a));
   const sel = fleets.find((f) => f.id === ui.fleetId) ?? fleets[0];
-  const admirals = g.admirals.filter((a) => a.ownerId === g.playerId && a.alive);
+  const admirals = charactersOf(g, g.playerId).filter((c) => ['admiral', 'general', 'explorer'].includes(c.role));
   return (
     <Sheet title="Fleet management" lede={`${fleets.length} fleets, ${fleets.reduce((a, f) => a + f.ships.length, 0)} ships. Naval capacity ${L.navalUsed}/${L.navalCap}.`}>
       <div className="cols side">
@@ -32,15 +33,15 @@ export function FleetsScreen() {
               </div>
             ))}
           </div>
-          <Section title="Admiralty" aside={`${admirals.length}/6`}>
+          <Section title="Commanders" aside={`${admirals.length}`}>
             {admirals.map((a) => (
               <div key={a.id} className="row between" style={{ padding: '3px 0' }}>
-                <span>Admiral {a.name} <span className="faint">· skill {a.skill} · {a.trait}</span></span>
-                <span className="hint">{a.fleetId != null && g.fleets[a.fleetId] ? g.fleets[a.fleetId].name : 'Unassigned'}</span>
+                <span>{ROLES[a.role].label} {a.name} <span className="faint">· level {a.level}</span></span>
+                <span className="hint">{a.assignment ? describeAssignment(g, a.assignment) : 'Unassigned'}</span>
               </div>
             ))}
-            <div className="row" style={{ marginTop: 6 }}><button className="btn small" onClick={() => ui.cmd({ type: 'recruitAdmiral' })}>Recruit admiral</button><CostView cost={ADMIRAL_COST} empire={me} /></div>
-            <p className="hint">Admirals add 3% damage per skill level plus a trait. They gain skill in battle and may die with their fleet.</p>
+            <div className="row" style={{ marginTop: 6 }}><button className="btn small" onClick={() => ui.set({ screen: 'heroes' })}>Open Hall of Heroes</button></div>
+            <p className="hint">Admirals raise damage, accuracy and evasion; generals strengthen invasions; explorers extend survey fleets. Recruit and train them in the Hall of Heroes.</p>
           </Section>
         </div>
         {sel ? <FleetDetail f={sel} /> : <div className="empty">No fleets. Build ships at a shipyard.</div>}
@@ -55,8 +56,8 @@ function FleetDetail({ f }: { f: Fleet }) {
   const e = g.empires[f.ownerId];
   const [name, setName] = useState(f.name);
   const [picked, setPicked] = useState<number[]>([]);
-  const adm = admiralOf(g, f);
-  const admirals = g.admirals.filter((a) => a.ownerId === g.playerId && a.alive);
+  const admirals = charactersOf(g, g.playerId).filter((c) => ['admiral', 'general', 'explorer'].includes(c.role));
+  const lb = fleetLeaderBonus(g, f);
   const counts: Record<string, number> = Object.create(null);
   for (const s of f.ships) counts[s.cls] = (counts[s.cls] ?? 0) + 1;
   let upkeep = 0, value = 0;
@@ -83,7 +84,7 @@ function FleetDetail({ f }: { f: Fleet }) {
               <thead><tr><th></th><th>Class</th><th>Hull &amp; armour</th><th className="n">Shields</th><th className="n">XP</th></tr></thead>
               <tbody>
                 {f.ships.slice().sort((a, b) => SHIP_ORDER.indexOf(a.cls) - SHIP_ORDER.indexOf(b.cls)).map((s) => {
-                  const st = shipStats(g, e, s.cls, adm);
+                  const st = shipStats(g, e, s.cls, lb);
                   const on = picked.includes(s.id);
                   return (
                     <tr key={s.id} className={cls('click', on && 'sel')} onClick={() => setPicked(on ? picked.filter((x) => x !== s.id) : [...picked, s.id])}>
@@ -109,10 +110,10 @@ function FleetDetail({ f }: { f: Fleet }) {
           </Section>
           <Section title="Command">
             <div className="field">
-              <label htmlFor="adm">Admiral</label>
+              <label htmlFor="adm">Commander</label>
               <select id="adm" value={f.admiralId ?? ''} onChange={(ev) => ui.cmd({ type: 'assignAdmiral', fleetId: f.id, admiralId: ev.target.value === '' ? null : +ev.target.value })}>
                 <option value="">None</option>
-                {admirals.map((a) => <option key={a.id} value={a.id}>{a.name} — skill {a.skill}, {a.trait}{a.fleetId != null && a.fleetId !== f.id && g.fleets[a.fleetId] ? ` (commands ${g.fleets[a.fleetId].name})` : ''}</option>)}
+                {admirals.map((a) => <option key={a.id} value={a.id}>{ROLES[a.role].label} {a.name}, level {a.level}{a.traits.length ? ', ' + a.traits.map((t) => TRAIT_BY_ID[t]?.label ?? t).join(', ') : ''}{a.assignment && !(a.assignment.kind === 'fleet' && a.assignment.fleetId === f.id) ? ` (${describeAssignment(g, a.assignment)})` : ''}</option>)}
               </select>
             </div>
             <div className="field">

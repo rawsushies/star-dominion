@@ -3,6 +3,7 @@ import { useUI, useGame } from '../store';
 import { STAR_TYPES, PLANET_TYPES } from '../../sim/data/planets';
 import { SHIPS, STARBASE, SHIP_ORDER } from '../../sim/data/ships';
 import { MEGA_BY_ID } from '../../sim/data/megastructures';
+import { TRAIT_BY_ID } from '../../sim/data/characters';
 import { planetHab } from '../../sim/economy';
 import { empireMods } from '../../sim/modifiers';
 import { claimCost, visibleSystems, isHostile } from '../../sim/territory';
@@ -279,7 +280,7 @@ function FleetCtx({ f }: { f: Fleet }) {
         {own && <><span>Supply</span><span className={f.supply < 25 ? 'neg' : ''}>{Math.round(f.supply)}%</span></>}
         {own && <><span>Speed</span><span>{fleetSpeed(g, f).toFixed(1)} ly/day</span></>}
         {f.troops > 0 && <><span>Embarked troops</span><span>{f.troops} divisions</span></>}
-        {own && <><span>Admiral</span><span>{adm ? `${adm.name} (skill ${adm.skill}, ${adm.trait})` : 'None'}</span></>}
+        {own && <><span>Admiral</span><span>{adm ? `${adm.name} (level ${adm.level}${adm.traits.length ? ', ' + adm.traits.map((t) => TRAIT_BY_ID[t]?.label ?? t).join(', ') : ''})` : 'None'}</span></>}
       </div>
       {(own || intel > 40) && (
         <Section title="Composition">

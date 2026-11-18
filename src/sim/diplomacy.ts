@@ -5,6 +5,7 @@
 import { bordering, hasTreaty, ownedSystems, warBetween, visibleSystems, setSystemOwner } from './territory';
 import { empireMods, mod } from './modifiers';
 import { log, nextId } from './util';
+import { releaseCaptive } from './characters';
 import { BUILDINGS } from './data/buildings';
 import type { DealItem, Empire, GameState, PeaceTerm, Proposal, TreatyType, War, BuildingId } from './types';
 
@@ -377,12 +378,22 @@ export function makePeace(state: GameState, war: War, term: PeaceTerm, winnerSid
     candidates.sort((x, y) => systemValue(state, y) - systemValue(state, x));
     for (const sid of candidates.slice(0, 3)) transferSystem(state, sid, ll, wl);
   }
+  // prisoners of war go home under the treaty
+  const sides = new Set([...war.attackers, ...war.defenders]);
+  let exchanged = 0;
+  for (const c of state.characters) {
+    if (c.status !== 'captive' || c.captorId == null || !sides.has(c.captorId) || !sides.has(c.ownerId)) continue;
+    const captorAttacker = war.attackers.includes(c.captorId);
+    if (captorAttacker === war.attackers.includes(c.ownerId)) continue;
+    releaseCaptive(state, c, `Returned home in the prisoner exchange that ended the ${war.name}.`);
+    exchanged++;
+  }
   state.wars = state.wars.filter((w) => w !== war);
   for (const a of war.attackers) for (const d of war.defenders) state.truces.push({ a, b: d, until: state.tick + 360 * 5 });
   for (const id of [...war.attackers, ...war.defenders]) state.empires[id].warExhaustion *= 0.5;
   log(state, {
     kind: 'peace', severity: 'good', title: `Peace: ${war.name}`,
-    text: `Terms — ${PEACE_LABEL[term]}${term !== 'status_quo' ? ` (${state.empires[ll].name} to ${state.empires[wl].name})` : ''}. A five-year truce begins.`,
+    text: `Terms — ${PEACE_LABEL[term]}${term !== 'status_quo' ? ` (${state.empires[ll].name} to ${state.empires[wl].name})` : ''}. A five-year truce begins.${exchanged ? ` ${exchanged} prisoner${exchanged > 1 ? 's were' : ' was'} exchanged.` : ''}`,
     empires: [],
   });
 }

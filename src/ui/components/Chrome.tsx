@@ -13,6 +13,7 @@ export const NAV: { id: ScreenId; label: string; key?: string }[] = [
   { id: 'planets', label: 'Planets' },
   { id: 'system', label: 'Systems' },
   { id: 'fleets', label: 'Fleets' },
+  { id: 'heroes', label: 'Hall of Heroes' },
   { id: 'military', label: 'Military' },
   { id: 'economy', label: 'Economy' },
   { id: 'industry', label: 'Industry' },

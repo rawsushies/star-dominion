@@ -10,6 +10,7 @@ import { MEGA_BY_ID } from './data/megastructures';
 import { empireMods, hasFlag, mod, type Mods } from './modifiers';
 import { findPath } from './galaxy';
 import { RESOURCES, type BuildingId, type Colony, type Empire, type GameState, type Planet, type ResId } from './types';
+import { governorBonus, industrialistBonus, charactersOf, salary } from './characters';
 import { supplyNetwork, hostileArmedPresence, isHostile, adminCapacity, ownedSystems } from './territory';
 
 export type LedgerKey = ResId | 'research';
@@ -205,6 +206,11 @@ export function computeLedger(state: GameState, e: Empire): Ledger {
     add(r as ResId, 'Fleet upkeep', -(shipUpkeep[r as ResId] ?? 0) * (1 + mod(mods, 'upkeepShips')) * (1 + overNaval));
   }
 
+  // Pay for the realm's notable people
+  let pay = 0;
+  for (const ch of charactersOf(state, e.id)) pay += salary(ch);
+  add('credits', 'Officer and court salaries', -pay);
+
   // Policies
   for (const pid in e.policies) {
     const def = POLICY_BY_ID[pid];
@@ -322,10 +328,13 @@ function colonyReport(state: GameState, e: Empire, p: Planet, c: Colony, mods: M
   if (!connected) sf.push(['Cut off from the realm', -10]);
   if (c.resistance > 0) sf.push(['Occupation resistance', -c.resistance * 0.35]);
   if (hab < 0.6) sf.push(['Hostile environment', -Math.round((0.6 - hab) * 20)]);
+  const gov = governorBonus(state, e.id, sys.sector);
+  if (gov.stability) sf.push([`Governor ${gov.name}`, gov.stability]);
+  const ind = industrialistBonus(state, p.id);
   const stabilityTarget = Math.max(0, Math.min(100, sf.reduce((a, [, v]) => a + v, 0)));
 
   const conn = connected ? 1 : 0.5;
-  const outputMult = stabilityOutputMult(c.stability) * (1 - c.resistance / 200) * conn;
+  const outputMult = stabilityOutputMult(c.stability) * (1 - c.resistance / 200) * conn * (1 + gov.output + ind.output);
 
   // Production per building
   const yieldMult = (b: BuildingId, k: YieldKey): number => {

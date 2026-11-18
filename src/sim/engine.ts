@@ -3,11 +3,12 @@
 // economy/population/research per empire -> monthly systems -> AI.
 
 import { eraMonthly } from './eras';
+import { createCharacter, assign, charactersMonthly, refreshCandidates } from './characters';
 import { civilisationPower } from './power';
 import { MAX_ERA } from './data/eras';
 import { makeRng, int, pick, chance, range, next } from './rng';
 import { generateGalaxy, jumpDistances, jumpsWithin, adjacency, ensureBodies } from './galaxy';
-import { CIV_TEMPLATES, MINOR_NAMES, RULER_FIRST, RULER_LAST, ADMIRAL_NAMES } from './data/names';
+import { CIV_TEMPLATES, MINOR_NAMES, RULER_FIRST, RULER_LAST } from './data/names';
 import { defaultPolicies, GOVERNMENTS } from './data/governments';
 import { PLANET_TYPES } from './data/planets';
 import { computeLedger, applyLedgerDay, type Ledger } from './economy';
@@ -60,6 +61,8 @@ function blankEmpire(id: number, partial: Partial<Empire>): Empire {
     explored: [],
     personality: { aggression: 0.4, expansion: 0.5, mercantile: 0.5, science: 0.5, diplomacy: 0.5, doctrine: 'balanced' },
     timedMods: [],
+    council: {},
+    armory: [],
     warExhaustion: 0,
     era: 0,
     emblem: id,
@@ -87,7 +90,7 @@ export function newGame(settings: Partial<GameSettings> = {}): GameState {
     planets,
     empires: [],
     fleets: {},
-    admirals: [],
+    characters: [],
     opinions: {},
     treaties: [],
     wars: [],
@@ -205,6 +208,7 @@ export function newGame(settings: Partial<GameSettings> = {}): GameState {
     e.explored = [];
     for (const id of [e.capitalSystemId, ...adj[e.capitalSystemId]]) markExplored(state, e, id);
   }
+  refreshCandidates(state);
   updateStats(state);
   log(state, { kind: 'start', severity: 'info', title: 'A new reign begins', text: `${state.empires[0].ruler} ascends the throne of the ${state.empires[0].name}. The galaxy awaits.`, empires: [0] });
   return state;
@@ -237,10 +241,14 @@ function setupHomeworld(state: GameState, e: Empire, sysId: number, kind: 'major
       home.colony.buildings.hydroponics = 1;
     }
     Object.assign(e.stock, { credits: 400, minerals: 500, energy: 300, food: 300, alloys: 250, electronics: 80, components: 20, rare: 100, influence: 80 });
-    createFleet(state, e.id, sysId, ['corvette', 'corvette', 'corvette'], 'Home Guard');
+    const guard = createFleet(state, e.id, sysId, ['corvette', 'corvette', 'corvette'], 'Home Guard');
     createFleet(state, e.id, sysId, ['scout'], `${e.adjective} Survey Corps`);
     createFleet(state, e.id, sysId, ['constructor'], `Construction Ship`);
-    state.admirals.push({ id: nextId(state), ownerId: e.id, name: pick(rng, ADMIRAL_NAMES), skill: 2, xp: 0, trait: pick(rng, ['tactician', 'aggressive', 'logistician', 'cautious', 'gunner'] as const), fleetId: null, alive: true });
+    // founding court: an admiral, an archscholar and a chancellor
+    e.council = {};
+    assign(state, createCharacter(state, e.id, 'admiral', { level: 2 }), { kind: 'fleet', fleetId: guard.id });
+    assign(state, createCharacter(state, e.id, 'scientist', { level: 2 }), { kind: 'council', seat: 'archscholar' });
+    assign(state, createCharacter(state, e.id, 'chancellor', { level: 2 }), { kind: 'council', seat: 'chancellor' });
     // Guarantee a reachable second world for early colonisation.
     ensureNearbyHabitable(state, e, sysId);
   } else {
@@ -357,6 +365,8 @@ function monthly(state: GameState) {
   guardiansCheck(state);
   randomEvents(state);
   eliminationCheck(state);
+  charactersMonthly(state, (a, b, v, label) => addMemory(state, a, b, 'envoy', v, 0.5, label));
+  if (state.tick % 360 === 0) refreshCandidates(state);
   updateStats(state);
   eraMonthly(state);
   victoryCheck(state);

@@ -17,6 +17,7 @@ const ICONS: Record<ScreenId, JSX.Element> = {
   construction: <g {...P}><path d="M4 20 L14 10" /><path d="M13 5 L19 11 L16 14 L10 8 Z" /><path d="M4 20 H10" /></g>,
   trade: <g {...P}><circle cx="5" cy="17" r="2" /><circle cx="19" cy="7" r="2" /><path d="M7 16 C11 14 13 10 17 8" strokeDasharray="2 2.5" /><path d="M15 6 L17.5 8 L15 10" /></g>,
   journal: <g {...P}><path d="M6 3 H17 L19 5 V21 H6 Z" /><path d="M9 8 H16 M9 12 H16 M9 16 H13" /></g>,
+  heroes: <g {...P}><circle cx="12" cy="8" r="3.5" /><path d="M5 21 C5 15 19 15 19 21" /><path d="M9 3.5 L10.5 5 L12 3 L13.5 5 L15 3.5" /></g>,
   techtree: <g {...P}><circle cx="5" cy="12" r="2" /><circle cx="19" cy="6" r="2" /><circle cx="19" cy="18" r="2" /><circle cx="12" cy="12" r="2" /><path d="M7 12 H10 M14 12 L17 7 M14 12 L17 17" /></g>,
 };
 
