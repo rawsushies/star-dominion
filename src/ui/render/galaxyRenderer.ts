@@ -11,7 +11,8 @@ import { fleetPower } from '../../sim/fleets';
 import { hash2 } from '../../sim/rng';
 import type { Fleet, GameState } from '../../sim/types';
 import type { MapMode } from '../store';
-import { hexA } from './planetRenderer';
+import { hexA } from './planet3d';
+import { bakeGalaxyNebula } from './nebula';
 
 export interface Camera { x: number; y: number; zoom: number }
 
@@ -47,53 +48,12 @@ function background(state: GameState): HTMLCanvasElement {
   const cv = document.createElement('canvas');
   cv.width = W; cv.height = W;
   const ctx = cv.getContext('2d')!;
-  // nebula: low-res noise upscaled
-  const N = 96;
-  const small = document.createElement('canvas');
-  small.width = N; small.height = N;
-  const sctx = small.getContext('2d')!;
-  const img = sctx.createImageData(N, N);
   const seed = state.settings.seed;
-  const noise = (x: number, y: number) => {
-    let v = 0, a = 0.5, f = 1;
-    for (let o = 0; o < 4; o++) {
-      const xi = Math.floor(x * f), yi = Math.floor(y * f);
-      const xf = x * f - xi, yf = y * f - yi;
-      const u = xf * xf * (3 - 2 * xf), w = yf * yf * (3 - 2 * yf);
-      const h = (i: number, j: number) => hash2(xi + i, yi + j, seed + o);
-      v += a * ((h(0, 0) * (1 - u) + h(1, 0) * u) * (1 - w) + (h(0, 1) * (1 - u) + h(1, 1) * u) * w);
-      a *= 0.5; f *= 2;
-    }
-    return v / 0.9375;
-  };
-  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
-    const dx = x / N - 0.5, dy = y / N - 0.5;
-    const r = Math.hypot(dx, dy) * 2;
-    const ang = Math.atan2(dy, dx);
-    const arm = 0.5 + 0.5 * Math.sin(ang * 3 - r * 9);
-    const n1 = noise(x / 14, y / 14);
-    const n2 = noise(x / 9 + 40, y / 9 + 40);
-    const falloff = Math.max(0, 1 - r);
-    const dens = Math.max(0, n1 * 0.9 + arm * 0.35 - 0.55) * falloff * 1.8;
-    const i = (y * N + x) * 4;
-    // two-tone nebula: indigo and a dusty teal, warm near the core
-    const core = Math.max(0, 1 - r * 2.2);
-    img.data[i] = 40 * dens + 120 * core * dens + 30 * n2 * dens;
-    img.data[i + 1] = 46 * dens + 80 * core * dens + 55 * (1 - n2) * dens;
-    img.data[i + 2] = 92 * dens + 40 * core * dens + 40 * (1 - n2) * dens;
-    img.data[i + 3] = Math.min(255, 255 * dens * 0.9);
+  const neb = bakeGalaxyNebula(Math.min(2048, W), g.systems.length >= 90 ? 4 : 3, (g.width - 160) / 2 / g.width, state.settings.seed);
+  if (neb) {
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(neb, 0, 0, W, W);
   }
-  sctx.putImageData(img, 0, 0);
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(small, 0, 0, W, W);
-  // galactic core glow
-  const c = ctx.createRadialGradient(W / 2, W / 2, 0, W / 2, W / 2, W * 0.32);
-  c.addColorStop(0, 'rgba(255,226,170,0.16)');
-  c.addColorStop(0.4, 'rgba(160,140,190,0.06)');
-  c.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = c;
-  ctx.fillRect(0, 0, W, W);
   // faint background stars
   for (let i = 0; i < W * 2.2; i++) {
     const x = hash2(i, 1, seed) * W, y = hash2(i, 2, seed) * W;
@@ -226,7 +186,7 @@ export function drawGalaxy(ctx: CanvasRenderingContext2D, state: GameState, o: G
   const W2S = (x: number, y: number) => worldToScreen(cam, w, h, x, y);
 
   // backdrop
-  ctx.fillStyle = '#070b14';
+  ctx.fillStyle = '#020305';
   ctx.fillRect(0, 0, w, h);
   const bg = background(state);
   {
@@ -374,9 +334,9 @@ export function drawGalaxy(ctx: CanvasRenderingContext2D, state: GameState, o: G
     if ((showNames && isExplored) || isCapital || o.selectedSystem === s.id) {
       const a = isCapital || o.selectedSystem === s.id ? 1 : nameAlpha;
       if (isCapital) {
-        ctx.font = `600 ${Math.round(13 + Math.min(4, cam.zoom * 2))}px 'Cormorant Garamond', serif`;
+        ctx.font = `600 ${Math.round(13 + Math.min(4, cam.zoom * 2))}px 'Saira Semi Condensed', sans-serif`;
       } else {
-        ctx.font = `500 ${Math.round(11 + Math.min(3, cam.zoom * 1.5))}px 'Barlow Condensed', sans-serif`;
+        ctx.font = `500 ${Math.round(11 + Math.min(3, cam.zoom * 1.5))}px 'Saira Semi Condensed', sans-serif`;
       }
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
@@ -435,7 +395,7 @@ export function drawGalaxy(ctx: CanvasRenderingContext2D, state: GameState, o: G
       ctx.lineWidth = 1;
       ctx.beginPath(); ctx.arc(x, y, Math.sqrt(p) * 1.2 * Math.min(1.5, cam.zoom), 0, Math.PI * 2); ctx.stroke();
       if (cam.zoom > 0.7) {
-        ctx.font = "500 11px 'Barlow Condensed', sans-serif";
+        ctx.font = "500 11px 'Saira Semi Condensed', sans-serif";
         ctx.fillStyle = hexA(e.color, 0.95);
         ctx.textAlign = 'right';
         ctx.textBaseline = 'middle';

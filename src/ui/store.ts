@@ -19,6 +19,26 @@ export const SPEEDS = [0, 2, 6, 15]; // days per second
 
 export interface Toast { id: number; ev: GameEvent }
 
+export interface Win { id: Exclude<ScreenId, 'map'>; x: number; y: number; w: number; h: number; z: number; min: boolean }
+
+/** Default footprint of each window (fractions of the viewport, clamped in px). */
+const WIN_SIZE: Partial<Record<ScreenId, [number, number]>> = {
+  kingdom: [1040, 720], planets: [1120, 740], system: [980, 680], fleets: [980, 660], military: [1040, 700],
+  economy: [1060, 700], industry: [1060, 720], research: [900, 660], techtree: [1180, 760], diplomacy: [1080, 720],
+  intel: [940, 680], construction: [980, 660], trade: [940, 640], journal: [720, 640],
+};
+
+function placeWindow(id: Win['id'], wins: Win[], z: number): Win {
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const [w0, h0] = WIN_SIZE[id] ?? [960, 660];
+  const w = Math.min(w0, vw - 46 - 360 - 24 > 640 ? vw - 46 - 360 - 24 : vw - 70);
+  const h = Math.min(h0, vh - 120);
+  const k = wins.length % 6;
+  const x = Math.max(56, Math.min(vw - w - 12, 64 + (vw - 46 - 360 - w) / 2 + k * 28));
+  const y = Math.max(52, Math.min(vh - h - 12, 70 + k * 26));
+  return { id, x, y, w, h, z, min: false };
+}
+
 interface UI {
   game: GameState | null;
   rev: number;
@@ -36,6 +56,11 @@ interface UI {
   menuOpen: boolean;
   flash: string | null;
   pauseOnEvents: boolean;
+  windows: Win[];
+  zTop: number;
+  focusWin: (id: Win['id']) => void;
+  closeWin: (id: Win['id']) => void;
+  patchWin: (id: Win['id'], p: Partial<Win>) => void;
   start: (s: Partial<GameSettings>) => void;
   load: (g: GameState) => void;
   quit: () => void;
@@ -69,14 +94,26 @@ export const useUI = create<UI>((set, get) => ({
   menuOpen: false,
   flash: null,
   pauseOnEvents: true,
+  windows: [],
+  zTop: 10,
+  focusWin: (id) => {
+    const z = get().zTop + 1;
+    set({ zTop: z, screen: id, windows: get().windows.map((w) => (w.id === id ? { ...w, z, min: false } : w)) });
+  },
+  closeWin: (id) => {
+    const rest = get().windows.filter((w) => w.id !== id);
+    const top = rest.filter((w) => !w.min).sort((a, b) => b.z - a.z)[0];
+    set({ windows: rest, screen: get().screen === id ? (top?.id ?? 'map') : get().screen });
+  },
+  patchWin: (id, p) => set({ windows: get().windows.map((w) => (w.id === id ? { ...w, ...p } : w)) }),
   start: (s) => {
     const g = createGame(s);
     lastEventId = g.nextId;
-    set({ game: g, rev: 1, speed: 0, screen: 'map', view: 'galaxy', systemId: g.empires[g.playerId].capitalSystemId, planetId: null, fleetId: null, toasts: [] });
+    set({ game: g, rev: 1, speed: 0, screen: 'map', windows: [], view: 'galaxy', systemId: g.empires[g.playerId].capitalSystemId, planetId: null, fleetId: null, toasts: [] });
   },
   load: (g) => {
     lastEventId = g.nextId;
-    set({ game: g, rev: get().rev + 1, speed: 0, screen: 'map', view: 'galaxy', systemId: g.empires[g.playerId].capitalSystemId, planetId: null, fleetId: null, toasts: [], menuOpen: false });
+    set({ game: g, rev: get().rev + 1, speed: 0, screen: 'map', windows: [], view: 'galaxy', systemId: g.empires[g.playerId].capitalSystemId, planetId: null, fleetId: null, toasts: [], menuOpen: false });
   },
   quit: () => set({ game: null, speed: 0, menuOpen: false }),
   bump: () => set({ rev: get().rev + 1 }),
@@ -97,7 +134,13 @@ export const useUI = create<UI>((set, get) => ({
     set({ planetId: id, fleetId: null, systemId: id != null && g ? g.planets[id].systemId : get().systemId });
   },
   selectFleet: (id) => set({ fleetId: id, planetId: null }),
-  openScreen: (s) => set({ screen: get().screen === s && s !== 'map' ? 'map' : s }),
+  openScreen: (s) => {
+    if (s === 'map') { set({ screen: 'map' }); return; }
+    const w = get().windows.find((x) => x.id === s);
+    // toggling the focused, visible window from the neocom closes it
+    if (w && get().screen === s && !w.min) { get().closeWin(s); return; }
+    set({ screen: s });
+  },
   dismissToast: (id) => set({ toasts: get().toasts.filter((t) => t.id !== id) }),
   notify: (msg) => {
     set({ flash: msg });
@@ -105,6 +148,21 @@ export const useUI = create<UI>((set, get) => ({
     flashTimer = window.setTimeout(() => set({ flash: null }), 2600);
   },
 }));
+
+// Keep the window list in step with `screen`: focusing a screen opens its window;
+// navigating to the map from inside a window closes the window that did it.
+useUI.subscribe((st, prev) => {
+  if (st.screen === prev.screen) return;
+  if (st.screen !== 'map') {
+    const id = st.screen;
+    const have = st.windows.find((w) => w.id === id);
+    const z = st.zTop + 1;
+    if (!have) useUI.setState({ zTop: z, windows: [...st.windows, placeWindow(id, st.windows, z)] });
+    else if (have.z !== st.zTop || have.min) useUI.setState({ zTop: z, windows: st.windows.map((w) => (w.id === id ? { ...w, z, min: false } : w)) });
+  } else if (prev.screen !== 'map' && st.windows.some((w) => w.id === prev.screen) && st.windows === prev.windows) {
+    useUI.setState({ windows: st.windows.filter((w) => w.id !== prev.screen) });
+  }
+});
 
 let flashTimer = 0;
 let lastEventId = 0;

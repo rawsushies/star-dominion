@@ -1,12 +1,8 @@
 import { createRoot } from 'react-dom/client';
-import '@fontsource/inter/400.css';
-import '@fontsource/inter/500.css';
-import '@fontsource/barlow-condensed/400.css';
-import '@fontsource/barlow-condensed/500.css';
-import '@fontsource/barlow-condensed/600.css';
-import '@fontsource/cormorant-garamond/500.css';
-import '@fontsource/cormorant-garamond/600.css';
-import '@fontsource/cormorant-garamond/500-italic.css';
+import '@fontsource/saira-semi-condensed/300.css';
+import '@fontsource/saira-semi-condensed/400.css';
+import '@fontsource/saira-semi-condensed/500.css';
+import '@fontsource/saira-semi-condensed/600.css';
 import './ui/styles.css';
 import { App } from './ui/App';
 import { startLoop, useUI } from './ui/store';

@@ -11,7 +11,8 @@ import { starbaseUpgradeCost } from '../../sim/construction';
 import { STATION_COST } from '../../sim/commands';
 import { intelLevel, fuzz } from '../../sim/diplomacy';
 import { getLedger } from '../../sim/engine';
-import { planetSprite } from '../render/planetRenderer';
+import { planetSprite } from '../render/planet3d';
+import { PlanetHero } from './PlanetHero';
 import { CostView, Meter, Section, Swatch, cls, fmt, Tip } from './common';
 import type { Fleet, GameState, Planet, StarSystem, SystemFeature } from '../../sim/types';
 
@@ -26,6 +27,10 @@ export const FEATURE_INFO: Record<SystemFeature, [string, string]> = {
 };
 
 export function PlanetThumb({ planet, size = 40 }: { planet: Planet; size?: number }) {
+  return size >= 64 ? <PlanetHero planet={planet} size={size} /> : <SpriteThumb planet={planet} size={size} />;
+}
+
+function SpriteThumb({ planet, size }: { planet: Planet; size: number }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const lights = planet.colony ? Math.min(1, planet.colony.pops / 30) : 0;
   useEffect(() => {
@@ -43,16 +48,15 @@ export function PlanetThumb({ planet, size = 40 }: { planet: Planet; size?: numb
 
 export function ContextPanel() {
   const g = useGame();
-  const { systemId, planetId, fleetId, set, screen } = useUI();
-  if (screen !== 'map') return null;
+  const { systemId, planetId, fleetId, set } = useUI();
   let body: JSX.Element | null = null;
   if (fleetId != null && g.fleets[fleetId]) body = <FleetCtx f={g.fleets[fleetId]} />;
   else if (planetId != null) body = <PlanetCtx p={g.planets[planetId]} />;
   else if (systemId != null) body = <SystemCtx s={g.galaxy.systems[systemId]} />;
   if (!body) return null;
   return (
-    <aside className="ctx frame">
-      <button className="close" onClick={() => set({ systemId: null, planetId: null, fleetId: null })} aria-label="Close">×</button>
+    <aside className="ctx glass">
+      <div className="whead"><span className="wtitle">Selected item</span><span className="grow" /><button className="wbtn" onClick={() => set({ systemId: null, planetId: null, fleetId: null })} aria-label="Clear selection">×</button></div>
       <div className="ctx-body">{body}</div>
     </aside>
   );

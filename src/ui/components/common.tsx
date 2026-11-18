@@ -88,15 +88,13 @@ export function Meter({ value, max = 100, tone }: { value: number; max?: number;
 
 export function Sheet({ title, lede, actions, children }: { title: string; lede?: ReactNode; actions?: ReactNode; children: ReactNode }) {
   return (
-    <div className="sheet-wrap">
-      <div className="sheet frame">
-        <div className="sheet-head">
-          <h1>{title}</h1>
-          {lede && <div className="lede">{lede}</div>}
-          <div className="actions">{actions}</div>
-        </div>
-        <div className="sheet-body">{children}</div>
+    <div className="sheet">
+      <div className="sheet-head">
+        <div className="sheet-title">{title}</div>
+        {lede && <div className="lede">{lede}</div>}
+        <div className="actions">{actions}</div>
       </div>
+      <div className="sheet-body">{children}</div>
     </div>
   );
 }

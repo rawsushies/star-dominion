@@ -8,7 +8,7 @@ import { PEACE_LABEL } from '../../sim/diplomacy';
 import { formatDate } from '../../sim/util';
 import { Sheet, Section, Swatch, cls, fmt, Meter } from '../components/common';
 import { focusSystem } from '../components/MapView';
-import { hexA } from '../render/planetRenderer';
+import { hexA } from '../render/planet3d';
 import type { BattleReport, GameState, PeaceTerm } from '../../sim/types';
 
 export function MilitaryScreen() {

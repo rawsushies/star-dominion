@@ -68,7 +68,7 @@ function PlanetDetail({ p }: { p: Planet }) {
   return (
     <div style={{ minWidth: 0 }}>
       <div className="row" style={{ gap: 18, alignItems: 'center' }}>
-        <PlanetThumb planet={p} size={96} />
+        <PlanetThumb planet={p} size={150} />
         <div className="grow">
           <h1 className="serif" style={{ fontSize: 36, margin: 0, fontWeight: 600, lineHeight: 1 }}>{p.name}</h1>
           <div className="subtitle">{PLANET_TYPES[p.type].label} world · size {p.size} · {Math.round(rep.hab * 100)}% habitable · founded {c.foundedTick < 0 ? 'before the reign' : `in ${2400 + Math.floor(c.foundedTick / 360)}`}</div>
