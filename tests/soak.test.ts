@@ -1,4 +1,3 @@
-declare const process: { env: Record<string, string | undefined> };
 import { it, expect } from 'vitest';
 import { newGame, step, getLedger } from '../src/sim/engine';
 import { RESOURCES } from '../src/sim/types';

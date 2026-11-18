@@ -2,7 +2,8 @@
 // Order of a day: combat -> movement -> orders -> supply -> construction ->
 // economy/population/research per empire -> monthly systems -> AI.
 
-import { eraMonthly, kardashev } from './eras';
+import { eraMonthly } from './eras';
+import { civilisationPower } from './power';
 import { MAX_ERA } from './data/eras';
 import { makeRng, int, pick, chance, range, next } from './rng';
 import { generateGalaxy, jumpDistances, adjacency } from './galaxy';
@@ -505,7 +506,7 @@ export function updateStats(state: GameState) {
       adminCap: L?.adminCap ?? 0,
       avgStability: col ? Math.round(stab / col) : 0,
     };
-    if (e.kind === 'major') e.stats.kardashev = Math.round(kardashev(state, e) * 100) / 100;
+    if (e.kind === 'major') { const pw = civilisationPower(state, e); e.stats.kardashev = Math.round(pw.k * 1000) / 1000; e.stats.powerW = pw.watts; }
   }
 }
 

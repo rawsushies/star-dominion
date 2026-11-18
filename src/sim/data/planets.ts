@@ -117,14 +117,15 @@ export const PLANET_TYPES: Record<PlanetType, PlanetTypeDef> = {
   }),
 };
 
-export const STAR_TYPES: Record<StarType, { label: string; color: string; glow: string; energy: number; weight: number }> = {
-  yellow: { label: 'Yellow Dwarf', color: '#fff1c4', glow: '#ffcf6b', energy: 1, weight: 26 },
-  orange: { label: 'Orange Dwarf', color: '#ffd7a3', glow: '#ff9b45', energy: 0.9, weight: 22 },
-  red: { label: 'Red Dwarf', color: '#ffb59a', glow: '#ff5a3a', energy: 0.7, weight: 24 },
-  white: { label: 'White Star', color: '#f2f6ff', glow: '#bcd2ff', energy: 1.25, weight: 10 },
-  blue: { label: 'Blue Giant', color: '#d8e6ff', glow: '#6ea8ff', energy: 1.6, weight: 6 },
-  neutron: { label: 'Neutron Star', color: '#e9f9ff', glow: '#7fe7ff', energy: 1.4, weight: 3 },
-  black_hole: { label: 'Black Hole', color: '#000000', glow: '#b48cff', energy: 0.3, weight: 2 },
+/** luminosity is in solar luminosities (1 L☉ = 3.828e26 W); used by the Kardashev power model */
+export const STAR_TYPES: Record<StarType, { label: string; color: string; glow: string; energy: number; weight: number; luminosity: number }> = {
+  yellow: { label: 'Yellow Dwarf', color: '#fff1c4', glow: '#ffcf6b', energy: 1, weight: 26, luminosity: 1 },
+  orange: { label: 'Orange Dwarf', color: '#ffd7a3', glow: '#ff9b45', energy: 0.9, weight: 22, luminosity: 0.3 },
+  red: { label: 'Red Dwarf', color: '#ffb59a', glow: '#ff5a3a', energy: 0.7, weight: 24, luminosity: 0.02 },
+  white: { label: 'White Star', color: '#f2f6ff', glow: '#bcd2ff', energy: 1.25, weight: 10, luminosity: 20 },
+  blue: { label: 'Blue Giant', color: '#d8e6ff', glow: '#6ea8ff', energy: 1.6, weight: 6, luminosity: 5000 },
+  neutron: { label: 'Neutron Star', color: '#e9f9ff', glow: '#7fe7ff', energy: 1.4, weight: 3, luminosity: 0.5 },
+  black_hole: { label: 'Black Hole', color: '#000000', glow: '#b48cff', energy: 0.3, weight: 2, luminosity: 2000 },
 };
 
 /** Effective habitability of a planet type for a species, including unlocked techs. */

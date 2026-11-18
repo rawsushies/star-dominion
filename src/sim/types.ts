@@ -97,6 +97,8 @@ export interface StarSystem {
   star: StarType;
   planetIds: number[];
   asteroidBelts: number;
+  /** galactic sector index (see galaxy.ts) */
+  sector?: number;
   owner: number | null;
   starbase: number; // 0 none, 1 outpost, 2 starport, 3 citadel
   starbaseDamage: number; // 0..1
@@ -113,6 +115,8 @@ export interface Galaxy {
   height: number;
   systems: StarSystem[];
   lanes: [number, number][];
+  /** real stars each simulated system stands for (aggregate model; default 1) */
+  starsPerSystem?: number;
 }
 
 export interface Ship {
@@ -212,6 +216,8 @@ export interface EmpireStats {
   adminCap: number;
   avgStability: number;
   kardashev?: number;
+  /** usable power in watts (sim/power.ts) */
+  powerW?: number;
 }
 
 export type TreatyType = 'nap' | 'trade' | 'research' | 'defense' | 'alliance' | 'vassal';

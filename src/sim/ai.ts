@@ -90,7 +90,7 @@ function economy(state: GameState, e: Empire) {
   // Megastructures for wealthy, advanced AIs
   // (a civilisation chasing the next era wants them sooner)
   if (e.stock.alloys > ((e.era ?? 0) >= 1 ? 1700 : 2500) && e.kind === 'major') {
-    for (const id of ['continuum_engine', 'dyson_swarm', 'stellar_collector', 'grand_archive', 'lattice', 'orbital_ring']) {
+    for (const id of ['continuum_engine', 'sector_array', 'dyson_swarm', 'stellar_collector', 'grand_archive', 'lattice', 'orbital_ring']) {
       for (const sid of ownedSystems(state, e.id)) {
         if (execute(state, e.id, { type: 'startMegastructure', systemId: sid, mega: id }).ok) return;
       }

@@ -18,6 +18,12 @@ export interface MegaDef {
 
 export const MEGASTRUCTURES: MegaDef[] = [
   {
+    id: 'sector_array', label: 'Sector Harvest Array', tech: 'era_galactic_lattice', stages: 3,
+    stageCost: { alloys: 4000, components: 900, rare: 300, credits: 3000 }, stageDays: 480,
+    modsPerStage: { 'output.energy': 0.1 }, outputPerStage: { energy: 250 },
+    description: 'Relays and lenses spread across a whole galactic sector, gathering the light of every star it holds. The path to a Type III civilisation.',
+  },
+  {
     id: 'continuum_engine', label: 'Continuum Engine', tech: 'era_dimensional', stages: 3,
     stageCost: { alloys: 6000, components: 1500, rare: 800, credits: 5000 }, stageDays: 540,
     modsPerStage: { 'output.research': 0.2, 'output.energy': 0.2 }, outputPerStage: { energy: 400 }, unique: true,

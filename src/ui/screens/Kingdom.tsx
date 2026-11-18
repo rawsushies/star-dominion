@@ -46,7 +46,7 @@ export function KingdomScreen() {
         <Stat k="War exhaustion" v={Math.round(e.warExhaustion)} s="rises with losses and long wars" tone={e.warExhaustion > 50 ? 'neg' : ''} />
       </div>
 
-      <Section title="Evolution" aside={`Kardashev ${typeLabel(kardashev(g, e))}`}>
+      <Section title="Political eras" aside={typeLabel(kardashev(g, e))}>
         <EraLadder />
       </Section>
 

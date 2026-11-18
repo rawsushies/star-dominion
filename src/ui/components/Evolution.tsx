@@ -3,13 +3,17 @@
 
 import { useUI, useGame } from '../store';
 import { ERAS, MAX_ERA } from '../../sim/data/eras';
-import { eraRequirements, eraProgress, kardashev } from '../../sim/eras';
+import { eraRequirements, eraProgress } from '../../sim/eras';
+import { civilisationPower, kardashevType, formatWatts } from '../../sim/power';
+import { Tip } from './common';
 import { cls, fmt } from './common';
 
 const ROMAN = ['0', 'I', 'II', 'III', 'IV', 'V'];
 
-export function typeLabel(t: number) {
-  return `Type ${t.toFixed(2)}`;
+/** Scientific rating label, e.g. "K 0.66 · Sub-Type I". */
+export function typeLabel(k: number) {
+  const t = kardashevType(k);
+  return `K ${k.toFixed(2)} · ${t.label}${t.speculative ? ' (speculative)' : ''}`;
 }
 
 export function EraBadge() {
@@ -17,14 +21,23 @@ export function EraBadge() {
   const ui = useUI();
   const e = g.empires[g.playerId];
   const era = ERAS[e.era ?? 0];
-  const k = kardashev(g, e);
+  const pw = civilisationPower(g, e);
   const prog = eraProgress(g, e);
   return (
-    <button className="era-badge" onClick={() => ui.openScreen('kingdom')} title="Civilisational era: open the Kingdom window to see what the next age needs">
-      <span className="era-k num">{typeLabel(k)}</span>
-      <span className="era-n">{era.name}</span>
-      {(e.era ?? 0) < MAX_ERA && <span className="era-bar"><i style={{ width: `${prog * 100}%` }} /></span>}
-    </button>
+    <Tip content={<div>
+      <h4>Kardashev rating {pw.k.toFixed(3)}</h4>
+      <div className="muted">K = (log₁₀ P − 6) / 10, from {formatWatts(pw.watts)} of usable power ({Math.round(pw.efficiency * 100)}% grid efficiency).</div>
+      <div className="kv" style={{ marginTop: 6 }}>{pw.sources.map((s) => [<span key={s.label}>{s.label}</span>, <span key={s.label + 'w'}>{formatWatts(s.watts)}</span>])}</div>
+      <div className="muted" style={{ marginTop: 6 }}>Type I = 10¹⁶ W, Type II = 10²⁶ W, Type III = 10³⁶ W. Types IV and V are speculative extensions.</div>
+      <div className="muted" style={{ marginTop: 6 }}>Political era: {era.name}. Open the Kingdom window for what the next era needs.</div>
+    </div>} style={{ display: 'block' }}>
+      <button className="era-badge" onClick={() => ui.openScreen('kingdom')}>
+        <span className="era-k num">{typeLabel(pw.k)}</span>
+        <span className="era-w num">{formatWatts(pw.watts)}</span>
+        <span className="era-n">{era.name}</span>
+        {(e.era ?? 0) < MAX_ERA && <span className="era-bar"><i style={{ width: `${prog * 100}%` }} /></span>}
+      </button>
+    </Tip>
   );
 }
 
@@ -39,7 +52,7 @@ export function EraLadder() {
         const reqs = state === 'next' ? eraRequirements(g, e, era) : [];
         return (
           <div key={era.id} className={cls('rung', state)}>
-            <div className="rung-type">{era.id === 0 ? '0.7' : ROMAN[Math.round(era.type)]}</div>
+            <div className="rung-type">{ROMAN[era.id]}</div>
             <div className="rung-body">
               <div className="row between"><span className="rung-name">{era.name}</span><span className="hint">{era.epithet}</span></div>
               {(state === 'now' || state === 'next') && <div className="hint" style={{ color: 'var(--text-2)', marginTop: 2 }}>{era.lore}</div>}
@@ -77,7 +90,7 @@ export function EraDawn() {
     <div className="dawn" role="dialog" aria-label={`A new age: ${era.name}`}>
       <div className="dawn-inner">
         <div className="dawn-kicker">A new age dawns</div>
-        <div className="dawn-type">Type {ROMAN[Math.round(era.type)]}</div>
+        <div className="dawn-type">Era {ROMAN[era.id]}</div>
         <h2 className="dawn-name">{era.name}</h2>
         <p className="dawn-text">{era.dawn}</p>
         <ul className="dawn-perks">{era.perks.map((p) => <li key={p}>{p}</li>)}</ul>

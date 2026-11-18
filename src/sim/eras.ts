@@ -5,6 +5,7 @@ import { ERAS, MAX_ERA, type EraDef } from './data/eras';
 import { TECH_BY_ID } from './data/techs';
 import { MEGA_BY_ID } from './data/megastructures';
 import { log } from './util';
+import { civilisationPower, kardashevType } from './power';
 import type { Empire, GameState } from './types';
 
 export interface ReqStatus { label: string; have: number; need: number; done: boolean }
@@ -28,6 +29,10 @@ export function eraRequirements(state: GameState, e: Empire, era: EraDef): ReqSt
   if (r.pops) push(`${r.pops} population`, Math.round(e.stats.population), r.pops);
   if (r.tech) push(`Breakthrough: ${TECH_BY_ID[r.tech]?.name ?? r.tech}`, e.research.done.includes(r.tech) ? 1 : 0, 1);
   if (r.megaStages) push(`${r.megaStages} megastructure stages completed`, megaStagesOf(state, e), r.megaStages);
+  if (r.minK != null) {
+    const k = civilisationPower(state, e).k;
+    out.push({ label: `Kardashev ${r.minK.toFixed(1)} (${kardashevType(r.minK).label}) from usable power`, have: Math.round(k * 100) / 100, need: r.minK, done: k >= r.minK });
+  }
   if (r.mega) push(`${MEGA_BY_ID[r.mega.id]?.label ?? r.mega.id}: ${r.mega.stages} ${r.mega.stages === 1 ? 'stage' : 'stages'}`, megaStagesOf(state, e, r.mega.id), r.mega.stages);
   return out;
 }
@@ -41,12 +46,9 @@ export function eraProgress(state: GameState, e: Empire): number {
   return reqs.reduce((a, q) => a + Math.min(1, q.have / q.need), 0) / reqs.length;
 }
 
-/** Kardashev rating: the current era's type plus progress toward the next. */
+/** Scientific Kardashev index from real usable power (see power.ts). */
 export function kardashev(state: GameState, e: Empire): number {
-  const era = e.era ?? 0;
-  const cur = ERAS[era].type;
-  if (era >= MAX_ERA) return cur;
-  return cur + (ERAS[era + 1].type - cur) * eraProgress(state, e) * 0.98;
+  return civilisationPower(state, e).k;
 }
 
 export function eraMonthly(state: GameState) {
