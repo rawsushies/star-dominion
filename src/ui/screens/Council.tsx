@@ -19,8 +19,9 @@ const MOD_LABEL: Record<string, string> = {
   output: 'output', tax: 'taxes', stability: 'stability', 'output.research': 'research', 'output.alloys': 'alloys', 'output.minerals': 'minerals', 'output.influence': 'influence',
   buildSpeed: 'construction speed', tradeValue: 'trade value', navalCap: 'naval capacity', garrison: 'garrisons', shipDamage: 'fleet damage', repair: 'repair speed',
   warExhaustion: 'war exhaustion', admin: 'administration', intel: 'intelligence', tracking: 'accuracy',
+  storage: 'storage', shipCost: 'ship cost', growth: 'growth', defensePlatform: 'defence platforms', 'output.energy': 'energy',
 };
-const PCT = new Set(['output', 'tax', 'output.research', 'output.alloys', 'output.minerals', 'output.influence', 'buildSpeed', 'tradeValue', 'garrison', 'shipDamage', 'repair', 'warExhaustion', 'tracking']);
+const PCT = new Set(['output', 'storage', 'shipCost', 'growth', 'defensePlatform', 'output.energy', 'tax', 'output.research', 'output.alloys', 'output.minerals', 'output.influence', 'buildSpeed', 'tradeValue', 'garrison', 'shipDamage', 'repair', 'warExhaustion', 'tracking']);
 export function modText(k: string, v: number): string {
   const label = MOD_LABEL[k] ?? k;
   return PCT.has(k) ? `${v > 0 ? '+' : ''}${Math.round(v * 100)}% ${label}` : `${v > 0 ? '+' : ''}${Math.round(v * 10) / 10} ${label}`;

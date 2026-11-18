@@ -3,6 +3,7 @@
 // economy/population/research per empire -> monthly systems -> AI.
 
 import { eraMonthly } from './eras';
+import { ensureCapital, progressCapitals } from './capital';
 import { governanceMonthly, ensureHouses } from './governance';
 import { createCharacter, assign, charactersMonthly, refreshCandidates } from './characters';
 import { civilisationPower } from './power';
@@ -209,7 +210,7 @@ export function newGame(settings: Partial<GameSettings> = {}): GameState {
     e.explored = [];
     for (const id of [e.capitalSystemId, ...adj[e.capitalSystemId]]) markExplored(state, e, id);
   }
-  for (const e of state.empires) ensureHouses(state, e);
+  for (const e of state.empires) { ensureHouses(state, e); ensureCapital(e); }
   refreshCandidates(state);
   updateStats(state);
   log(state, { kind: 'start', severity: 'info', title: 'A new reign begins', text: `${state.empires[0].ruler} ascends the throne of the ${state.empires[0].name}. The galaxy awaits.`, empires: [0] });
@@ -293,6 +294,7 @@ export function step(state: GameState) {
   processOrders(state);
   supplyAndRepair(state, engaged);
   progressConstruction(state);
+  progressCapitals(state);
 
   for (const e of state.empires) {
     if (!e.alive || e.kind === 'guardian' || e.kind === 'raiders') continue;

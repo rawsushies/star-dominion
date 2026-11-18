@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { HeroView3D } from '../render/hero3d';
 import { useUI, useGame } from '../store';
 import {
   charactersOf, captivesHeldBy, rosterLimit, effectiveAttrs, effectiveness, loyaltyTarget, ambitionMet, salary, xpForLevel,
@@ -12,6 +13,19 @@ import { Sheet, Section, Meter, CostView, cls } from '../components/common';
 import type { CharAssignment, Character, GameState } from '../../sim/types';
 
 type Tab = 'service' | 'candidates' | 'prisoners';
+
+function HeroFigure({ c, color }: { c: Character; color: string }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  const view = useRef<HeroView3D | null>(null);
+  useEffect(() => {
+    if (!ref.current) return;
+    const v = new HeroView3D(ref.current);
+    view.current = v;
+    return () => { v.dispose(); view.current = null; };
+  }, []);
+  useEffect(() => { view.current?.show(c, color); });
+  return <canvas ref={ref} className="hero-figure" data-testid="hero-figure" aria-label={`Portrait of ${c.name}`} />;
+}
 const SLOTS: EquipSlot[] = ['weapon', 'armour', 'instrument', 'relic'];
 
 /** Monogram crest: realm colour ring, role glyph, initials. */
@@ -124,20 +138,31 @@ function HeroDetail({ c }: { c: Character }) {
   const target = loyaltyTarget(g, c);
   return (
     <div style={{ minWidth: 0 }} data-testid="hero-detail">
-      <div className="row" style={{ gap: 14, alignItems: 'center' }}>
-        <Crest c={c} g={g} size={72} />
-        <div className="grow">
-          <h2 className="serif" style={{ margin: 0 }}>{c.name}</h2>
-          <div className="muted">{ROLES[c.role].label}, level {c.level} of {MAX_LEVEL}. {ROLES[c.role].serves}.</div>
-          <div className="hint">{ROLES[c.role].description}{c.houseId != null && g.empires[c.ownerId]?.houses?.find((h) => h.id === c.houseId) ? ` Of House ${g.empires[c.ownerId].houses!.find((h) => h.id === c.houseId)!.name}.` : ''}</div>
+      <div className="hero-top">
+        <HeroFigure c={c} color={g.empires[c.ownerId]?.color ?? '#888'} />
+        <div style={{ minWidth: 0 }}>
+          <div className="row" style={{ gap: 10, alignItems: 'center' }}>
+            <Crest c={c} g={g} size={48} />
+            <div className="grow">
+              <h2 className="serif" style={{ margin: 0 }}>{c.name}</h2>
+              <div className="muted">{ROLES[c.role].label}, level {c.level} of {MAX_LEVEL}. {ROLES[c.role].serves}.</div>
+            </div>
+          </div>
+          <div className="hint" style={{ marginTop: 4 }}>{ROLES[c.role].description}{c.houseId != null && g.empires[c.ownerId]?.houses?.find((h) => h.id === c.houseId) ? ` Of House ${g.empires[c.ownerId].houses!.find((h) => h.id === c.houseId)!.name}.` : ''}</div>
+          <div style={{ marginTop: 10 }}>
+            <div className="row between hint"><span>Level {c.level}</span><span>{c.level < MAX_LEVEL ? `${Math.round(c.xp)} / ${xpForLevel(c.level)} experience` : 'Mastered'}</span></div>
+            <Meter value={c.level < MAX_LEVEL ? c.xp : 1} max={c.level < MAX_LEVEL ? xpForLevel(c.level) : 1} />
+          </div>
+          <div className="stat-strip" style={{ marginTop: 10 }}>
+            <div className="stat"><div className="k">Loyalty</div><div className={cls('v', c.loyalty < 30 && 'neg')}>{Math.round(c.loyalty)}</div><div className="s">trending to {Math.round(target)}</div></div>
+            <div className="stat"><div className="k">Effectiveness</div><div className="v">{Math.round(effectiveness(c) * 100)}%</div><div className="s">falls with low loyalty</div></div>
+            <div className="stat"><div className="k">Pay</div><div className="v">{salary(c).toFixed(1)}</div><div className="s">credits a month</div></div>
+            <div className="stat"><div className="k">Ambition</div><div className="v" style={{ fontSize: 18 }}>{AMBITIONS[c.ambition.kind].label}</div><div className="s">{ambitionMet(g, c) ? 'Satisfied' : AMBITIONS[c.ambition.kind].want}</div></div>
+          </div>
+          <div className="slots">
+            {SLOTS.map((sl) => <div key={sl} className={cls('slot-box', c.equipment[sl] && 'on')} title={c.equipment[sl] ? `${ITEM_BY_ID[c.equipment[sl]!]?.label}: ${ITEM_BY_ID[c.equipment[sl]!]?.description}` : `${sl}: empty`}><span>{sl}</span><b>{c.equipment[sl] ? ITEM_BY_ID[c.equipment[sl]!]?.label : 'Empty'}</b></div>)}
+          </div>
         </div>
-      </div>
-      <div className="stat-strip" style={{ marginTop: 12 }}>
-        <div className="stat"><div className="k">Loyalty</div><div className={cls('v', c.loyalty < 30 && 'neg')}>{Math.round(c.loyalty)}</div><div className="s">trending to {Math.round(target)}</div></div>
-        <div className="stat"><div className="k">Effectiveness</div><div className="v">{Math.round(effectiveness(c) * 100)}%</div><div className="s">falls with low loyalty</div></div>
-        <div className="stat"><div className="k">Experience</div><div className="v">{Math.round(c.xp)}</div><div className="s">{c.level < MAX_LEVEL ? `${xpForLevel(c.level)} for next level` : 'Mastered'}</div></div>
-        <div className="stat"><div className="k">Pay</div><div className="v">{salary(c).toFixed(1)}</div><div className="s">credits a month</div></div>
-        <div className="stat"><div className="k">Ambition</div><div className="v" style={{ fontSize: 18 }}>{AMBITIONS[c.ambition.kind].label}</div><div className="s">{ambitionMet(g, c) ? 'Satisfied' : AMBITIONS[c.ambition.kind].want}</div></div>
       </div>
 
       <div className="row wrap" style={{ marginTop: 8, gap: 8 }}>

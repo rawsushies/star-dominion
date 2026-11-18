@@ -2,6 +2,7 @@
 // validates the version and structure, then restores derived caches lazily.
 
 import { SAVE_VERSION, updateStats } from './engine';
+import { ensureCapital } from './capital';
 import { ensureHouses } from './governance';
 import type { GameState } from './types';
 import { upgradeGalaxy } from './galaxy';
@@ -22,7 +23,7 @@ export function deserialize(json: string): GameState {
   for (const e of s.empires) if (e.era == null) e.era = 0;
   upgradeGalaxy(s.galaxy);
   migrateAdmirals(s as GameState & { admirals?: never[] });
-  for (const e of s.empires) { e.council ??= {}; e.armory ??= []; ensureHouses(s, e); }
+  for (const e of s.empires) { e.council ??= {}; e.armory ??= []; ensureHouses(s, e); ensureCapital(e); }
   if (s.empires.some((e) => e.stats?.powerW == null)) updateStats(s);
   return s;
 }

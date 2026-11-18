@@ -343,7 +343,7 @@ export function describeAssignment(state: GameState, a: CharAssignment | null): 
 
 export function grantXp(state: GameState, c: Character, amount: number) {
   if (c.status !== 'active' || c.level >= MAX_LEVEL) return;
-  c.xp += amount * (1 + charEffect(c, 'xp'));
+  c.xp += amount * (1 + charEffect(c, 'xp') + (state.empires[c.ownerId]?.capital?.buildings.military_academy?.level ?? 0) * 0.05);
   while (c.xp >= xpForLevel(c.level) && c.level < MAX_LEVEL) {
     c.xp -= xpForLevel(c.level);
     c.level++;
@@ -463,7 +463,7 @@ export function charactersMonthly(state: GameState, addOpinion: (a: number, b: n
       // envoys warm the host court
       if (c.assignment?.kind === 'envoy') {
         const a = effectiveAttrs(c);
-        addOpinion(c.assignment.empireId, c.ownerId, (0.6 + a.diplomacy * 0.08 + charEffect(c, 'opinion')) * effectiveness(c), `Envoy ${c.name}`);
+        addOpinion(c.assignment.empireId, c.ownerId, (0.6 + a.diplomacy * 0.08 + charEffect(c, 'opinion')) * effectiveness(c) * (1 + (e.capital?.buildings.diplomatic_quarter?.level ?? 0) * 0.03), `Envoy ${c.name}`);
       }
       // ambition and loyalty
       c.ambition.unmetMonths = ambitionMet(state, c) ? 0 : c.ambition.unmetMonths + 1;
@@ -512,7 +512,8 @@ export function refreshCandidates(state: GameState) {
       const r = pick(state.rng, ROLE_ORDER);
       if (!roles.includes(r)) roles.push(r);
     }
-    for (const r of roles) createCharacter(state, e.id, r, { status: 'candidate', level: int(state.rng, 1, 4) });
+    const academy = Math.floor((e.capital?.buildings.military_academy?.level ?? 0) / 5);
+    for (const r of roles) createCharacter(state, e.id, r, { status: 'candidate', level: int(state.rng, 1, 4) + academy });
   }
   // keep the list bounded: forget long-retired candidates without history
   if (state.characters.length > 600) state.characters = state.characters.filter((c) => !(c.status === 'retired' && c.record.monthsServed === 0));

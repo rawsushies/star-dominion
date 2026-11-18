@@ -21,6 +21,8 @@ import { SKILLS, ROLES } from './data/characters';
 import { COUNCIL_SEATS } from './data/council';
 import { canIssueDecree, canActOnHouse, inRevolt, maxDecrees } from './governance';
 import { PETITION_BY_ID } from './data/governance';
+import { canQueueCapital, openPlots, plotOccupant, capitalCost, plannedLevel } from './capital';
+import { CAPITAL_BUILDINGS } from './data/capital';
 import { next, chance } from './rng';
 import type { BuildingId, Empire, Fleet, GameState, PeaceTerm, Planet, ShipClass, TreatyType } from './types';
 import type { TechCategory } from './data/techs';
@@ -40,6 +42,7 @@ export function runAI(state: GameState, e: Empire) {
   if (state.tick % 30 < 5) diplomacy(state, e);
   if (state.tick % 15 < 5) characters(state, e);
   if (state.tick % 30 >= 10 && state.tick % 30 < 15) governance(state, e);
+  if (state.tick % 20 >= 15) capitalCity(state, e);
 }
 
 // ---------------------------------------------------------------- economy
@@ -685,4 +688,30 @@ function governance(state: GameState, e: Empire) {
     execute(state, e.id, { type: 'issueDecree', decree: id });
     break;
   }
+}
+
+// ---------------------------------------------------------------- capital city
+
+/** Raise the capital: the Citadel when it can rise, otherwise the building the realm's temperament favours. */
+function capitalCity(state: GameState, e: Empire) {
+  const cap = e.capital;
+  if (!cap || cap.queue.length >= 1) return;
+  const pers = e.personality;
+  const weight: Record<string, number> = {
+    citadel: 3, throne_hall: 1.6, treasury: 1.5 + pers.mercantile, hall_of_heroes: 0.8, research_institute: 1 + pers.science * 1.5,
+    imperial_shipyards: 0.8 + pers.aggression * 1.5, refinery_complex: 1.2, diplomatic_quarter: 0.6 + pers.diplomacy, military_academy: 0.6 + pers.aggression,
+    intelligence_bureau: 0.6, grand_market: 0.6 + pers.mercantile * 1.5, bastion: 0.5 + (1 - pers.aggression) * 0.6, arcology: 1, stellar_observatory: 1, stellar_forge: 1.2, monument_of_ages: 1,
+  };
+  const free = openPlots(e).find((p) => !plotOccupant(cap, p));
+  let best: string | null = null, bestScore = 0;
+  for (const def of CAPITAL_BUILDINGS) {
+    const plot = cap.buildings[def.id] ? undefined : free;
+    if (canQueueCapital(state, e, def.id, plot)) continue;
+    const cost = capitalCost(def, plannedLevel(e, def.id) + 1);
+    // keep a reserve for the rest of the realm
+    if (Object.entries(cost).some(([k, v]) => (e.stock[k as keyof typeof e.stock] ?? 0) < v * (k === 'credits' ? 1.5 : 1.15) + 20)) continue;
+    const sc = (weight[def.id] ?? 1) / Math.sqrt(1 + plannedLevel(e, def.id));
+    if (sc > bestScore) { bestScore = sc; best = def.id; }
+  }
+  if (best) execute(state, e.id, { type: 'capitalBuild', building: best, plot: cap.buildings[best] ? undefined : free });
 }

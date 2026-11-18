@@ -3,6 +3,7 @@
 // invasions). Combat itself lives in combat.ts.
 
 import { SHIPS, SIZE_WEIGHT } from './data/ships';
+import { sackCapital } from './capital';
 import { empireMods, mod } from './modifiers';
 import { findPath, laneLength } from './galaxy';
 import { armed, claimCost, hostileArmedPresence, isHostile, setSystemOwner, supplyNetwork, markExplored } from './territory';
@@ -395,7 +396,7 @@ export function conquerPlanet(state: GameState, planetId: number, newOwner: numb
     setSystemOwner(state, sys.id, newOwner);
     if (sys.starbase === 0) sys.starbase = 1;
   }
-  if (wasCapital) relocateCapital(state, oldOwner);
+  if (wasCapital) { sackCapital(state, old, `The ${state.empires[newOwner].name}`); relocateCapital(state, oldOwner); }
 }
 
 export function relocateCapital(state: GameState, empireId: number) {

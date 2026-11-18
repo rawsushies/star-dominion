@@ -11,6 +11,7 @@ export const NAV: { id: ScreenId; label: string; key?: string }[] = [
   { id: 'map', label: 'Galaxy', key: 'F1' },
   { id: 'kingdom', label: 'Kingdom' },
   { id: 'council', label: 'Council' },
+  { id: 'capital', label: 'Capital' },
   { id: 'planets', label: 'Planets' },
   { id: 'system', label: 'Systems' },
   { id: 'fleets', label: 'Fleets' },
@@ -34,6 +35,7 @@ export function jumpTo(ev: { systemId?: number; planetId?: number; battleId?: nu
   if (ev.kind === 'diplomacy' || ev.kind === 'treaty') { ui.set({ screen: 'diplomacy' }); return; }
   if (ev.kind === 'research') { ui.set({ screen: 'research' }); return; }
   if (ev.kind === 'council' || ev.kind === 'government') { ui.openScreen('council'); return; }
+  if (ev.kind === 'capital' && ev.planetId == null) { ui.openScreen('capital'); return; }
   if (ev.kind === 'character' || ev.kind === 'capture') { ui.openScreen('heroes'); return; }
   if (ev.planetId != null) {
     ui.selectPlanet(ev.planetId);

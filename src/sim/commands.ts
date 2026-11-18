@@ -1,4 +1,5 @@
 import { TECH_BY_ID } from './data/techs';
+import { canQueueCapital, queueCapital, cancelCapital } from './capital';
 import { canIssueDecree, issueDecree, revokeDecree, canResolvePetition, resolvePetition, houseById, canActOnHouse, actOnHouse } from './governance';
 import { ERAS } from './data/eras';
 // Command layer: the only way the UI or the AI changes game state. Every
@@ -50,6 +51,8 @@ export type Command =
   | { type: 'unequipItem'; charId: number; slot: EquipSlot }
   | { type: 'captive'; charId: number; action: 'pardon' | 'recruit' | 'ransom' }
   | { type: 'payRansom'; charId: number }
+  | { type: 'capitalBuild'; building: string; plot?: number }
+  | { type: 'capitalCancel'; index: number }
   | { type: 'issueDecree'; decree: string }
   | { type: 'revokeDecree'; decree: string }
   | { type: 'resolvePetition'; petitionId: number; option: number }
@@ -360,6 +363,16 @@ export function execute(state: GameState, empireId: number, cmd: Command): Comma
       e.stock.credits += price;
       releaseCaptive(state, c, `Ransomed back from the ${e.name} for ${price} credits.`);
       return { ok: true, message: `Ransomed for ${price} credits` };
+    }
+    case 'capitalBuild': {
+      const why = canQueueCapital(state, e, cmd.building, cmd.plot);
+      if (why) return fail(why);
+      queueCapital(state, e, cmd.building, cmd.plot);
+      return OK;
+    }
+    case 'capitalCancel': {
+      if (!cancelCapital(e, cmd.index)) return fail('No such work in the queue');
+      return OK;
     }
     case 'issueDecree': {
       const why = canIssueDecree(state, e, cmd.decree);

@@ -19,6 +19,7 @@ const ICONS: Record<ScreenId, JSX.Element> = {
   journal: <g {...P}><path d="M6 3 H17 L19 5 V21 H6 Z" /><path d="M9 8 H16 M9 12 H16 M9 16 H13" /></g>,
   heroes: <g {...P}><circle cx="12" cy="8" r="3.5" /><path d="M5 21 C5 15 19 15 19 21" /><path d="M9 3.5 L10.5 5 L12 3 L13.5 5 L15 3.5" /></g>,
   council: <g {...P}><circle cx="12" cy="12" r="3" /><circle cx="12" cy="4.5" r="1.6" /><circle cx="19" cy="9" r="1.6" /><circle cx="17" cy="17.5" r="1.6" /><circle cx="7" cy="17.5" r="1.6" /><circle cx="5" cy="9" r="1.6" /></g>,
+  capital: <g {...P}><path d="M3 21 H21" /><path d="M5 21 V12 H9 V21" /><path d="M10 21 V6 L12 3 L14 6 V21" /><path d="M15 21 V10 H19 V21" /></g>,
   techtree: <g {...P}><circle cx="5" cy="12" r="2" /><circle cx="19" cy="6" r="2" /><circle cx="19" cy="18" r="2" /><circle cx="12" cy="12" r="2" /><path d="M7 12 H10 M14 12 L17 7 M14 12 L17 17" /></g>,
 };
 

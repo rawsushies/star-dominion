@@ -3,6 +3,7 @@
 // named additive modifier so that all systems read from one place.
 
 import { GOVERNMENTS, POLICY_BY_ID } from './data/governments';
+import { capitalMods, capitalSig } from './capital';
 import { TECH_BY_ID } from './data/techs';
 import { MEGA_BY_ID } from './data/megastructures';
 import { ERAS } from './data/eras';
@@ -47,6 +48,7 @@ function signature(state: GameState, e: Empire, megas: { id: string; stage: numb
     e.era ?? 0,
     councilSig(state, e),
     governanceSig(state, e),
+    capitalSig(e),
   ].join('|');
 }
 
@@ -88,6 +90,7 @@ function compute(state: GameState, e: Empire) {
   for (let i = 1; i <= (e.era ?? 0) && i < ERAS.length; i++) add(ERAS[i].mods);
   add(councilMods(state, e));
   add(governanceMods(state, e));
+  add(capitalMods(e));
   for (const tm of e.timedMods) mods[tm.key] = (mods[tm.key] ?? 0) + tm.value;
   // Difficulty: AI bonuses (never applied to the player).
   if (!e.isPlayer && e.kind === 'major') {
