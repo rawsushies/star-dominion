@@ -47,7 +47,7 @@ interface UI {
   speed: number;
   lastSpeed: number;
   screen: ScreenId;
-  view: 'galaxy' | 'system';
+  view: 'galaxy' | 'system' | 'planet';
   systemId: number | null;
   planetId: number | null;
   fleetId: number | null;

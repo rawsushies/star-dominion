@@ -357,7 +357,12 @@ table.t tr.sel td { background: var(--ice-dim); }
 /* map overlays */
 .order-banner { position: absolute; left: calc(50% + var(--neo) / 2 - var(--right) / 2); top: 52px; transform: translateX(-50%); z-index: 45; padding: 7px 14px; display: flex; gap: 12px; align-items: center; font-size: 14px; border-color: var(--ice) !important; }
 .sys-crumb { position: absolute; left: calc(var(--neo) + 330px); top: 50px; z-index: 18; display: flex; gap: 10px; align-items: center; }
-.sys-crumb .nm { font-size: 22px; font-weight: 600; text-shadow: 0 1px 3px #000; }
+.sys-crumb { flex-wrap: wrap; gap: 6px; max-width: calc(100vw - var(--neo) - 330px - var(--right) - 40px); }
+.crumb { background: none; border: 0; padding: 0; cursor: pointer; font-size: 15px; font-weight: 600; color: var(--text-2); text-shadow: 0 1px 3px #000; }
+.crumb:hover { color: var(--text); }
+.crumb.on { color: var(--text); }
+.sys-crumb .sep { color: var(--text-3); }
+.sys-crumb .hint { flex-basis: 100%; }
 .sys-crumb .hint { text-shadow: 0 1px 3px #000; }
 
 /* planet sheet */
