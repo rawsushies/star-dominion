@@ -18,6 +18,12 @@ export interface MegaDef {
 
 export const MEGASTRUCTURES: MegaDef[] = [
   {
+    id: 'continuum_engine', label: 'Continuum Engine', tech: 'era_dimensional', stages: 3,
+    stageCost: { alloys: 6000, components: 1500, rare: 800, credits: 5000 }, stageDays: 540,
+    modsPerStage: { 'output.research': 0.2, 'output.energy': 0.2 }, outputPerStage: { energy: 400 }, unique: true,
+    description: 'A machine that draws power from the vacuum itself. Its first stage opens the Transcendent Continuum; the third, Omega Sovereignty.',
+  },
+  {
     id: 'orbital_ring', label: 'Orbital Ring Shipyard', tech: 'ind_orbital_foundries', stages: 2,
     stageCost: { alloys: 1500, components: 200, credits: 1500 }, stageDays: 360,
     modsPerStage: { shipBuildSpeed: 0.25, navalCap: 10 },

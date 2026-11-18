@@ -7,6 +7,7 @@ import { newGame as createGame, step } from '../sim/engine';
 import { execute, type Command, type CommandResult } from '../sim/commands';
 import { serialize, deserialize } from '../sim/save';
 import { writeSave, readSave } from '../persistence/idb';
+import { cloudUser, cloudWrite, cloudRead } from '../persistence/cloud';
 import type { GameEvent, GameSettings, GameState } from '../sim/types';
 
 export type ScreenId =
@@ -39,6 +40,7 @@ function placeWindow(id: Win['id'], wins: Win[], z: number): Win {
   return { id, x, y, w, h, z, min: false };
 }
 
+export type UIState = UI;
 interface UI {
   game: GameState | null;
   rev: number;
@@ -57,6 +59,7 @@ interface UI {
   flash: string | null;
   pauseOnEvents: boolean;
   windows: Win[];
+  eraSeen: number;
   zTop: number;
   focusWin: (id: Win['id']) => void;
   closeWin: (id: Win['id']) => void;
@@ -95,6 +98,7 @@ export const useUI = create<UI>((set, get) => ({
   flash: null,
   pauseOnEvents: true,
   windows: [],
+  eraSeen: 0,
   zTop: 10,
   focusWin: (id) => {
     const z = get().zTop + 1;
@@ -109,11 +113,11 @@ export const useUI = create<UI>((set, get) => ({
   start: (s) => {
     const g = createGame(s);
     lastEventId = g.nextId;
-    set({ game: g, rev: 1, speed: 0, screen: 'map', windows: [], view: 'galaxy', systemId: g.empires[g.playerId].capitalSystemId, planetId: null, fleetId: null, toasts: [] });
+    set({ game: g, rev: 1, speed: 0, screen: 'map', windows: [], eraSeen: g.empires[g.playerId].era ?? 0, view: 'galaxy', systemId: g.empires[g.playerId].capitalSystemId, planetId: null, fleetId: null, toasts: [] });
   },
   load: (g) => {
     lastEventId = g.nextId;
-    set({ game: g, rev: get().rev + 1, speed: 0, screen: 'map', windows: [], view: 'galaxy', systemId: g.empires[g.playerId].capitalSystemId, planetId: null, fleetId: null, toasts: [], menuOpen: false });
+    set({ game: g, rev: get().rev + 1, speed: 0, screen: 'map', windows: [], eraSeen: g.empires[g.playerId].era ?? 0, view: 'galaxy', systemId: g.empires[g.playerId].capitalSystemId, planetId: null, fleetId: null, toasts: [], menuOpen: false });
   },
   quit: () => set({ game: null, speed: 0, menuOpen: false }),
   bump: () => set({ rev: get().rev + 1 }),
@@ -167,8 +171,8 @@ useUI.subscribe((st, prev) => {
 let flashTimer = 0;
 let lastEventId = 0;
 
-const TOAST_KINDS = new Set(['war', 'peace', 'invasion', 'colony', 'research', 'rebellion', 'battle', 'fall', 'treaty', 'shortage', 'outpost', 'megastructure', 'raiders', 'diplomacy', 'victory', 'gameover', 'unrest', 'capture', 'discovery', 'trade']);
-const PAUSE_KINDS = new Set(['war', 'invasion', 'rebellion', 'gameover', 'victory', 'unrest']);
+const TOAST_KINDS = new Set(['era', 'war', 'peace', 'invasion', 'colony', 'research', 'rebellion', 'battle', 'fall', 'treaty', 'shortage', 'outpost', 'megastructure', 'raiders', 'diplomacy', 'victory', 'gameover', 'unrest', 'capture', 'discovery', 'trade']);
+const PAUSE_KINDS = new Set(['era', 'war', 'invasion', 'rebellion', 'gameover', 'victory', 'unrest']);
 
 /** Real-time loop: advances the simulation according to speed and surfaces new events. */
 export function startLoop() {
@@ -233,16 +237,28 @@ const toastTimers = new Set<number>();
 export async function saveGame(slot: string, name: string) {
   const g = useUI.getState().game;
   if (!g) return;
-  await writeSave({ slot, name, realm: g.empires[g.playerId].name, tick: g.tick }, serialize(g));
+  const meta = { slot, name, realm: g.empires[g.playerId].name, tick: g.tick };
+  const data = serialize(g);
+  await writeSave(meta, data);
+  if (cloudUser()) await cloudWrite(meta, data);
 }
 
 async function autosave(g: GameState) {
-  try { await writeSave({ slot: 'autosave', name: 'Autosave', realm: g.empires[g.playerId].name, tick: g.tick }, serialize(g)); } catch { /* storage unavailable */ }
+  const meta = { slot: 'autosave', name: 'Autosave', realm: g.empires[g.playerId].name, tick: g.tick };
+  const data = serialize(g);
+  try { await writeSave(meta, data); } catch { /* local storage unavailable */ }
+  if (cloudUser()) cloudWrite(meta, data).catch(() => useUI.getState().notify('Cloud autosave failed; your local autosave is safe.'));
 }
 
 export async function loadGame(slot: string) {
   const data = await readSave(slot);
   if (!data) throw new Error('Save not found');
+  useUI.getState().load(deserialize(data));
+}
+
+export async function loadCloudGame(slot: string) {
+  const data = await cloudRead(slot);
+  if (!data) throw new Error('Cloud save not found');
   useUI.getState().load(deserialize(data));
 }
 

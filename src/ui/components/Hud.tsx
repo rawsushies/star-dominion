@@ -18,6 +18,7 @@ import { fleetPower } from '../../sim/fleets';
 import { hasContact, opinion } from '../../sim/diplomacy';
 import { ResGlyph, RES_META, Tip, fmt, signed, cls, Emblem, Swatch } from './common';
 import { ScreenIcon, PlayIcon } from './icons';
+import { EraBadge } from './Evolution';
 import { NAV, jumpTo } from './Chrome';
 import { focusSystem } from './MapView';
 import { SCREENS } from '../screens';
@@ -107,6 +108,7 @@ export function LocationHud() {
         <span className="loc-name">{e.name}</span>
         <span className="loc-gov">{GOVERNMENTS[e.government].label} · {e.ruler}</span>
       </div>
+      <EraBadge />
       {sys && (
         <div className="loc-sys">
           <span className="loc-star" style={{ background: owner?.color ?? '#5d6873' }} />

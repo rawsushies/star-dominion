@@ -5,6 +5,7 @@ import type { Empire, GameState } from './types';
 export function canResearch(e: Empire, id: string): boolean {
   const t = TECH_BY_ID[id];
   if (!t || e.research.done.includes(id)) return false;
+  if ((t.era ?? 0) > (e.era ?? 0)) return false;
   return t.requires.every((r) => e.research.done.includes(r));
 }
 

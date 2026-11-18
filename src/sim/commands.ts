@@ -1,3 +1,5 @@
+import { TECH_BY_ID } from './data/techs';
+import { ERAS } from './data/eras';
 // Command layer: the only way the UI or the AI changes game state. Every
 // command is validated against the rules (ownership, costs, tech, limits).
 // This is the seam where a server-authoritative multiplayer layer could sit:
@@ -260,6 +262,7 @@ export function execute(state: GameState, empireId: number, cmd: Command): Comma
       return OK;
     }
     case 'setResearch': {
+      if ((TECH_BY_ID[cmd.tech]?.era ?? 0) > (e.era ?? 0)) return fail(`Requires the ${ERAS[TECH_BY_ID[cmd.tech].era!].name} era`);
       if (!canResearch(e, cmd.tech)) return fail('Prerequisites not met');
       if (e.research.current && e.research.current !== cmd.tech) e.research.queue.unshift(e.research.current);
       e.research.queue = e.research.queue.filter((t) => t !== cmd.tech);
@@ -268,6 +271,7 @@ export function execute(state: GameState, empireId: number, cmd: Command): Comma
     }
     case 'queueResearch': {
       if (e.research.done.includes(cmd.tech) || e.research.current === cmd.tech || e.research.queue.includes(cmd.tech)) return fail('Already researched or queued');
+      { const need = TECH_BY_ID[cmd.tech]?.era ?? 0; if (need > (e.era ?? 0)) return fail(`Requires the ${ERAS[need].name} era`); }
       // Auto-queue missing prerequisites in order.
       const order: string[] = [];
       const visit = (id: string) => {

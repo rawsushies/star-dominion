@@ -15,7 +15,7 @@ it('soak: 30 years of AI-driven simulation stays healthy', () => {
       const rows = s.empires.filter((e) => e.kind === 'major' || e.kind === 'minor' || e.kind === 'rebels').map((e) => {
         const L = e.alive ? getLedger(s, e) : null;
         const net = L ? RESOURCES.map((r) => `${r.slice(0, 3)}:${Math.round(L.net[r])}`).join(' ') : '';
-        return `${e.alive ? ' ' : '✝'} ${e.name.padEnd(28).slice(0, 28)} sys ${String(e.stats.systems).padStart(3)} col ${String(e.stats.colonies).padStart(2)} pop ${String(Math.round(e.stats.population)).padStart(4)} mil ${String(e.stats.militaryPower).padStart(5)} stab ${String(e.stats.avgStability).padStart(3)} tech ${String(e.research.done.length).padStart(2)} | ${net}`;
+        return `${e.alive ? ' ' : '✝'} ${e.name.padEnd(28).slice(0, 28)} sys ${String(e.stats.systems).padStart(3)} col ${String(e.stats.colonies).padStart(2)} pop ${String(Math.round(e.stats.population)).padStart(4)} mil ${String(e.stats.militaryPower).padStart(5)} stab ${String(e.stats.avgStability).padStart(3)} tech ${String(e.research.done.length).padStart(2)} K${(e.stats.kardashev ?? 0).toFixed(2)} era${e.era} | ${net}`;
       });
       console.log(`\n=== Year ${2400 + y} (${s.wars.length} wars, ${s.treaties.length} treaties, ${Object.keys(s.fleets).length} fleets) ===\n` + rows.join('\n'));
     }

@@ -15,6 +15,8 @@ export function deserialize(json: string): GameState {
   for (const k of ['galaxy', 'planets', 'empires', 'fleets', 'rng'] as const) {
     if (!(k in s)) throw new Error(`Corrupt save: missing ${k}`);
   }
+  // forward-compatible defaults for fields added after a save was written
+  for (const e of s.empires) if (e.era == null) e.era = 0;
   updateStats(s);
   return s;
 }

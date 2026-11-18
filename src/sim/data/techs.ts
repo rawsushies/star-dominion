@@ -1,12 +1,14 @@
 export type TechCategory =
   | 'propulsion' | 'weapons' | 'defense' | 'industry' | 'energy'
-  | 'biology' | 'ai' | 'colonization' | 'engineering';
+  | 'biology' | 'ai' | 'colonization' | 'engineering' | 'ascension';
 
 export interface TechDef {
   id: string;
   name: string;
   category: TechCategory;
-  tier: number; // 1..5
+  tier: number; // 1..8
+  /** minimum civilisational era needed to research this */
+  era?: number;
   requires: string[];
   mods?: Record<string, number>;
   flags?: string[];
@@ -23,9 +25,10 @@ export const TECH_CATEGORIES: { id: TechCategory; label: string; color: string }
   { id: 'ai', label: 'Artificial Intelligence', color: '#a98fd6' },
   { id: 'colonization', label: 'Colonisation', color: '#6fc2b0' },
   { id: 'engineering', label: 'Advanced Engineering', color: '#c48fb0' },
+  { id: 'ascension', label: 'Ascension', color: '#e8d48a' },
 ];
 
-export const TIER_COST = [0, 300, 800, 1700, 3200, 5400];
+export const TIER_COST = [0, 300, 800, 1700, 3200, 5400, 8000, 12000, 18000];
 
 const t = (d: TechDef) => d;
 
@@ -103,6 +106,12 @@ export const TECHS: TechDef[] = [
   t({ id: 'eng_carriers', name: 'Carrier Hulls', category: 'engineering', tier: 3, requires: ['eng_cruisers', 'wpn_strike_craft'], description: 'Unlocks Carriers.' }),
   t({ id: 'eng_battleships', name: 'Battleship Hulls', category: 'engineering', tier: 4, requires: ['eng_battlecruisers'], description: 'Unlocks Battleships.' }),
   t({ id: 'eng_mega', name: 'Megastructure Engineering', category: 'engineering', tier: 4, requires: ['eng_battlecruisers', 'ind_nanofab'], mods: { navalCap: 10 }, description: 'Unlocks megastructure construction. +10 naval capacity.' }),
+  // ASCENSION (era-locked)
+  t({ id: 'era_imperial_bureaucracy', name: 'Imperial Bureaucracy', category: 'ascension', tier: 2, era: 1, requires: [], mods: { admin: 3, claimCost: -0.15 }, description: 'Requires the Interstellar Imperium. +3 admin capacity, -15% claim cost.' }),
+  t({ id: 'era_stellar_engineering', name: 'Stellar Engineering', category: 'ascension', tier: 5, era: 1, requires: ['en_stellar_collector'], mods: { 'output.energy': 0.1 }, description: 'Requires the Interstellar Imperium. The science of reshaping stars. +10% energy. Needed for the Stellar Ascendancy.' }),
+  t({ id: 'era_galactic_lattice', name: 'Galactic Lattice Theory', category: 'ascension', tier: 6, era: 2, requires: ['era_stellar_engineering', 'eng_mega'], mods: { shipSpeed: 0.2, admin: 4 }, description: 'Requires the Stellar Ascendancy. +20% ship speed, +4 admin. Needed for the Galactic Hegemony.' }),
+  t({ id: 'era_dimensional', name: 'Dimensional Engineering', category: 'ascension', tier: 7, era: 3, requires: ['era_galactic_lattice'], description: 'Requires the Galactic Hegemony. Unlocks the Continuum Engine megastructure.' }),
+  t({ id: 'era_omega', name: 'Omega Theorem', category: 'ascension', tier: 8, era: 4, requires: ['era_dimensional'], description: 'Requires the Transcendent Continuum. The final proof. Needed for Omega Sovereignty.' }),
   t({ id: 'eng_dreadnoughts', name: 'Dreadnought Keels', category: 'engineering', tier: 5, requires: ['eng_battleships', 'eng_mega'], description: 'Unlocks Dreadnoughts.' }),
 ];
 

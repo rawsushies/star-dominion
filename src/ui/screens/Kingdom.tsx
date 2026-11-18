@@ -1,3 +1,5 @@
+import { EraLadder, typeLabel } from '../components/Evolution';
+import { kardashev } from '../../sim/eras';
 import { useUI, useGame } from '../store';
 import { getLedger } from '../../sim/engine';
 import { GOVERNMENTS, MINISTRIES, POLICIES, type PolicyOption } from '../../sim/data/governments';
@@ -43,6 +45,10 @@ export function KingdomScreen() {
         <Stat k="Administration" v={`${L.adminUsed}/${L.adminCap}`} s={L.adminUsed > L.adminCap ? 'Over capacity: stability and influence suffer' : 'systems governed / capacity'} tone={L.adminUsed > L.adminCap ? 'neg' : ''} />
         <Stat k="War exhaustion" v={Math.round(e.warExhaustion)} s="rises with losses and long wars" tone={e.warExhaustion > 50 ? 'neg' : ''} />
       </div>
+
+      <Section title="Evolution" aside={`Kardashev ${typeLabel(kardashev(g, e))}`}>
+        <EraLadder />
+      </Section>
 
       <div className="cols c2" style={{ marginTop: 6 }}>
         <div>

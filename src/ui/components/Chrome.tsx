@@ -5,6 +5,7 @@ import { serialize, deserialize } from '../../sim/save';
 import { listSaves, deleteSave, type SaveMeta } from '../../persistence/idb';
 import { cls } from './common';
 import { focusSystem } from './MapView';
+import { AccountPanel } from './Account';
 
 export const NAV: { id: ScreenId; label: string; key?: string }[] = [
   { id: 'map', label: 'Galaxy', key: 'F1' },
@@ -120,6 +121,10 @@ export function GameMenu() {
                 </div>
               ))}
             </div>
+          </div>
+          <div className="section">
+            <h3><span>Cloud</span><span className="aside">Google account</span></h3>
+            <AccountPanel />
           </div>
           <div className="section">
             <h3><span>Files</span></h3>

@@ -2,6 +2,8 @@
 // Order of a day: combat -> movement -> orders -> supply -> construction ->
 // economy/population/research per empire -> monthly systems -> AI.
 
+import { eraMonthly, kardashev } from './eras';
+import { MAX_ERA } from './data/eras';
 import { makeRng, int, pick, chance, range, next } from './rng';
 import { generateGalaxy, jumpDistances, adjacency } from './galaxy';
 import { CIV_TEMPLATES, MINOR_NAMES, RULER_FIRST, RULER_LAST, ADMIRAL_NAMES } from './data/names';
@@ -58,6 +60,7 @@ function blankEmpire(id: number, partial: Partial<Empire>): Empire {
     personality: { aggression: 0.4, expansion: 0.5, mercantile: 0.5, science: 0.5, diplomacy: 0.5, doctrine: 'balanced' },
     timedMods: [],
     warExhaustion: 0,
+    era: 0,
     emblem: id,
     ruler: '',
     aiNextTick: 3 + id,
@@ -328,6 +331,7 @@ function monthly(state: GameState) {
   randomEvents(state);
   eliminationCheck(state);
   updateStats(state);
+  eraMonthly(state);
   victoryCheck(state);
 }
 
@@ -501,6 +505,7 @@ export function updateStats(state: GameState) {
       adminCap: L?.adminCap ?? 0,
       avgStability: col ? Math.round(stab / col) : 0,
     };
+    if (e.kind === 'major') e.stats.kardashev = Math.round(kardashev(state, e) * 100) / 100;
   }
 }
 
@@ -515,6 +520,11 @@ function victoryCheck(state: GameState) {
   const total = state.galaxy.systems.length;
   const mine = player.stats.systems;
   const rivalsStanding = state.empires.filter((e) => e.alive && e.kind === 'major' && !e.isPlayer && !state.treaties.some((t) => t.type === 'vassal' && t.a === player.id && t.b === e.id));
+  if ((player.era ?? 0) >= MAX_ERA) {
+    state.gameOver = { won: true, reason: 'Your civilisation has reached Omega Sovereignty and transcended the age of kingdoms.' };
+    log(state, { kind: 'victory', severity: 'good', title: 'Ascension achieved', text: `${state.gameOver.reason} You may continue to rule.`, empires: [] });
+    return;
+  }
   if (mine / total >= 0.6 || rivalsStanding.length === 0) {
     state.gameOver = { won: true, reason: rivalsStanding.length === 0 ? 'Every rival kingdom has fallen or kneels before your throne.' : 'Your banners fly over three fifths of the galaxy.' };
     log(state, { kind: 'victory', severity: 'good', title: 'Galactic Dominion achieved', text: `${state.gameOver.reason} You may continue to rule.`, empires: [] });

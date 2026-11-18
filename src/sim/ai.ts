@@ -88,8 +88,9 @@ function economy(state: GameState, e: Empire) {
     }
   }
   // Megastructures for wealthy, advanced AIs
-  if (e.stock.alloys > 2500 && e.kind === 'major') {
-    for (const id of ['dyson_swarm', 'grand_archive', 'lattice', 'orbital_ring', 'stellar_collector']) {
+  // (a civilisation chasing the next era wants them sooner)
+  if (e.stock.alloys > ((e.era ?? 0) >= 1 ? 1700 : 2500) && e.kind === 'major') {
+    for (const id of ['continuum_engine', 'dyson_swarm', 'stellar_collector', 'grand_archive', 'lattice', 'orbital_ring']) {
       for (const sid of ownedSystems(state, e.id)) {
         if (execute(state, e.id, { type: 'startMegastructure', systemId: sid, mega: id }).ok) return;
       }
@@ -148,6 +149,7 @@ const CAT_WEIGHT = (e: Empire): Record<TechCategory, number> => {
     ai: 0.6 + p.science * 0.8,
     colonization: 0.6 + p.expansion * 0.8,
     engineering: 0.7 + p.aggression * 0.8,
+    ascension: 2.0,
   };
 };
 

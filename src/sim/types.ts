@@ -193,6 +193,8 @@ export interface Empire {
   warExhaustion: number; // 0..100
   emblem: number; // emblem variant index
   ruler: string;
+  /** civilisational era index (see data/eras.ts) */
+  era: number;
   aiNextTick: number;
   stats: EmpireStats; // cached each month for UI/AI
 }
@@ -209,6 +211,7 @@ export interface EmpireStats {
   navalCap: number;
   adminCap: number;
   avgStability: number;
+  kardashev?: number;
 }
 
 export type TreatyType = 'nap' | 'trade' | 'research' | 'defense' | 'alliance' | 'vassal';
@@ -322,4 +325,6 @@ export interface GameState {
   disruptedRoutes: Record<string, number>; // colony planet id -> tick disrupted (for event dedupe)
   playerId: number;
   gameOver: null | { won: boolean; reason: string };
+  /** guided first-reign progress (UI only; null when the tutorial is off) */
+  tutorial?: { step: number; base: { explored: number; buildings: number; ships: number } } | null;
 }

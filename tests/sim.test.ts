@@ -9,6 +9,7 @@ import { buildingCost } from '../src/sim/construction';
 import { planetHab } from '../src/sim/economy';
 import { empireMods } from '../src/sim/modifiers';
 import { RESOURCES, type GameState } from '../src/sim/types';
+import { TECHS } from '../src/sim/data/techs';
 
 const P = 0;
 
@@ -277,5 +278,37 @@ describe('AI civilisations', () => {
     const militaries = s.empires.filter((e) => e.kind === 'major' && !e.isPlayer && e.alive).map((e) => e.stats.militaryPower);
     expect(Math.max(...militaries)).toBeGreaterThan(50);
     void fleetPower;
+  });
+});
+
+describe('civilisational eras', () => {
+  it('locks ascension research until the era is reached, then advances when requirements are met', () => {
+    const s = newGame({ seed: 11, galaxySize: 'small', aiCount: 2 });
+    const e = player(s);
+    expect(e.era).toBe(0);
+    const r = execute(s, P, { type: 'setResearch', tech: 'era_imperial_bureaucracy' });
+    expect(r.ok).toBe(false);
+    expect(r.message).toMatch(/Interstellar Imperium/);
+    // Meet the Interstellar Imperium requirements directly.
+    for (const t of TECHS.filter((x) => x.tier === 1 && !e.research.done.includes(x.id)).slice(0, 10)) e.research.done.push(t.id);
+    const free = s.galaxy.systems.filter((x) => x.owner == null).slice(0, 6);
+    for (const sys of free) sys.owner = P;
+    capital(s).colony!.pops = 70;
+    const kBefore = (() => { runDays(s, 1); return e.stats.kardashev ?? 0; })();
+    runDays(s, 31);
+    expect(e.era).toBe(1);
+    expect(e.stats.kardashev!).toBeGreaterThanOrEqual(1);
+    expect(kBefore).toBeLessThan(1);
+    expect(empireMods(s, e).admin ?? 0).toBeGreaterThanOrEqual(3);
+    expect(execute(s, P, { type: 'setResearch', tech: 'era_imperial_bureaucracy' }).ok).toBe(true);
+    expect(s.events.some((ev) => ev.kind === 'era')).toBe(true);
+  });
+
+  it('survives a save made before eras existed', () => {
+    const s = newGame({ seed: 5, galaxySize: 'small', aiCount: 2 });
+    const json = JSON.parse(serialize(s));
+    for (const e of json.empires) delete e.era;
+    const back = deserialize(JSON.stringify(json));
+    expect(back.empires.every((e) => e.era === 0)).toBe(true);
   });
 });

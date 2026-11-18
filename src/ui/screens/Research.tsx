@@ -94,21 +94,23 @@ export function TechTreeScreen() {
   for (const c of TECH_CATEGORIES) {
     rowStart[c.id] = rowCursor;
     const perTier: Record<number, number> = {};
-    for (const t of TECHS.filter((x) => x.category === c.id)) {
-      const k = perTier[t.tier] ?? 0;
-      perTier[t.tier] = k + 1;
-      pos.set(t.id, [X0 + (t.tier - 1) * COLW, Y0 + (rowCursor + k) * ROWH]);
-    }
+    TECHS.filter((x) => x.category === c.id).forEach((t, i) => {
+      // ascension techs read left to right as successive eras
+      const col = c.id === 'ascension' ? i + 1 : t.tier;
+      const k = c.id === 'ascension' ? 0 : perTier[t.tier] ?? 0;
+      perTier[col] = (perTier[col] ?? 0) + 1;
+      pos.set(t.id, [X0 + (col - 1) * COLW, Y0 + (rowCursor + k) * ROWH]);
+    });
     rowCursor += Math.max(1, ...Object.values(perTier));
   }
   const H = Y0 + rowCursor * ROWH + 20;
   const W = X0 + 5 * COLW + 20;
   const avail = new Set(availableTechs(me));
   return (
-    <Sheet title="Technology tree" lede="Nine fields, five tiers. Lines show prerequisites. Click an available technology to research it, or a locked one to queue it with its prerequisites.">
+    <Sheet title="Technology tree" lede="Nine fields across five tiers, plus Ascension: breakthroughs that each need a civilisational era. Lines show prerequisites. Click an available technology to research it, or a locked one to queue it with its prerequisites.">
       <div className="tree" style={{ width: W, height: H }}>
         <svg width={W} height={H} style={{ position: 'absolute', inset: 0 }} aria-hidden>
-          {[1, 2, 3, 4, 5].map((t) => <text key={t} x={X0 + (t - 1) * COLW} y={18} fill="#7f7868" style={{ font: "500 13px 'Barlow Condensed'" }}>Tier {t}</text>)}
+          {[1, 2, 3, 4, 5].map((t) => <text key={t} x={X0 + (t - 1) * COLW} y={18} fill="#7f7868" style={{ font: "500 13px 'Saira Semi Condensed'" }}>Tier {t}</text>)}
           {TECH_CATEGORIES.map((c) => <line key={c.id} x1={0} x2={W} y1={Y0 + rowStart[c.id] * ROWH - 6} y2={Y0 + rowStart[c.id] * ROWH - 6} stroke="#22324a" />)}
           {TECHS.flatMap((t) => t.requires.map((req) => {
             const a = pos.get(req)!, b = pos.get(t.id)!;
