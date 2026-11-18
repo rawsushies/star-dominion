@@ -35,8 +35,8 @@ const B = (d: BuildingDef) => d;
 // Job priority: pops fill the earliest jobs first. Food and energy first so a
 // shrinking colony does not starve itself before it stops refining alloys.
 export const JOB_PRIORITY: BuildingId[] = [
-  'capital', 'agri', 'hydroponics', 'power', 'fusion_plant', 'mining', 'rare_extractor',
-  'refinery', 'electronics_fab', 'component_works', 'research_lab', 'admin_center',
+  'capital', 'agri', 'hydroponics', 'power', 'fusion_plant', 'refinery', 'electronics_fab',
+  'mining', 'rare_extractor', 'component_works', 'research_lab', 'admin_center',
   'garrison', 'entertainment', 'spaceport', 'shipyard', 'commerce_hub', 'residential',
   'arcology', 'orbital_defense', 'planetary_shield', 'storage_depot',
 ];

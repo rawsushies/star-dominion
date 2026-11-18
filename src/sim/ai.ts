@@ -219,7 +219,7 @@ function military(state: GameState, e: Empire) {
     const doc = DOCTRINE[e.personality.doctrine];
     const options = doc.filter((c) => hasTech(e, SHIPS[c].tech));
     // Rotate through doctrine by fleet composition: build what we have least of.
-    const counts: Record<string, number> = {};
+    const counts: Record<string, number> = Object.create(null);
     for (const id in state.fleets) if (state.fleets[id].ownerId === e.id) for (const s of state.fleets[id].ships) counts[s.cls] = (counts[s.cls] ?? 0) + 1;
     const pickCls = options.slice().sort((a, b) => (counts[a] ?? 0) / (doc.filter((x) => x === a).length) - (counts[b] ?? 0) / (doc.filter((x) => x === b).length))
       .sort((a, b) => SHIPS[b].command - SHIPS[a].command)

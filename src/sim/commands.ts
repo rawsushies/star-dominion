@@ -12,13 +12,14 @@ import { ADMIRAL_NAMES } from './data/names';
 import { buildingCost, buildingDays, canBuild, canBuildShip, shipCost, shipDays, starbaseUpgradeCost } from './construction';
 import { createFleet, isCivilianFleet, routeFleet, removeFleet } from './fleets';
 import { canResearch } from './research';
-import { applyDeal, breakTreaty, declareWar, evaluateProposal, makePeace, type Evaluation, canDeclareWar, hasContact } from './diplomacy';
+import { applyDeal, breakTreaty, declareWar, evaluateProposal, evaluateContract, makePeace, type Evaluation, canDeclareWar, hasContact } from './diplomacy';
+import { computeLedger } from './economy';
 import { empireMods, hasTech, mod } from './modifiers';
 import { planetHab } from './economy';
 import { hasTreaty, isHostile } from './territory';
 import { canAfford, log, nextId, pay, refund } from './util';
 import { int, pick } from './rng';
-import type { BuildingId, DealItem, Fleet, FleetOrder, GameState, GovernmentId, PeaceTerm, ResId, ShipClass, StationKind, TreatyType } from './types';
+import type { Cost, BuildingId, DealItem, Fleet, FleetOrder, GameState, GovernmentId, PeaceTerm, ResId, ShipClass, StationKind, TreatyType } from './types';
 
 export type Command =
   | { type: 'queueBuilding'; planetId: number; building: BuildingId }
@@ -43,6 +44,7 @@ export type Command =
   | { type: 'changeGovernment'; government: GovernmentId }
   | { type: 'market'; res: ResId; amount: number }
   | { type: 'propose'; to: number; give: DealItem[]; receive: DealItem[] }
+  | { type: 'proposeContract'; to: number; give: Cost; receive: Cost; years: number }
   | { type: 'respondProposal'; id: number; accept: boolean }
   | { type: 'declareWar'; target: number }
   | { type: 'proposePeace'; warId: number; term: PeaceTerm }
@@ -341,6 +343,21 @@ export function execute(state: GameState, empireId: number, cmd: Command): Comma
       const ev = evaluateProposal(state, prop);
       if (ev.accept) applyDeal(state, prop);
       return { ok: ev.accept, message: ev.accept ? 'Accepted' : 'Declined', evaluation: ev };
+    }
+    case 'proposeContract': {
+      const to = state.empires[cmd.to];
+      if (!to?.alive || to.isPlayer || to.kind === 'guardian' || to.kind === 'raiders') return fail('They will not negotiate');
+      if (!hasContact(state, empireId, cmd.to)) return fail('No contact established');
+      const clean = (c: Cost) => Object.fromEntries(Object.entries(c).filter(([k, v]) => (v ?? 0) > 0 && k !== 'influence')) as Cost;
+      const give = clean(cmd.give), receive = clean(cmd.receive);
+      if (!Object.keys(give).length && !Object.keys(receive).length) return fail('Contract is empty');
+      const years = Math.max(1, Math.min(20, Math.round(cmd.years)));
+      const ev = evaluateContract(state, empireId, cmd.to, give, receive, computeLedger(state, to).net as Record<string, number>);
+      if (ev.accept) {
+        state.tradeDeals.push({ id: nextId(state), a: empireId, b: cmd.to, aGives: give, bGives: receive, until: state.tick + years * 360 });
+        log(state, { kind: 'treaty', severity: 'good', title: 'Resource contract signed', text: `${e.name} and ${to.name} agree a ${years}-year exchange.`, empires: [empireId, cmd.to] });
+      }
+      return { ok: ev.accept, message: ev.accept ? 'Contract signed' : 'Contract declined', evaluation: ev };
     }
     case 'respondProposal': {
       const i = state.proposals.findIndex((p) => p.id === cmd.id && p.to === empireId);

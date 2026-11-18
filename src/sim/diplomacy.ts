@@ -207,6 +207,25 @@ function evaluatePeace(state: GameState, p: Proposal, reasons: [string, number][
   return { accept: score >= 0, score, reasons };
 }
 
+/** AI evaluation of a recurring monthly resource contract. */
+export function evaluateContract(state: GameState, from: number, to: number, fromGives: Partial<Record<string, number>>, toGives: Partial<Record<string, number>>, aiNet: Record<string, number>): Evaluation {
+  const ai = state.empires[to];
+  const reasons: [string, number][] = [];
+  reasons.push(['Opinion of you', Math.round(opinion(state, to, from) * 0.4)]);
+  const price = (k: string) => state.market.price[k as keyof typeof state.market.price] ?? PRICE_FALLBACK[k] ?? 1;
+  let gain = 0, loss = 0;
+  for (const k in fromGives) gain += (fromGives[k] ?? 0) * price(k);
+  for (const k in toGives) loss += (toGives[k] ?? 0) * price(k);
+  if (gain + loss > 0) reasons.push(['Value of the exchange', Math.round(((gain - loss * 1.1) / (gain + loss)) * 50)]);
+  reasons.push(['Mercantile outlook', Math.round(ai.personality.mercantile * 12 - 4)]);
+  for (const k in toGives) {
+    if ((aiNet[k] ?? 0) < (toGives[k] ?? 0)) { reasons.push([`Cannot spare ${k}`, -100]); break; }
+  }
+  if (warBetween(state, from, to)) reasons.push(['We are at war', -1000]);
+  const score = reasons.reduce((a, [, v]) => a + v, 0);
+  return { accept: score >= 0, score, reasons };
+}
+
 export const PEACE_LABEL: Record<PeaceTerm, string> = {
   status_quo: 'Status quo', tribute: 'Pay tribute', cede: 'Cede border systems', vassalize: 'Become vassal',
 };

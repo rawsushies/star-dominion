@@ -1,7 +1,7 @@
 import type { Climate, GovernmentId, Personality } from '../types';
 
 export const STAR_NAMES = [
-  'Aurelis', 'Vantor', 'Kestrel', 'Myrrha', 'Ostrava', 'Calyx', 'Theron', 'Ilvane', 'Sorrow’s Reach', 'Varkhul',
+  'Aurelis', 'Vantor', 'Kestrel', 'Myrrha', 'Ostrava', 'Calyx', 'Theron', 'Ilvane', 'Sorrow’s Reach',
   'Pyrrhos', 'Elysande', 'Corvane', 'Halcyon', 'Drevin', 'Tessaly', 'Nyx Arden', 'Lumenor', 'Brask', 'Quelos',
   'Seraph', 'Ondrel', 'Kairo', 'Velloria', 'Mardun', 'Astrin', 'Yskar', 'Fenwick', 'Galeth', 'Hollis',
   'Isarn', 'Jadeport', 'Kovash', 'Lyrae', 'Morrow', 'Nemeth', 'Orisande', 'Pellucid', 'Rhovan', 'Sabine',
@@ -10,7 +10,7 @@ export const STAR_NAMES = [
   'Nadir', 'Obsidia', 'Praxis', 'Qadir', 'Rook', 'Selene', 'Tarsis', 'Ulthar', 'Vigil', 'Wrenfall',
   'Xerath', 'Yarrow', 'Zenith', 'Arcturon', 'Bellatrix Minor', 'Cassiel', 'Durnhold', 'Ebonreach', 'Fyrdal', 'Glimmer',
   'Hadrian', 'Ixion', 'Jessamy', 'Korvath', 'Laureth', 'Mirelle', 'Noctis', 'Oberon’s Gate', 'Perdita', 'Quillon',
-  'Ravenna', 'Sundral', 'Thule', 'Ursine', 'Valgard', 'Wyvern', 'Xylos', 'Yon', 'Zarek', 'Aldmere',
+  'Ravenna', 'Sundral', 'Ursine', 'Valgard', 'Wyvern', 'Xylos', 'Yon', 'Zarek', 'Aldmere',
   'Briar', 'Caladrel', 'Dusk', 'Emberfall', 'Farrow', 'Grimsel', 'Harrow', 'Ithil', 'Juniper', 'Kharon',
   'Lantern', 'Malice', 'Nereid', 'Orrin', 'Palisade', 'Quorum', 'Revenant', 'Solace', 'Tamsin', 'Utopos',
   'Verdance', 'Wanderer', 'Xenia', 'Yewen', 'Zorya', 'Amaranth', 'Bastille', 'Cerulean', 'Dagon', 'Erebus',
