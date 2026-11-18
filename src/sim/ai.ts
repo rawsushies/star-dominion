@@ -11,7 +11,7 @@ import { canBuild, buildingCost, shipCost } from './construction';
 import { availableTechs } from './research';
 import { fleetPower, isCivilianFleet, routeFleet } from './fleets';
 import { evaluateProposal, opinion, hasContact, canDeclareWar, makePeace, applyDeal, PEACE_LABEL, systemValue } from './diplomacy';
-import { bordering, claimCost, hasTreaty, isHostile, ownedSystems, warBetween, armed } from './territory';
+import { bordering, claimCost, hasTreaty, isHostile, ownedSystems, warBetween, armed, isExplored } from './territory';
 import { empireMods, hasTech } from './modifiers';
 import { planetHab } from './economy';
 import { adjacency, jumpDistances, findPath } from './galaxy';
@@ -431,7 +431,7 @@ function operations(state: GameState, e: Empire) {
       if (!s.features.includes('guardian')) continue;
       const lair = enemyStrengthAt(state, e, s.id);
       const path = findPath(state.galaxy, main.systemId, s.id);
-      if (path && path.length <= 5 && myPower > lair * 1.8 && e.explored.includes(s.id)) {
+      if (path && path.length <= 5 && myPower > lair * 1.8 && isExplored(e, s.id)) {
         execute(state, e.id, { type: 'moveFleet', fleetId: main.id, target: s.id });
         return;
       }

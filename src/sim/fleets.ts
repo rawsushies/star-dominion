@@ -5,7 +5,7 @@
 import { SHIPS, SIZE_WEIGHT } from './data/ships';
 import { empireMods, mod } from './modifiers';
 import { findPath, laneLength } from './galaxy';
-import { armed, claimCost, hostileArmedPresence, isHostile, setSystemOwner, supplyNetwork } from './territory';
+import { armed, claimCost, hostileArmedPresence, isHostile, setSystemOwner, supplyNetwork, markExplored } from './territory';
 import { log, nextId, pay } from './util';
 import { range } from './rng';
 import { planetHab, computeLedger } from './economy';
@@ -176,10 +176,7 @@ export function moveFleets(state: GameState, engaged: Set<number>) {
 
 function arrive(state: GameState, f: Fleet) {
   const e = state.empires[f.ownerId];
-  if (!e.explored.includes(f.systemId)) {
-    e.explored.push(f.systemId);
-    discover(state, e, f);
-  }
+  if (markExplored(state, e, f.systemId)) discover(state, e, f);
 }
 
 /** First visit effects: derelicts, ancient ruins. */

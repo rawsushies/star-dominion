@@ -18,7 +18,7 @@ import { applyDeal, breakTreaty, declareWar, evaluateProposal, evaluateContract,
 import { computeLedger } from './economy';
 import { empireMods, hasTech, mod } from './modifiers';
 import { planetHab } from './economy';
-import { hasTreaty, isHostile } from './territory';
+import { hasTreaty, isHostile, isExplored } from './territory';
 import { canAfford, log, nextId, pay, refund } from './util';
 import { int, pick } from './rng';
 import type { Cost, BuildingId, DealItem, Fleet, FleetOrder, GameState, GovernmentId, PeaceTerm, ResId, ShipClass, StationKind, TreatyType } from './types';
@@ -169,7 +169,7 @@ export function execute(state: GameState, empireId: number, cmd: Command): Comma
         if (!f.ships.some((s) => s.cls === 'constructor')) return fail('Requires a construction ship');
         const sys = state.galaxy.systems[o.systemId];
         if (!sys || sys.owner != null) return fail('System already claimed');
-        if (!e.explored.includes(o.systemId)) return fail('System unexplored');
+        if (!isExplored(e, o.systemId)) return fail('System unexplored');
         if (!routeFleet(state, f, o.systemId)) return fail('No route');
       } else if (o.type === 'invade') {
         if (f.troops <= 0) return fail('No troops embarked — add Troop Transports');

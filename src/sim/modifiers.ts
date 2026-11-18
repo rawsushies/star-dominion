@@ -12,10 +12,23 @@ export type Mods = Record<string, number>;
 
 const cache = new WeakMap<Empire, { sig: string; mods: Mods; flags: Set<string> }>();
 
+/** Systems that host any megastructure, rebuilt at most once per tick. */
+const megaHosts = new WeakMap<GameState, { tick: number; hosts: number[] }>();
+export function megastructureHosts(state: GameState): number[] {
+  let c = megaHosts.get(state);
+  if (!c || c.tick !== state.tick) {
+    const hosts: number[] = [];
+    for (const sys of state.galaxy.systems) if (sys.megastructures.length) hosts.push(sys.id);
+    c = { tick: state.tick, hosts };
+    megaHosts.set(state, c);
+  }
+  return c.hosts;
+}
+
 function megaStages(state: GameState, empireId: number): { id: string; stage: number }[] {
   const out: { id: string; stage: number }[] = [];
-  for (const sys of state.galaxy.systems) {
-    for (const m of sys.megastructures) if (m.ownerId === empireId && m.stage > 0) out.push({ id: m.id, stage: m.stage });
+  for (const sid of megastructureHosts(state)) {
+    for (const m of state.galaxy.systems[sid].megastructures) if (m.ownerId === empireId && m.stage > 0) out.push({ id: m.id, stage: m.stage });
   }
   return out;
 }

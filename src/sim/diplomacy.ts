@@ -2,7 +2,7 @@
 // deal system (credits, resources, systems, treaties), AI acceptance logic
 // with itemised reasons, war declarations with alliances, and peace terms.
 
-import { bordering, hasTreaty, ownedSystems, warBetween, visibleSystems } from './territory';
+import { bordering, hasTreaty, ownedSystems, warBetween, visibleSystems, setSystemOwner } from './territory';
 import { empireMods, mod } from './modifiers';
 import { log, nextId } from './util';
 import { BUILDINGS } from './data/buildings';
@@ -284,7 +284,7 @@ export function applyDeal(state: GameState, p: Proposal) {
 export function transferSystem(state: GameState, systemId: number, from: number, to: number) {
   const sys = state.galaxy.systems[systemId];
   if (sys.owner !== from) return;
-  sys.owner = to;
+  setSystemOwner(state, systemId, to);
   if (sys.starbase === 0) sys.starbase = 1;
   for (const pid of sys.planetIds) {
     const c = state.planets[pid].colony;

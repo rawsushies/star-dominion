@@ -1,15 +1,33 @@
 // Territory, hostility, supply networks, visibility and claim costs.
 
-import { adjacency, jumpDistances } from './galaxy';
+import { adjacency, jumpDistances, jumpsWithin, ensureBodies } from './galaxy';
 import { BUILDINGS } from './data/buildings';
 import { SHIPS } from './data/ships';
 import { empireMods, mod, type Mods } from './modifiers';
 import type { BuildingId, Empire, GameState } from './types';
 
+/** Bumped whenever ownership changes through setSystemOwner. */
+let ownershipEpoch = 0;
+const ownerIndex = new WeakMap<GameState, { tick: number; epoch: number; by: Map<number, number[]> }>();
+
+function ownerMap(state: GameState): Map<number, number[]> {
+  let c = ownerIndex.get(state);
+  if (!c || c.tick !== state.tick || c.epoch !== ownershipEpoch) {
+    const by = new Map<number, number[]>();
+    for (const s of state.galaxy.systems) {
+      if (s.owner == null) continue;
+      const arr = by.get(s.owner);
+      if (arr) arr.push(s.id); else by.set(s.owner, [s.id]);
+    }
+    c = { tick: state.tick, epoch: ownershipEpoch, by };
+    ownerIndex.set(state, c);
+  }
+  return c.by;
+}
+
+/** Systems owned by an empire (indexed; rebuilt per tick or ownership change). */
 export function ownedSystems(state: GameState, empireId: number): number[] {
-  const out: number[] = [];
-  for (const s of state.galaxy.systems) if (s.owner === empireId) out.push(s.id);
-  return out;
+  return (ownerMap(state).get(empireId) ?? []).slice();
 }
 
 export function warBetween(state: GameState, a: number, b: number) {
@@ -74,9 +92,8 @@ export function supplyNetwork(state: GameState, empireId: number): Set<number> {
 }
 
 function ownershipSig(state: GameState): string {
-  let h = 0;
-  for (const s of state.galaxy.systems) h = (h * 31 + (s.owner ?? -1) + 2) | 0;
-  return String(h) + ':' + state.treaties.length;
+  ownerMap(state);
+  return `${state.tick}:${ownershipEpoch}:${state.treaties.length}:${state.treaties.reduce((a, t) => a + t.a * 7 + t.b, 0)}`;
 }
 
 export function armed(f: { ships: { cls: string }[] }): boolean {
@@ -142,10 +159,7 @@ export function visibleSystems(state: GameState, empireId: number): Set<number> 
       for (const sh of f.ships) range = Math.max(range, (SHIPS[sh.cls].sensor ?? 0) + Math.round(sensorBonus));
       set.add(f.systemId);
       if (f.path[0] != null) set.add(f.path[0]);
-      if (range > 0) {
-        const d = jumpDistances(state.galaxy, [f.systemId]);
-        d.forEach((v, i) => { if (v <= range) set.add(i); });
-      }
+      if (range > 0) for (const id of jumpsWithin(state.galaxy, f.systemId, range).keys()) set.add(id);
     }
   }
   c.map.set(empireId, set);
@@ -183,6 +197,7 @@ export function bordering(state: GameState, a: number, b: number): number {
 export function setSystemOwner(state: GameState, systemId: number, owner: number | null) {
   const sys = state.galaxy.systems[systemId];
   sys.owner = owner;
+  ownershipEpoch++;
   if (owner == null) { sys.starbase = 0; sys.starbaseUpgrade = null; }
   for (const pid of sys.planetIds) {
     const p = state.planets[pid];
@@ -192,4 +207,28 @@ export function setSystemOwner(state: GameState, systemId: number, owner: number
     if (p.colonizing && p.colonizing.empireId !== owner) p.colonizing = null;
   }
   for (const m of sys.megastructures) if (owner != null) m.ownerId = owner;
+}
+
+// ---------------------------------------------------------------- exploration
+
+const exploredCache = new WeakMap<Empire, { len: number; set: Set<number> }>();
+
+/** O(1) explored check backed by a cache of the empire's explored list. */
+export function isExplored(e: Empire, systemId: number): boolean {
+  let c = exploredCache.get(e);
+  if (!c || c.len !== e.explored.length) {
+    c = { len: e.explored.length, set: new Set(e.explored) };
+    exploredCache.set(e, c);
+  }
+  return c.set.has(systemId);
+}
+
+/** Record a system as explored, generating its planets first in lazy galaxies. */
+export function markExplored(state: GameState, e: Empire, systemId: number): boolean {
+  if (isExplored(e, systemId)) return false;
+  ensureBodies(state, systemId);
+  e.explored.push(systemId);
+  const c = exploredCache.get(e);
+  if (c) { c.set.add(systemId); c.len = e.explored.length; }
+  return true;
 }

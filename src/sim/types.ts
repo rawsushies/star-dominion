@@ -99,6 +99,10 @@ export interface StarSystem {
   asteroidBelts: number;
   /** galactic sector index (see galaxy.ts) */
   sector?: number;
+  /** height above/below the galactic plane (absent in pre-3D saves = 0) */
+  z?: number;
+  /** planets generated (lazy galaxies); absent in eager galaxies and older saves */
+  bodiesReady?: boolean;
   owner: number | null;
   starbase: number; // 0 none, 1 outpost, 2 starport, 3 citadel
   starbaseDamage: number; // 0..1
@@ -110,11 +114,19 @@ export interface StarSystem {
   ruinsSurveyed: boolean;
 }
 
+export interface Sector { id: number; name: string; x: number; y: number; z: number; systems: number }
+
 export interface Galaxy {
   width: number;
   height: number;
   systems: StarSystem[];
   lanes: [number, number][];
+  /** named galactic sectors (navigation and province grouping) */
+  sectors?: Sector[];
+  /** planets are generated on first exploration (large galaxies) */
+  lazyBodies?: boolean;
+  /** parameters the renderer needs to reproduce the visual starfield */
+  shape?: { R: number; barAngle: number; seed: number };
   /** real stars each simulated system stands for (aggregate model; default 1) */
   starsPerSystem?: number;
 }
@@ -298,7 +310,7 @@ export interface Market { price: Record<ResId, number>; volume: Record<ResId, nu
 
 export interface GameSettings {
   seed: number;
-  galaxySize: 'small' | 'medium' | 'large';
+  galaxySize: 'small' | 'medium' | 'large' | 'milky';
   aiCount: number;
   playerName: string;
   playerGovernment: GovernmentId;

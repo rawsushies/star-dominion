@@ -8,7 +8,7 @@
 import { DEFENSE_PLATFORM, SHIPS, STARBASE, type HullSize } from './data/ships';
 import { empireMods, mod } from './modifiers';
 import { admiralOf, adjustWarScoreForEvent, removeFleet, routeFleet, shipStats } from './fleets';
-import { armed, friends, isHostile } from './territory';
+import { armed, friends, isHostile, setSystemOwner } from './territory';
 import { costValue, log, nextId } from './util';
 import { range, weighted, chance } from './rng';
 import { adjacency } from './galaxy';
@@ -370,7 +370,7 @@ function captureIfUndefended(state: GameState, sid: number) {
   const victor = Object.values(state.fleets).find((f) => f.systemId === sid && f.progress === 0 && armed(f) && isHostile(state, f.ownerId, sys.owner!) && state.empires[f.ownerId].kind === 'major');
   if (!victor) return;
   const prev = sys.owner;
-  sys.owner = victor.ownerId;
+  setSystemOwner(state, sid, victor.ownerId);
   sys.starbaseDamage = 0.5;
   sys.starbaseUpgrade = null;
   for (const m of sys.megastructures) m.ownerId = victor.ownerId;
