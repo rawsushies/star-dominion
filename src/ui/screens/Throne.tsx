@@ -10,6 +10,8 @@ import { opsOf, opReport } from '../../sim/operations';
 import { empireMods } from '../../sim/modifiers';
 import { supplyNetwork } from '../../sim/territory';
 import { CITADEL_MAX } from '../../sim/data/capital';
+import { rulerAge, heirOf, HEIR_COST } from '../../sim/succession';
+import { ROLES } from '../../sim/data/characters';
 import { HeroView3D } from '../render/hero3d';
 import { ScreenIcon } from '../components/icons';
 import { Sheet, Section, fmt, cls } from '../components/common';
@@ -40,6 +42,7 @@ export function pendingMatters(g: GameState): Matter[] {
   if (L.logisticsUsed > L.logisticsCap) out.push({ text: `Freighters overstretched (${L.logisticsUsed}/${L.logisticsCap})`, screen: 'operations', tone: 'warn' });
   if (e.capital && !e.capital.queue.length) out.push({ text: 'The capital\'s builders are idle', screen: 'capital', tone: 'info' });
   if (!e.research.current) out.push({ text: 'No research under way', screen: 'research', tone: 'warn' });
+  if (rulerAge(g, e) >= 50 && !heirOf(g, e)) out.push({ text: `No heir is named, and ${e.ruler} is ${rulerAge(g, e)}`, screen: 'throne', tone: rulerAge(g, e) >= 60 ? 'danger' : 'warn' });
   if (L.adminUsed > L.adminCap) out.push({ text: `Administrative overreach (${L.adminUsed}/${L.adminCap} systems)`, screen: 'council', tone: 'warn' });
   return out;
 }
@@ -61,6 +64,28 @@ function RulerFigure({ g }: { g: GameState }) {
     return () => v.dispose();
   }, [e.id, e.color, e.emblem, e.ruler]);
   return <canvas ref={ref} className="hero-figure" style={{ height: 420 }} aria-label={`Portrait of ${e.ruler}`} />;
+}
+
+/** The sovereign's age and reign, the named heir, and naming a new one. */
+function Succession() {
+  const g = useGame();
+  const ui = useUI();
+  const e = g.empires[g.playerId];
+  const heir = heirOf(g, e);
+  const people = charactersOf(g, e.id).filter((c) => c.status === 'active');
+  const reign = Math.floor((g.tick - (e.reignStart ?? 0)) / 360);
+  return (
+    <Section title="Succession" aside={`${e.ruler}, aged ${rulerAge(g, e)} · reigning ${reign} ${reign === 1 ? 'year' : 'years'}`}>
+      <div className="row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'center' }} data-testid="succession">
+        <span>{heir ? <>Heir: <b>{heir.name}</b> <span className="hint">({ROLES[heir.role].label}, level {heir.level})</span></> : <span className="warn">No heir is named. If the throne falls empty, the great houses will fight over it.</span>}</span>
+        <select className="grow" aria-label="Name an heir" value={heir?.id ?? ''} onChange={(ev) => ui.cmd({ type: 'designateHeir', charId: ev.target.value === '' ? null : Number(ev.target.value) })} style={{ maxWidth: 260 }}>
+          <option value="">{heir ? 'Revoke the heir' : 'Name an heir…'}</option>
+          {people.map((c) => <option key={c.id} value={c.id}>{c.name} · {ROLES[c.role].label} {c.level}</option>)}
+        </select>
+        <span className="hint">Naming an heir costs {HEIR_COST} influence.</span>
+      </div>
+    </Section>
+  );
 }
 
 export function ThroneScreen() {
@@ -95,6 +120,7 @@ export function ThroneScreen() {
               {!matters.length && <div className="empty">The realm is quiet. Your ministers have nothing to put before you.</div>}
             </div>
           </Section>
+          <Succession />
           <Section title="Ministries">
             <div className="ministries">
               {MINISTRIES.map((m) => (

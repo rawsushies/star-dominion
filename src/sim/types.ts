@@ -64,6 +64,9 @@ export interface Colony {
   foundedTick: number;
   lowStabilityMonths: number;
   defenseDamage: number; // 0..1 fraction of orbital defences currently destroyed
+  /** province role (absent = balanced); set with the setDesignation command */
+  designation?: import('./data/designations').DesignationId;
+  designationTick?: number;
   shieldDown?: number; // 0..1 fraction of battery shields depleted
   // Cached last-month figures for UI (written by the economy step)
   lastJobs?: number;
@@ -251,6 +254,9 @@ export interface LegacyAdmiral {
   alive: boolean;
 }
 
+export type CovertKind = 'gather_intel' | 'steal_tech' | 'sabotage' | 'incite_unrest';
+export interface CovertOp { id: number; ownerId: number; targetId: number; kind: CovertKind; agentId: number; planetId: number | null; progress: number; total: number; started: number }
+
 export interface TimedModifier { key: string; value: number; until: number; label: string }
 
 export interface Personality {
@@ -284,6 +290,13 @@ export interface Empire {
   warExhaustion: number; // 0..100
   emblem: number; // emblem variant index
   ruler: string;
+  /** tick the sovereign was born (succession.ts) */
+  rulerBorn?: number;
+  /** named heir (a character id), or null */
+  heirId?: number | null;
+  reignStart?: number;
+  /** intelligence networks planted in rival realms: target empire id -> tick the network lapses */
+  intelNetworks?: Record<number, number>;
   /** royal council: seat id -> character id */
   council?: Record<string, number | null>;
   /** commissioned or found equipment not yet worn */
@@ -430,6 +443,8 @@ export interface GameState {
   events: GameEvent[];
   /** yearly record of every sovereign realm's standing and the year's headlines (sim/chronicle.ts) */
   chronicle?: ChronicleYear[];
+  /** covert operations in progress (sim/espionage.ts); absent until the first is launched */
+  covert?: CovertOp[];
   battles: BattleReport[];
   market: Market;
   nextId: number;

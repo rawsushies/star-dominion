@@ -29,6 +29,10 @@ import type { CharAssignment, Cost, BuildingId, DealItem, Fleet, FleetOrder, Gam
 
 export type Command =
   | { type: 'queueBuilding'; planetId: number; building: BuildingId }
+  | { type: 'setDesignation'; planetId: number; designation: DesignationId }
+  | { type: 'designateHeir'; charId: number | null }
+  | { type: 'launchCovert'; targetId: number; kind: CovertKind; agentId: number; planetId: number | null }
+  | { type: 'cancelCovert'; opId: number }
   | { type: 'demolish'; planetId: number; building: BuildingId }
   | { type: 'cancelQueue'; planetId: number; index: number; ships?: boolean }
   | { type: 'queueShip'; planetId: number; cls: ShipClass; fleetId?: number | null }
@@ -106,6 +110,33 @@ export function execute(state: GameState, empireId: number, cmd: Command): Comma
     return f && f.ownerId === empireId ? f : null;
   };
   switch (cmd.type) {
+    case 'launchCovert': {
+      const err = launchOp(state, e, cmd.targetId, cmd.kind, cmd.agentId, cmd.planetId);
+      return err ? fail(err) : OK;
+    }
+    case 'cancelCovert': {
+      const err = cancelOp(state, e, cmd.opId);
+      return err ? fail(err) : OK;
+    }
+    case 'designateHeir': {
+      const err = designateHeir(state, e, cmd.charId);
+      return err ? fail(err) : OK;
+    }
+    case 'setDesignation': {
+      const p = state.planets[cmd.planetId];
+      const c = p?.colony;
+      if (!c || c.ownerId !== e.id) return fail('Not your world');
+      if (!DESIGNATIONS[cmd.designation]) return fail('Unknown designation');
+      if (p.id === e.capitalPlanetId) return fail('The capital serves the whole realm and takes no designation');
+      if ((c.designation ?? 'balanced') === cmd.designation) return OK;
+      const wait = (c.designationTick ?? -99999) + DESIGNATION_COOLDOWN - state.tick;
+      if (wait > 0) return fail(`This world changed role recently; ${wait} days until it can change again`);
+      if (e.stock.influence < DESIGNATION_COST) return fail(`Changing a world's role costs ${DESIGNATION_COST} influence`);
+      e.stock.influence -= DESIGNATION_COST;
+      c.designation = cmd.designation === 'balanced' ? undefined : cmd.designation;
+      c.designationTick = state.tick;
+      return OK;
+    }
     case 'queueBuilding': {
       const p = state.planets[cmd.planetId];
       if (!p) return fail('No such planet');
@@ -612,6 +643,10 @@ export function execute(state: GameState, empireId: number, cmd: Command): Comma
 }
 
 import { TECHS } from './data/techs';
+import { DESIGNATIONS, DESIGNATION_COOLDOWN, DESIGNATION_COST, type DesignationId } from './data/designations';
+import { designateHeir } from './succession';
+import { launchOp, cancelOp } from './espionage';
+import type { CovertKind } from './types';
 const TECHS_REQ: Record<string, string[]> = Object.fromEntries(TECHS.map((t) => [t.id, t.requires]));
 
 export function describeBuildingRequirement(id: BuildingId): string {

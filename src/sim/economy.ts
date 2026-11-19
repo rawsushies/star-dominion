@@ -13,6 +13,7 @@ import { RESOURCES, type BuildingId, type Colony, type Empire, type GameState, t
 import { governorBonus, industrialistBonus, charactersOf, salary } from './characters';
 import { opReport, OP_KINDS, logisticsCapacity, logisticsUsed } from './operations';
 import { supplyNetwork, hostileArmedPresence, isHostile, adminCapacity, ownedSystems } from './territory';
+import { DESIGNATIONS } from './data/designations';
 
 export type LedgerKey = ResId | 'research';
 export interface LedgerLine { key: LedgerKey; label: string; amount: number }
@@ -331,11 +332,16 @@ function colonyReport(state: GameState, e: Empire, p: Planet, c: Colony, mods: M
   if (hab < 0.6) sf.push(['Hostile environment', -Math.round((0.6 - hab) * 20)]);
   const gov = governorBonus(state, e.id, sys.sector);
   if (gov.stability) sf.push([`Governor ${gov.name}`, gov.stability]);
+  if (c.designation && DESIGNATIONS[c.designation].stability) sf.push([DESIGNATIONS[c.designation].label, DESIGNATIONS[c.designation].stability]);
   const ind = industrialistBonus(state, p.id);
   const stabilityTarget = Math.max(0, Math.min(100, sf.reduce((a, [, v]) => a + v, 0)));
 
   const conn = connected ? 1 : 0.5;
   const outputMult = stabilityOutputMult(c.stability) * (1 - c.resistance / 200) * conn * (1 + gov.output + ind.output);
+  // province designation: matching yields gain, the rest pay a little; a governor adds a third again
+  const desig = DESIGNATIONS[c.designation ?? 'balanced'];
+  const govSpec = gov.name ? 1 + (gov.output > 0 ? 0.35 : 0.2) : 1;
+  const desigMult = (k: YieldKey) => 1 + (desig.boost[k] != null ? desig.boost[k]! * govSpec : desig.other);
 
   // Production per building
   const yieldMult = (b: BuildingId, k: YieldKey): number => {
@@ -348,7 +354,7 @@ function colonyReport(state: GameState, e: Empire, p: Planet, c: Colony, mods: M
     if (b === 'research_lab' && k === 'research') m *= 1 + p.deposits.research * 0.05;
     if (k === 'trade') m *= 1 + mod(mods, 'tradeValue');
     else m *= 1 + mod(mods, `output.${k}`);
-    return m;
+    return m * desigMult(k);
   };
   let trade = 0;
   for (const b in filled) {

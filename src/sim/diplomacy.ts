@@ -8,6 +8,7 @@ import { log, nextId } from './util';
 import { releaseCaptive } from './characters';
 import { BUILDINGS } from './data/buildings';
 import type { DealItem, Empire, GameState, PeaceTerm, Proposal, TreatyType, War, BuildingId } from './types';
+import { networkBonus } from './espionage';
 
 export const TREATY_LABEL: Record<TreatyType, string> = {
   nap: 'Non-Aggression Pact', trade: 'Trade Agreement', research: 'Research Cooperation',
@@ -70,7 +71,8 @@ export function hasContact(state: GameState, viewer: number, target: number): bo
 /** 0..100 knowledge of a rival: drives how precisely the UI shows their data. */
 export function intelLevel(state: GameState, viewer: number, target: number): number {
   if (viewer === target) return 100;
-  if (!hasContact(state, viewer, target)) return 0;
+  // a planted spy network is contact enough
+  if (!hasContact(state, viewer, target) && !networkBonus(state, viewer, target)) return 0;
   let v = 20;
   if (bordering(state, viewer, target)) v += 20;
   for (const t of state.treaties) {
@@ -79,6 +81,7 @@ export function intelLevel(state: GameState, viewer: number, target: number): nu
   }
   if (warBetween(state, viewer, target)) v += 10;
   v += mod(empireMods(state, state.empires[viewer]), 'intel');
+  v += networkBonus(state, viewer, target);
   return Math.max(5, Math.min(100, v));
 }
 

@@ -9,6 +9,8 @@ import { Sheet, Section, CostView, Meter, ResGlyph, Tip, fmt, signed, cls, RES_M
 import { PlanetThumb } from '../components/ContextPanel';
 import type { BuildingId, Planet, ShipClass } from '../../sim/types';
 import type { LedgerKey } from '../../sim/economy';
+import { DESIGNATIONS, DESIGNATION_IDS, DESIGNATION_COOLDOWN, DESIGNATION_COST } from '../../sim/data/designations';
+import { governorBonus } from '../../sim/characters';
 
 const ROUTE_LABEL: Record<string, string> = { capital: 'Capital', secure: 'Secure', raided: 'Raided', disrupted: 'Disrupted', cut: 'Cut off' };
 
@@ -145,6 +147,7 @@ function PlanetDetail({ p }: { p: Planet }) {
           {tab === 'build' ? <BuildMenu p={p} /> : <ShipyardPanel p={p} />}
         </div>
         <div>
+          <DesignationPanel p={p} />
           <Section title="Monthly output of this world">
             <div className="kv">
               {prodKeys.map((k) => [
@@ -195,6 +198,36 @@ function BuildMenu({ p }: { p: Planet }) {
         );
       })}
     </div>
+  );
+}
+
+/** A province's role: what the world specialises in, and who governs it. */
+function DesignationPanel({ p }: { p: Planet }) {
+  const g = useGame();
+  const ui = useUI();
+  const me = g.empires[g.playerId];
+  const c = p.colony!;
+  if (p.id === me.capitalPlanetId) return null;
+  const cur = c.designation ?? 'balanced';
+  const wait = Math.max(0, (c.designationTick ?? -99999) + DESIGNATION_COOLDOWN - g.tick);
+  const gov = governorBonus(g, me.id, g.galaxy.systems[p.systemId].sector);
+  return (
+    <Section title="Province role" aside={gov.name ? `Governor ${gov.name} strengthens it` : 'No governor in this province'}>
+      <div className="list" data-testid="designations">
+        {DESIGNATION_IDS.map((id) => {
+          const d = DESIGNATIONS[id];
+          const active = id === cur;
+          const blocked = !active && (wait > 0 || me.stock.influence < DESIGNATION_COST);
+          return (
+            <button key={id} className={cls('li', active && 'sel')} disabled={blocked} aria-pressed={active}
+              onClick={() => !active && ui.cmd({ type: 'setDesignation', planetId: p.id, designation: id })}>
+              <span className="grow" style={{ textAlign: 'left' }}><b>{d.label}</b><div className="hint">{d.description}</div></span>
+            </button>
+          );
+        })}
+      </div>
+      <div className="hint" style={{ marginTop: 6 }}>{wait > 0 ? `Role can change again in ${wait} days.` : `Changing role costs ${DESIGNATION_COST} influence; then it is fixed for a year.`}</div>
+    </Section>
   );
 }
 

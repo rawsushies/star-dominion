@@ -5,6 +5,7 @@ import { SAVE_VERSION, updateStats } from './engine';
 import { ensureOps } from './operations';
 import { ensureCapital } from './capital';
 import { ensureHouses } from './governance';
+import { ensureRuler } from './succession';
 import type { GameState } from './types';
 import { upgradeGalaxy } from './galaxy';
 import { migrateAdmirals } from './characters';
@@ -26,7 +27,7 @@ export function deserialize(json: string): GameState {
   ensureOps(s);
   s.chronicle ??= [];
   migrateAdmirals(s as GameState & { admirals?: never[] });
-  for (const e of s.empires) { e.council ??= {}; e.armory ??= []; ensureHouses(s, e); ensureCapital(e); }
+  for (const e of s.empires) { e.council ??= {}; e.armory ??= []; ensureHouses(s, e); ensureCapital(e); ensureRuler(s, e); }
   if (s.empires.some((e) => e.alive && e.kind === 'major' && e.stats?.powerW == null)) updateStats(s);
   return s;
 }

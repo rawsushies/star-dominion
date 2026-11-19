@@ -6,6 +6,10 @@ import { GOVERNMENTS } from '../../sim/data/governments';
 import { TECH_BY_ID } from '../../sim/data/techs';
 import { Sheet, Section, Emblem, Meter, fmt, cls, Swatch } from '../components/common';
 import { focusSystem } from '../components/MapView';
+import { useState } from 'react';
+import { COVERT, COVERT_KINDS, opsBy, successChance, validateOp, networkBonus, counterIntel } from '../../sim/espionage';
+import { charactersOf } from '../../sim/characters';
+import type { CovertKind, Empire } from '../../sim/types';
 
 export function IntelScreen() {
   const g = useGame();
@@ -62,6 +66,7 @@ export function IntelScreen() {
           );
         })}
       </div>
+      <CovertPanel known={known} />
       <Section title="Galactic dangers">
         <div className="kv">
           <span>Sentinel lairs known</span><span>{g.galaxy.systems.filter((s) => s.features.includes('guardian') && me.explored.includes(s.id)).length}</span>
@@ -70,5 +75,48 @@ export function IntelScreen() {
         </div>
       </Section>
     </Sheet>
+  );
+}
+
+/** Covert operations: launch with an idle spymaster, follow the ones under way. */
+function CovertPanel({ known }: { known: Empire[] }) {
+  const g = useGame();
+  const ui = useUI();
+  const me = g.empires[g.playerId];
+  const targets = known.filter((e) => e.kind === 'major' || e.kind === 'minor');
+  const ops = opsBy(g, me.id);
+  const busy = new Set(ops.map((o) => o.agentId));
+  const agents = charactersOf(g, me.id).filter((c) => c.status === 'active' && c.role === 'spymaster' && !busy.has(c.id));
+  const [targetId, setTarget] = useState<number | null>(null);
+  const [kind, setKind] = useState<CovertKind>('gather_intel');
+  const [agentId, setAgent] = useState<number | null>(null);
+  const [planetId, setPlanet] = useState<number | null>(null);
+  const t = targets.find((e) => e.id === targetId) ?? targets[0];
+  const a = agents.find((c) => c.id === agentId) ?? agents[0];
+  const worlds = t ? g.planets.filter((p) => p.colony?.ownerId === t.id && g.galaxy.systems[p.systemId] && me.explored.includes(p.systemId)) : [];
+  const world = worlds.find((p) => p.id === planetId) ?? worlds[0];
+  const err = !t ? 'No rival realm is known' : !a ? 'No idle spymaster: recruit one in the Hall of Heroes' : validateOp(g, me, t.id, kind, a.id, COVERT[kind].needsPlanet ? world?.id ?? null : null);
+  const odds = t && a ? successChance(g, me, t, kind, a.id) : 0;
+  return (
+    <Section title="Covert operations" aside={`${ops.length} under way · our counter-intelligence ${Math.round(counterIntel(g, me) * 100)}%`}>
+      <div className="list" data-testid="covert-ops">
+        {ops.map((o) => (
+          <div key={o.id} className="li">
+            <span className="grow"><b>{COVERT[o.kind].label}</b> against the {g.empires[o.targetId].name}{o.planetId != null ? ` (${g.planets[o.planetId].name})` : ''}
+              <div className="hint">{charactersOf(g, me.id).find((c) => c.id === o.agentId)?.name ?? 'Agent'} · {Math.max(0, o.total - o.progress)} days left</div></span>
+            <button className="btn small" onClick={() => ui.cmd({ type: 'cancelCovert', opId: o.id })}>Recall</button>
+          </div>
+        ))}
+        {!ops.length && <div className="empty">No operations under way.</div>}
+      </div>
+      <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+        <select aria-label="Target realm" value={t?.id ?? ''} onChange={(ev) => setTarget(Number(ev.target.value))}>{targets.map((e) => <option key={e.id} value={e.id}>{e.name}{networkBonus(g, me.id, e.id) ? ' · network' : ''}</option>)}</select>
+        <select aria-label="Operation" value={kind} onChange={(ev) => setKind(ev.target.value as CovertKind)}>{COVERT_KINDS.map((k) => <option key={k} value={k}>{COVERT[k].label}</option>)}</select>
+        {COVERT[kind].needsPlanet && <select aria-label="Target world" value={world?.id ?? ''} onChange={(ev) => setPlanet(Number(ev.target.value))}>{worlds.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>}
+        <select aria-label="Agent" value={a?.id ?? ''} onChange={(ev) => setAgent(Number(ev.target.value))}>{agents.map((c) => <option key={c.id} value={c.id}>{c.name} · level {c.level}</option>)}</select>
+        <button className="btn" disabled={!!err} title={err ?? ''} onClick={() => t && a && ui.cmd({ type: 'launchCovert', targetId: t.id, kind, agentId: a.id, planetId: COVERT[kind].needsPlanet ? world?.id ?? null : null })}>Launch</button>
+      </div>
+      <div className="hint" style={{ marginTop: 6 }}>{COVERT[kind].description} {COVERT[kind].days} days · {COVERT[kind].cost.credits} credits{COVERT[kind].cost.influence ? ` · ${COVERT[kind].cost.influence} influence` : ''}{t && a ? ` · ${Math.round(odds * 100)}% chance of success` : ''}{err ? ` · ${err}` : ''}</div>
+    </Section>
   );
 }

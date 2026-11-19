@@ -14,6 +14,7 @@ import { costValue, log, nextId } from './util';
 import { range, weighted, chance } from './rng';
 import { adjacency } from './galaxy';
 import type { BattleReport, Fleet, GameState, Ship } from './types';
+import { DESIGNATIONS } from './data/designations';
 
 interface Unit {
   key: number; // stable id for report (ship id, or negative for structures)
@@ -139,7 +140,7 @@ function fightAt(state: GameState, sid: number, fleets: Fleet[], engaged: Set<nu
     const e = state.empires[c.ownerId];
     const m = empireMods(state, e);
     const n = c.buildings.orbital_defense ?? 0;
-    const mult = 1 + mod(m, 'defensePlatform');
+    const mult = (1 + mod(m, 'defensePlatform')) * DESIGNATIONS[c.designation ?? 'balanced'].defence;
     const shieldMult = (c.buildings.planetary_shield ?? 0) > 0 ? 2 : 1;
     const maxHull = (DEFENSE_PLATFORM.hull + DEFENSE_PLATFORM.armor) * n * mult;
     units.push({
