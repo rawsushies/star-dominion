@@ -20,16 +20,16 @@ import { ResGlyph, RES_META, Tip, fmt, signed, cls, Emblem, Swatch } from './com
 import { ScreenIcon, PlayIcon } from './icons';
 import { EraBadge } from './Evolution';
 import { NAV, jumpTo } from './Chrome';
-import { focusSystem } from './MapView';
+import { focusSystem, focusSector } from './MapView';
 import { SCREENS } from '../screens';
 
 // ---------------------------------------------------------------- neocom
 
 const GROUPS: ScreenId[][] = [
   ['map'],
-  ['kingdom', 'planets', 'system'],
-  ['fleets', 'military'],
-  ['economy', 'industry', 'construction', 'trade'],
+  ['kingdom', 'council', 'capital', 'planets', 'system'],
+  ['fleets', 'military', 'heroes'],
+  ['economy', 'industry', 'operations', 'construction', 'trade'],
   ['research', 'techtree'],
   ['diplomacy', 'intel', 'journal'],
 ];
@@ -315,7 +315,7 @@ export function Dispatches() {
 export function Overview() {
   const g = useGame();
   const ui = useUI();
-  const [tab, setTab] = useState<'systems' | 'fleets' | 'realms'>('systems');
+  const [tab, setTab] = useState<'systems' | 'fleets' | 'realms' | 'sectors'>('systems');
   const [min, setMin] = useState(false);
   const e = g.empires[g.playerId];
   const from = ui.systemId ?? e.capitalSystemId ?? 0;
@@ -346,6 +346,18 @@ export function Overview() {
         </tr>
       );
     });
+  } else if (tab === 'sectors') {
+    const secs = g.galaxy.sectors ?? [];
+    const mine = new Map<number, number>();
+    for (const s of g.galaxy.systems) if (s.owner === g.playerId && s.sector != null) mine.set(s.sector, (mine.get(s.sector) ?? 0) + 1);
+    const here = ui.systemId != null ? g.galaxy.systems[ui.systemId].sector : null;
+    rows = secs.slice().sort((a, b) => (mine.get(b.id) ?? 0) - (mine.get(a.id) ?? 0) || b.systems - a.systems).map((sec) => (
+      <tr key={sec.id} className={cls(here === sec.id && 'sel')} onClick={() => { ui.set({ view: 'galaxy', screen: 'map' }); focusSector(sec.id); }}>
+        <td className="n">{sec.systems}</td>
+        <td>{sec.name}</td>
+        <td className="own num">{mine.get(sec.id) ? `${mine.get(sec.id)} held` : <span className="dim">—</span>}</td>
+      </tr>
+    ));
   } else {
     rows = g.empires.filter((x) => x.alive && x.id !== g.playerId && (x.kind === 'major' || x.kind === 'minor' || x.kind === 'rebels') && hasContact(g, g.playerId, x.id)).map((x) => {
       const op = opinion(g, x.id, g.playerId);
@@ -365,11 +377,11 @@ export function Overview() {
       {!min && (
         <>
           <div className="tabs">
-            {(['systems', 'fleets', 'realms'] as const).map((x) => <button key={x} className={cls('tab', tab === x && 'on')} onClick={() => setTab(x)}>{x[0].toUpperCase() + x.slice(1)}</button>)}
+            {(['systems', 'fleets', 'realms', 'sectors'] as const).map((x) => <button key={x} className={cls('tab', tab === x && 'on')} onClick={() => setTab(x)}>{x[0].toUpperCase() + x.slice(1)}</button>)}
           </div>
           <div className="ov-body">
             <table className="ov">
-              <thead><tr><th className="n">{tab === 'realms' ? '' : 'Jumps'}</th><th>Name</th><th>{tab === 'systems' ? 'Sovereign' : tab === 'fleets' ? 'Strength' : 'Opinion'}</th></tr></thead>
+              <thead><tr><th className="n">{tab === 'realms' ? '' : tab === 'sectors' ? 'Stars' : 'Jumps'}</th><th>Name</th><th>{tab === 'systems' ? 'Sovereign' : tab === 'fleets' ? 'Strength' : tab === 'sectors' ? 'Yours' : 'Opinion'}</th></tr></thead>
               <tbody>{rows}</tbody>
             </table>
             {!rows.length && <div className="empty">Nothing to show yet.</div>}

@@ -2,11 +2,16 @@
 // Order of a day: combat -> movement -> orders -> supply -> construction ->
 // economy/population/research per empire -> monthly systems -> AI.
 
-import { eraMonthly, kardashev } from './eras';
+import { eraMonthly } from './eras';
+import { operationsMonthly } from './operations';
+import { ensureCapital, progressCapitals } from './capital';
+import { governanceMonthly, ensureHouses } from './governance';
+import { createCharacter, assign, charactersMonthly, refreshCandidates } from './characters';
+import { civilisationPower } from './power';
 import { MAX_ERA } from './data/eras';
 import { makeRng, int, pick, chance, range, next } from './rng';
-import { generateGalaxy, jumpDistances, adjacency } from './galaxy';
-import { CIV_TEMPLATES, MINOR_NAMES, RULER_FIRST, RULER_LAST, ADMIRAL_NAMES } from './data/names';
+import { generateGalaxy, jumpDistances, jumpsWithin, adjacency, ensureBodies } from './galaxy';
+import { CIV_TEMPLATES, MINOR_NAMES, RULER_FIRST, RULER_LAST } from './data/names';
 import { defaultPolicies, GOVERNMENTS } from './data/governments';
 import { PLANET_TYPES } from './data/planets';
 import { computeLedger, applyLedgerDay, type Ledger } from './economy';
@@ -15,7 +20,7 @@ import { moveFleets, processOrders, supplyAndRepair, createFleet, fleetPower, re
 import { progressConstruction } from './construction';
 import { progressResearch } from './research';
 import { monthlyDiplomacy, addMemory } from './diplomacy';
-import { visibleSystems, ownedSystems, setSystemOwner } from './territory';
+import { visibleSystems, ownedSystems, setSystemOwner, markExplored, isExplored } from './territory';
 import { runAI, runRaiders } from './ai';
 import { MARKET_BASE } from './commands';
 import { emptyStock, log, nextId } from './util';
@@ -59,6 +64,8 @@ function blankEmpire(id: number, partial: Partial<Empire>): Empire {
     explored: [],
     personality: { aggression: 0.4, expansion: 0.5, mercantile: 0.5, science: 0.5, diplomacy: 0.5, doctrine: 'balanced' },
     timedMods: [],
+    council: {},
+    armory: [],
     warExhaustion: 0,
     era: 0,
     emblem: id,
@@ -76,7 +83,7 @@ function newColony(ownerId: number, pops: number, buildings: Partial<Record<Buil
 export function newGame(settings: Partial<GameSettings> = {}): GameState {
   const s: GameSettings = { ...DEFAULT_SETTINGS, ...settings };
   const rng = makeRng(s.seed);
-  const { galaxy, planets } = generateGalaxy(rng, s.galaxySize);
+  const { galaxy, planets } = generateGalaxy(rng, s.galaxySize, s.seed);
   const state: GameState = {
     version: SAVE_VERSION,
     settings: s,
@@ -86,7 +93,7 @@ export function newGame(settings: Partial<GameSettings> = {}): GameState {
     planets,
     empires: [],
     fleets: {},
-    admirals: [],
+    characters: [],
     opinions: {},
     treaties: [],
     wars: [],
@@ -105,21 +112,45 @@ export function newGame(settings: Partial<GameSettings> = {}): GameState {
   };
 
   // --- choose capitals by farthest-point sampling over hyperlane distance ---
+  // Large galaxies start the kingdoms together in one region of an outer arm
+  // (like the Sun's neighbourhood); the rest of the galaxy is frontier.
+  const huge = galaxy.lazyBodies === true;
   const majors = 1 + Math.max(1, Math.min(6, s.aiCount));
   const minorCount = s.galaxySize === 'small' ? 1 : s.galaxySize === 'medium' ? 3 : 5;
-  const eligible = galaxy.systems.filter((x) => x.star !== 'black_hole' && x.planetIds.length >= 2).map((x) => x.id);
+  let region: number[] = galaxy.systems.map((x) => x.id);
+  if (huge) {
+    const R = galaxy.shape?.R ?? galaxy.width / 2;
+    const cxy = galaxy.width / 2;
+    const ring = galaxy.systems.filter((x) => { const r = Math.hypot(x.x - cxy, x.y - cxy) / R; return r > 0.5 && r < 0.65 && Math.abs(x.z ?? 0) < 0.03 * R; });
+    const centre = ring[int(rng, 0, ring.length - 1)] ?? galaxy.systems[0];
+    region = [...jumpsWithin(galaxy, centre.id, 26).keys()];
+    for (const id of region) ensureBodies(state, id);
+  }
+  const regionSet = new Set(region);
+  const eligible = region.filter((id) => galaxy.systems[id].star !== 'black_hole' && galaxy.systems[id].planetIds.length >= 2);
   const capitals: number[] = [eligible[int(rng, 0, eligible.length - 1)]];
   while (capitals.length < majors + minorCount) {
-    const d = jumpDistances(galaxy, capitals);
+    const d = jumpDistances(galaxy, capitals, (id) => regionSet.has(id));
     let best = -1;
     let bestD = -1;
     for (const id of eligible) {
-      if (capitals.includes(id)) continue;
+      if (capitals.includes(id) || !Number.isFinite(d[id])) continue;
       const v = d[id] + next(rng) * 0.5;
       if (v > bestD) { bestD = v; best = id; }
     }
     if (best < 0) break;
     capitals.push(best);
+  }
+  // Independent realms scattered across the wider galaxy (large galaxies only).
+  const farRealms: number[] = [];
+  if (huge) {
+    for (let k = 0, tries = 0; k < 12 && tries < 400; tries++) {
+      const id = int(rng, 0, galaxy.systems.length - 1);
+      if (regionSet.has(id) || farRealms.includes(id)) continue;
+      ensureBodies(state, id);
+      if (galaxy.systems[id].planetIds.length < 2 || galaxy.systems[id].star === 'black_hole') continue;
+      farRealms.push(id); k++;
+    }
   }
 
   const templates = CIV_TEMPLATES.slice();
@@ -143,8 +174,9 @@ export function newGame(settings: Partial<GameSettings> = {}): GameState {
     state.empires.push(e);
     setupHomeworld(state, e, capitals[i], 'major');
   }
-  for (let i = 0; i < minorCount && majors + i < capitals.length; i++) {
-    const sysId = capitals[majors + i];
+  const minorSites = [...capitals.slice(majors), ...farRealms];
+  for (let i = 0; i < minorSites.length; i++) {
+    const sysId = minorSites[i];
     const sys = galaxy.systems[sysId];
     const e = blankEmpire(state.empires.length, {
       name: `${MINOR_NAMES[i % MINOR_NAMES.length]} ${sys.name}`, adjective: sys.name, color: ['#8c8f96', '#9a8f7a', '#7f8f99', '#998a99', '#8a998a'][i % 5],
@@ -159,8 +191,8 @@ export function newGame(settings: Partial<GameSettings> = {}): GameState {
   const guardian = blankEmpire(state.empires.length, { name: 'Precursor Sentinels', adjective: 'Sentinel', color: '#b48cff', kind: 'guardian', personality: { aggression: 0, expansion: 0, mercantile: 0, science: 0, diplomacy: 0, doctrine: 'line' } });
   state.empires.push(guardian);
   const capDist = jumpDistances(galaxy, capitals);
-  const lairs = galaxy.systems.filter((x) => x.owner == null && capDist[x.id] >= 3 && (x.features.includes('ancient_ruins') || x.features.includes('rare_cluster')));
-  const lairCount = Math.max(1, Math.round(galaxy.systems.length / 22));
+  const lairs = galaxy.systems.filter((x) => x.owner == null && capDist[x.id] >= 3 && (!huge || capDist[x.id] <= 40) && (x.features.includes('ancient_ruins') || x.features.includes('rare_cluster')));
+  const lairCount = Math.max(1, Math.min(huge ? 30 : 99, Math.round(galaxy.systems.length / 22)));
   for (let i = 0; i < lairCount && lairs.length; i++) {
     const idx = int(rng, 0, lairs.length - 1);
     const sys = lairs.splice(idx, 1)[0];
@@ -176,8 +208,11 @@ export function newGame(settings: Partial<GameSettings> = {}): GameState {
   for (const e of state.empires) {
     if (e.capitalSystemId == null) continue;
     const adj = adjacency(galaxy);
-    e.explored = [e.capitalSystemId, ...adj[e.capitalSystemId]];
+    e.explored = [];
+    for (const id of [e.capitalSystemId, ...adj[e.capitalSystemId]]) markExplored(state, e, id);
   }
+  for (const e of state.empires) { ensureHouses(state, e); ensureCapital(e); }
+  refreshCandidates(state);
   updateStats(state);
   log(state, { kind: 'start', severity: 'info', title: 'A new reign begins', text: `${state.empires[0].ruler} ascends the throne of the ${state.empires[0].name}. The galaxy awaits.`, empires: [0] });
   return state;
@@ -193,7 +228,7 @@ function setupHomeworld(state: GameState, e: Empire, sysId: number, kind: 'major
   home.size = kind === 'major' ? 20 : 14;
   home.deposits = { minerals: 2, energy: 2, food: 2, rare: kind === 'major' ? 1 : 0, research: 1 };
   home.station = null;
-  sys.owner = e.id;
+  setSystemOwner(state, sysId, e.id);
   sys.starbase = kind === 'major' ? 2 : 1;
   if (sys.star === 'black_hole' || sys.star === 'neutron') sys.star = 'yellow';
   sys.features = sys.features.filter((f) => f !== 'pulsar' && f !== 'guardian');
@@ -210,10 +245,14 @@ function setupHomeworld(state: GameState, e: Empire, sysId: number, kind: 'major
       home.colony.buildings.hydroponics = 1;
     }
     Object.assign(e.stock, { credits: 400, minerals: 500, energy: 300, food: 300, alloys: 250, electronics: 80, components: 20, rare: 100, influence: 80 });
-    createFleet(state, e.id, sysId, ['corvette', 'corvette', 'corvette'], 'Home Guard');
+    const guard = createFleet(state, e.id, sysId, ['corvette', 'corvette', 'corvette'], 'Home Guard');
     createFleet(state, e.id, sysId, ['scout'], `${e.adjective} Survey Corps`);
     createFleet(state, e.id, sysId, ['constructor'], `Construction Ship`);
-    state.admirals.push({ id: nextId(state), ownerId: e.id, name: pick(rng, ADMIRAL_NAMES), skill: 2, xp: 0, trait: pick(rng, ['tactician', 'aggressive', 'logistician', 'cautious', 'gunner'] as const), fleetId: null, alive: true });
+    // founding court: an admiral, an archscholar and a chancellor
+    e.council = {};
+    assign(state, createCharacter(state, e.id, 'admiral', { level: 2 }), { kind: 'fleet', fleetId: guard.id });
+    assign(state, createCharacter(state, e.id, 'scientist', { level: 2 }), { kind: 'council', seat: 'archscholar' });
+    assign(state, createCharacter(state, e.id, 'chancellor', { level: 2 }), { kind: 'council', seat: 'chancellor' });
     // Guarantee a reachable second world for early colonisation.
     ensureNearbyHabitable(state, e, sysId);
   } else {
@@ -256,6 +295,7 @@ export function step(state: GameState) {
   processOrders(state);
   supplyAndRepair(state, engaged);
   progressConstruction(state);
+  progressCapitals(state);
 
   for (const e of state.empires) {
     if (!e.alive || e.kind === 'guardian' || e.kind === 'raiders') continue;
@@ -287,7 +327,7 @@ export function step(state: GameState) {
         } else if (state.disruptedRoutes[k] != null) delete state.disruptedRoutes[k];
       }
     }
-    if (e.kind === 'major') for (const sid of visibleSystems(state, e.id)) if (!e.explored.includes(sid)) e.explored.push(sid);
+    if (e.kind === 'major') for (const sid of visibleSystems(state, e.id)) if (!isExplored(e, sid)) markExplored(state, e, sid);
   }
 
   if (state.tick % 30 === 0) monthly(state);
@@ -330,6 +370,10 @@ function monthly(state: GameState) {
   guardiansCheck(state);
   randomEvents(state);
   eliminationCheck(state);
+  charactersMonthly(state, (a, b, v, label) => addMemory(state, a, b, 'envoy', v, 0.5, label));
+  governanceMonthly(state);
+  operationsMonthly(state);
+  if (state.tick % 360 === 0) refreshCandidates(state);
   updateStats(state);
   eraMonthly(state);
   victoryCheck(state);
@@ -505,7 +549,7 @@ export function updateStats(state: GameState) {
       adminCap: L?.adminCap ?? 0,
       avgStability: col ? Math.round(stab / col) : 0,
     };
-    if (e.kind === 'major') e.stats.kardashev = Math.round(kardashev(state, e) * 100) / 100;
+    if (e.kind === 'major') { const pw = civilisationPower(state, e); e.stats.kardashev = Math.round(pw.k * 1000) / 1000; e.stats.powerW = pw.watts; }
   }
 }
 

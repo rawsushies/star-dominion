@@ -10,12 +10,16 @@ import { AccountPanel } from './Account';
 export const NAV: { id: ScreenId; label: string; key?: string }[] = [
   { id: 'map', label: 'Galaxy', key: 'F1' },
   { id: 'kingdom', label: 'Kingdom' },
+  { id: 'council', label: 'Council' },
+  { id: 'capital', label: 'Capital' },
   { id: 'planets', label: 'Planets' },
   { id: 'system', label: 'Systems' },
   { id: 'fleets', label: 'Fleets' },
+  { id: 'heroes', label: 'Hall of Heroes' },
   { id: 'military', label: 'Military' },
   { id: 'economy', label: 'Economy' },
   { id: 'industry', label: 'Industry' },
+  { id: 'operations', label: 'Operations' },
   { id: 'construction', label: 'Construction' },
   { id: 'trade', label: 'Trade' },
   { id: 'research', label: 'Research' },
@@ -31,6 +35,9 @@ export function jumpTo(ev: { systemId?: number; planetId?: number; battleId?: nu
   if (ev.battleId != null) { ui.set({ battleId: ev.battleId, screen: 'military' }); return; }
   if (ev.kind === 'diplomacy' || ev.kind === 'treaty') { ui.set({ screen: 'diplomacy' }); return; }
   if (ev.kind === 'research') { ui.set({ screen: 'research' }); return; }
+  if (ev.kind === 'council' || ev.kind === 'government') { ui.openScreen('council'); return; }
+  if (ev.kind === 'capital' && ev.planetId == null) { ui.openScreen('capital'); return; }
+  if (ev.kind === 'character' || ev.kind === 'capture') { ui.openScreen('heroes'); return; }
   if (ev.planetId != null) {
     ui.selectPlanet(ev.planetId);
     focusSystem(g.planets[ev.planetId].systemId);

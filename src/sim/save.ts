@@ -2,7 +2,12 @@
 // validates the version and structure, then restores derived caches lazily.
 
 import { SAVE_VERSION, updateStats } from './engine';
+import { ensureOps } from './operations';
+import { ensureCapital } from './capital';
+import { ensureHouses } from './governance';
 import type { GameState } from './types';
+import { upgradeGalaxy } from './galaxy';
+import { migrateAdmirals } from './characters';
 
 export function serialize(state: GameState): string {
   return JSON.stringify(state);
@@ -17,7 +22,11 @@ export function deserialize(json: string): GameState {
   }
   // forward-compatible defaults for fields added after a save was written
   for (const e of s.empires) if (e.era == null) e.era = 0;
-  updateStats(s);
+  upgradeGalaxy(s.galaxy);
+  ensureOps(s);
+  migrateAdmirals(s as GameState & { admirals?: never[] });
+  for (const e of s.empires) { e.council ??= {}; e.armory ??= []; ensureHouses(s, e); ensureCapital(e); }
+  if (s.empires.some((e) => e.stats?.powerW == null)) updateStats(s);
   return s;
 }
 

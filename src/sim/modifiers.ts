@@ -3,19 +3,35 @@
 // named additive modifier so that all systems read from one place.
 
 import { GOVERNMENTS, POLICY_BY_ID } from './data/governments';
+import { capitalMods, capitalSig } from './capital';
 import { TECH_BY_ID } from './data/techs';
 import { MEGA_BY_ID } from './data/megastructures';
 import { ERAS } from './data/eras';
+import { councilMods, councilSig } from './characters';
+import { governanceMods, governanceSig } from './governance';
 import type { Empire, GameState } from './types';
 
 export type Mods = Record<string, number>;
 
 const cache = new WeakMap<Empire, { sig: string; mods: Mods; flags: Set<string> }>();
 
+/** Systems that host any megastructure, rebuilt at most once per tick. */
+const megaHosts = new WeakMap<GameState, { tick: number; hosts: number[] }>();
+export function megastructureHosts(state: GameState): number[] {
+  let c = megaHosts.get(state);
+  if (!c || c.tick !== state.tick) {
+    const hosts: number[] = [];
+    for (const sys of state.galaxy.systems) if (sys.megastructures.length) hosts.push(sys.id);
+    c = { tick: state.tick, hosts };
+    megaHosts.set(state, c);
+  }
+  return c.hosts;
+}
+
 function megaStages(state: GameState, empireId: number): { id: string; stage: number }[] {
   const out: { id: string; stage: number }[] = [];
-  for (const sys of state.galaxy.systems) {
-    for (const m of sys.megastructures) if (m.ownerId === empireId && m.stage > 0) out.push({ id: m.id, stage: m.stage });
+  for (const sid of megastructureHosts(state)) {
+    for (const m of state.galaxy.systems[sid].megastructures) if (m.ownerId === empireId && m.stage > 0) out.push({ id: m.id, stage: m.stage });
   }
   return out;
 }
@@ -30,6 +46,9 @@ function signature(state: GameState, e: Empire, megas: { id: string; stage: numb
     state.settings.difficulty,
     e.isPlayer ? 1 : 0,
     e.era ?? 0,
+    councilSig(state, e),
+    governanceSig(state, e),
+    capitalSig(e),
   ].join('|');
 }
 
@@ -69,6 +88,9 @@ function compute(state: GameState, e: Empire) {
   }
   for (const m of megas) add(MEGA_BY_ID[m.id]?.modsPerStage, m.stage);
   for (let i = 1; i <= (e.era ?? 0) && i < ERAS.length; i++) add(ERAS[i].mods);
+  add(councilMods(state, e));
+  add(governanceMods(state, e));
+  add(capitalMods(e));
   for (const tm of e.timedMods) mods[tm.key] = (mods[tm.key] ?? 0) + tm.value;
   // Difficulty: AI bonuses (never applied to the player).
   if (!e.isPlayer && e.kind === 'major') {

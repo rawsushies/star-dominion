@@ -1,0 +1,16 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Asset viewer</title>
+<style>
+body{margin:0;background:#0d1320;color:#dfe6f2;font:12px system-ui,sans-serif;overflow:hidden}
+canvas{display:block}
+#bar{position:fixed;top:0;left:0;right:0;display:flex;gap:6px;padding:8px;background:rgba(10,14,24,.85);z-index:2;align-items:center}
+#bar button{background:#1c2638;color:#dfe6f2;border:1px solid #33425e;padding:4px 10px;cursor:pointer}
+#bar button.on{border-color:#d9b45a;color:#f1d58a}
+.lbl{font-size:11px;color:#f1ead8;background:rgba(10,14,24,.75);padding:1px 5px;white-space:nowrap;pointer-events:none}
+.lbl small{color:#9fb0cc}
+#status{margin-left:auto;color:#9fb0cc}
+</style></head>
+<body><div id="bar"><b>Asset viewer</b>
+<button data-s="ships">Spacecraft</button><button data-s="chars">Heroes and commanders</button><button data-s="villains">Antagonists</button><button data-s="city">Capital buildings</button><button data-s="capital">Capital arrangement</button>
+<span id="status"></span></div>
+<script type="module" src="/src/dev/assetViewer.ts"></script></body></html>

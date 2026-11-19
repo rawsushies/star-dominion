@@ -3,16 +3,17 @@ import { useUI, useGame } from '../store';
 import { STAR_TYPES, PLANET_TYPES } from '../../sim/data/planets';
 import { SHIPS, STARBASE, SHIP_ORDER } from '../../sim/data/ships';
 import { MEGA_BY_ID } from '../../sim/data/megastructures';
+import { TRAIT_BY_ID } from '../../sim/data/characters';
 import { planetHab } from '../../sim/economy';
 import { empireMods } from '../../sim/modifiers';
 import { claimCost, visibleSystems, isHostile } from '../../sim/territory';
 import { fleetPower, admiralOf, shipStats, fleetSpeed, orbitSecured } from '../../sim/fleets';
 import { starbaseUpgradeCost } from '../../sim/construction';
-import { STATION_COST } from '../../sim/commands';
 import { intelLevel, fuzz } from '../../sim/diplomacy';
 import { getLedger } from '../../sim/engine';
 import { planetSprite } from '../render/planet3d';
 import { PlanetHero } from './PlanetHero';
+import { StationButtons, OpPanel } from './OpControls';
 import { CostView, Meter, Section, Swatch, cls, fmt, Tip } from './common';
 import type { Fleet, GameState, Planet, StarSystem, SystemFeature } from '../../sim/types';
 
@@ -113,7 +114,7 @@ function SystemCtx({ s }: { s: StarSystem }) {
                 <PlanetThumb planet={p} size={26} />
                 <div className="grow">
                   <div>{p.name}{p.moonOf != null && <span className="faint"> (moon)</span>}</div>
-                  <div className="hint">{PLANET_TYPES[p.type].label} · size {p.size}{hab > 0 && !p.colony ? ` · ${Math.round(hab * 100)}% habitable` : ''}{p.station ? ` · ${p.station} station` : ''}</div>
+                  <div className="hint">{PLANET_TYPES[p.type].label} · size {p.size}{hab > 0 && !p.colony ? ` · ${Math.round(hab * 100)}% habitable` : ''}{p.station ? ` · ${p.station} operation, level ${p.op?.level ?? 1}` : ''}</div>
                 </div>
                 {p.colony && <span className="tag" style={{ borderColor: g.empires[p.colony.ownerId].color, color: g.empires[p.colony.ownerId].color }}>{p.colony.ownerId === g.playerId ? `${fmt(p.colony.pops, 1)} pops` : 'Colony'}</span>}
                 {p.colonizing && <span className="tag good">Settling</span>}
@@ -216,17 +217,8 @@ function PlanetCtx({ p }: { p: Planet }) {
               ? <button className="btn primary" onClick={() => ui.cmd({ type: 'fleetOrder', fleetId: colonyShips[0].id, order: { type: 'colonize', planetId: p.id } })}>Send colony ship</button>
               : <span className="hint">Build a colony ship at a shipyard to settle this world.</span>
           )}
-          {!c && sys.owner === g.playerId && !p.station && (
-            <>
-              <Tip content={<div><h4>Mining station</h4><CostView cost={STATION_COST} empire={me} /><div className="hint">Extracts {p.deposits.minerals + 1} minerals{p.deposits.rare ? ` and ${(p.deposits.rare * 0.6).toFixed(1)} rare elements` : ''} per month.</div></div>}>
-                <button className="btn" onClick={() => ui.cmd({ type: 'buildStation', planetId: p.id, kind: 'mining' })}>Mining station</button>
-              </Tip>
-              <Tip content={<div><h4>Energy collector</h4><CostView cost={STATION_COST} empire={me} /><div className="hint">Harvests about {p.deposits.energy + 1} energy per month.</div></div>}>
-                <button className="btn" onClick={() => ui.cmd({ type: 'buildStation', planetId: p.id, kind: 'energy' })}>Energy collector</button>
-              </Tip>
-              {p.deposits.research > 0 && <button className="btn" onClick={() => ui.cmd({ type: 'buildStation', planetId: p.id, kind: 'research' })}>Research outpost</button>}
-            </>
-          )}
+          {!c && sys.owner === g.playerId && !p.station && <StationButtons p={p} />}
+          {!c && p.station && <div style={{ flexBasis: '100%' }}><Section title="Resource operation"><OpPanel p={p} /></Section></div>}
           {hostile && transports.length > 0 && (
             <Tip content={orbitSecured(g, g.playerId, p.id) ? 'Orbit secured: troops can land.' : 'Troops will wait in orbit until enemy fleets, the starbase and defence batteries are neutralised.'}>
               <button className="btn danger" onClick={() => ui.cmd({ type: 'fleetOrder', fleetId: transports[0].id, order: { type: 'invade', planetId: p.id } })}>Invade with {transports[0].name}</button>
@@ -279,7 +271,7 @@ function FleetCtx({ f }: { f: Fleet }) {
         {own && <><span>Supply</span><span className={f.supply < 25 ? 'neg' : ''}>{Math.round(f.supply)}%</span></>}
         {own && <><span>Speed</span><span>{fleetSpeed(g, f).toFixed(1)} ly/day</span></>}
         {f.troops > 0 && <><span>Embarked troops</span><span>{f.troops} divisions</span></>}
-        {own && <><span>Admiral</span><span>{adm ? `${adm.name} (skill ${adm.skill}, ${adm.trait})` : 'None'}</span></>}
+        {own && <><span>Admiral</span><span>{adm ? `${adm.name} (level ${adm.level}${adm.traits.length ? ', ' + adm.traits.map((t) => TRAIT_BY_ID[t]?.label ?? t).join(', ') : ''})` : 'None'}</span></>}
       </div>
       {(own || intel > 40) && (
         <Section title="Composition">

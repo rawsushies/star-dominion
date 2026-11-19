@@ -11,6 +11,7 @@ npm run soak       # soak test only, with yearly reports
 ```
 
 - `/lab.html` on the dev server shows every planet type rendered live, which is useful when tuning the planet shader.
+- `/assets.html` on the dev server is the 3D asset viewer: every ship class, character body, antagonist, capital building tier and a full capital arrangement, each labelled with creator and licence.
 - Debug hook: `window.__sd` is the zustand UI store. `__sd.getState().game` is the live `GameState`. For example, `__sd.getState().setSpeed(3)`.
 
 ## Enabling Google cloud saves (optional)
@@ -51,6 +52,11 @@ These Firebase web keys identify the project and are not secrets. Access is cont
 - **Era:** edit `src/sim/data/eras.ts`. Requirements are declarative and are evaluated by `src/sim/eras.ts`.
 - **Building, ship or megastructure:** add it to the matching file in `src/sim/data/`. Construction and the AI pick it up from the data.
 - **Command:** extend the `Command` union and the `execute()` switch in `src/sim/commands.ts`. Validate there, never in the UI.
+- **Resource operations:** kinds, modes and logistics rules live in `src/sim/operations.ts`. Output goes through `opReport()` into the normal ledger.
+- **3D assets:** register a model in `src/ui/render/assets/catalog.ts` (file, pack, licence) and map it to a ship class, role or building tier there. Put GLBs in `public/assets/models/`, with textures embedded and at most 1024 px. Record the source in `docs/ASSET_CATALOG.md`. Only CC0 or other licences that allow redistribution are accepted.
+- **Capital content:** buildings, costs, timers, prerequisites and effects live in `src/sim/data/capital.ts`; rules in `src/sim/capital.ts`; the 3D city in `src/ui/render/capital3d.ts`.
+- **Governance content:** decrees, house ambitions and council petitions live in `src/sim/data/governance.ts`; rules in `src/sim/governance.ts`.
+- **Character content:** roles, traits, skills, ambitions and items live in `src/sim/data/characters.ts`; council seats in `src/sim/data/council.ts`. Effects are named keys (`dmg`, `output`, `stability`…) read by `src/sim/characters.ts`.
 - **Screen:** create it in `src/ui/screens/`, register it in `screens/index.ts`, `ScreenId` (`store.ts`), `NAV` (`Chrome.tsx`), the neocom groups (`Hud.tsx`) and the icons (`icons.tsx`). Wrap it in `<Sheet>` so it renders inside a window.
 
 ## Conventions
@@ -66,3 +72,28 @@ These Firebase web keys identify the project and are not secrets. Access is cont
 - **Bundle size:** the main chunk is about 970 KB minified because of Three.js. Lazy-loading the system view would cut this.
 - **Multiplayer:** the simulation and command layer are ready for a server-authoritative host. Lobby, networking and conflict resolution are not built.
 - **Mobile:** the HUD targets desktop. Below 1100 px the dispatches panel hides and windows fill the screen, but play on phones is not a goal.
+
+## Expansion progress (sovereign expansion)
+
+This log is updated at each milestone, so work can resume after any interruption.
+
+| # | Milestone | Status | Verification |
+|---|---|---|---|
+| 1 | Energy-based Kardashev index (`sim/power.ts`) | Done | `tests/power.test.ts`; 30-year soak: realms at K 0.80–0.88, one reaches Type I (K 1.07) |
+| 2 | 3D barred-spiral galaxy, 10,000 systems, 3D renderer and navigation | Done | `tests/galaxy3d.test.ts` (connectivity, structure, sectors, A* optimality, lazy-body determinism, 10k simulation under 20 ms/day); Playwright: picking, double-click to enter, zoom and pan |
+| 3 | Characters and Hall of Heroes | Done | `tests/characters.test.ts` (8): founding court, v1 legacy-admiral migration, validated recruit/assign/learn/dismiss, roster limit, council and leader modifiers, salaries, capture with pardon/ransom/recruit and peace-time exchange, AI keeps posts filled over 3 years; Playwright: recruit and assign in the Hall of Heroes |
+| 4 | Governance: council, decrees, houses, provinces | Done | `tests/governance.test.ts` (8): houses founded, decree validation/cost/strength/cap/lapse/cooldown, levy angers low-tax houses, house loyalty → stability, revolt, suppress and grant, petitions arise/answer/lapse to a free default, governors add admin capacity, AI governs for 4 years with save/load determinism, v1 save gains governance fields; Playwright: issue a decree, houses and provinces tabs |
+| 5 | Imperial capital builder | Done | `tests/capital.test.ts` (7): Citadel on its plot, plot/prerequisite/Citadel-cap/cost/queue validation, Citadel requirements open plots, a full city reaches Citadel 30 and its effects reach the realm, 75% refund, sacking on conquest, AI builds over 4 years with save determinism, v1 saves gain a capital; Playwright: 3D city renders, Build queues work, clicking a plot in 3D selects the right building. Visual references in `docs/references/` |
+| 5b | Sourced 3D assets (CC0): ships, capital architecture, characters | Done | `tests/assets.test.ts` (4): files exist as valid self-contained GLBs from CC0 packs, animated models have idle clips and opaque materials, every ship class, role and building is mapped, and heavier classes are larger. Playwright: viewer sections, the capital built from sourced parts, fleet formations in the system view, an animated hero in the Hall of Heroes. See `docs/ASSET_CATALOG.md` and `docs/ASSET_WISHLIST.md` |
+| 6 | Resource operations and logistics | Done | `tests/operations.test.ts` (6): site validation, gas harvesters, ledger integration, levels and modes, reserve drain and recovery, overstretch, cut-off and blockade, logistics tenders, industrialist bonus, old-save defaults, AI runs operations within capacity, save determinism. Playwright: found, surge and upgrade from the Operations screen |
+| 7 | 3D ships and combat presentation | Pending | |
+| 8 | Sovereign interfaces | Pending | |
+| 9 | Public deployment | Pending | |
+| 10 | Integrity: migrations, long simulations, docs | Ongoing | `tests/migration.test.ts` loads the pre-3D v1 fixture |
+
+**Benchmarks (10,000-system Milky Way, 5 kingdoms and 12 independent realms):**
+
+- Galaxy generation: about 1.2–1.4 s.
+- Simulation: 6.6 ms per day when profiled alone, about 10 ms per day under parallel test load.
+- Save after 2 years: 3.7 MB.
+- Renderer: about 4.4 ms of JavaScript per frame (0.5 ms dynamic buffers, 3.2 ms draw submission, 0.7 ms overlay). Headless SwiftShader reaches only 4–14 fps because it rasterises on the CPU; real GPUs are not fill-limited at this load.

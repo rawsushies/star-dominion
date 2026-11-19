@@ -11,13 +11,21 @@ import { canBuild, buildingCost, shipCost } from './construction';
 import { availableTechs } from './research';
 import { fleetPower, isCivilianFleet, routeFleet } from './fleets';
 import { evaluateProposal, opinion, hasContact, canDeclareWar, makePeace, applyDeal, PEACE_LABEL, systemValue } from './diplomacy';
-import { bordering, claimCost, hasTreaty, isHostile, ownedSystems, warBetween, armed } from './territory';
+import { bordering, claimCost, hasTreaty, isHostile, ownedSystems, warBetween, armed, isExplored } from './territory';
 import { empireMods, hasTech } from './modifiers';
 import { planetHab } from './economy';
 import { adjacency, jumpDistances, findPath } from './galaxy';
 import { canAfford, log, nextId } from './util';
+import { charactersOf, captivesHeldBy, canLearn, rosterLimit, recruitCost, recruitChance, ransomPrice, provinceGovernor, effectiveAttrs } from './characters';
+import { SKILLS, ROLES } from './data/characters';
+import { COUNCIL_SEATS } from './data/council';
+import { canIssueDecree, canActOnHouse, inRevolt, maxDecrees } from './governance';
+import { PETITION_BY_ID } from './data/governance';
+import { opsOf, OP_MAX_LEVEL } from './operations';
+import { canQueueCapital, openPlots, plotOccupant, capitalCost, plannedLevel } from './capital';
+import { CAPITAL_BUILDINGS } from './data/capital';
 import { next, chance } from './rng';
-import type { BuildingId, Empire, Fleet, GameState, PeaceTerm, Planet, ShipClass, TreatyType } from './types';
+import type { BuildingId, Empire, Fleet, GameState, PeaceTerm, Planet, ShipClass, TreatyType , OpMode } from './types';
 import type { TechCategory } from './data/techs';
 
 export function runAI(state: GameState, e: Empire) {
@@ -33,6 +41,9 @@ export function runAI(state: GameState, e: Empire) {
   }
   operations(state, e);
   if (state.tick % 30 < 5) diplomacy(state, e);
+  if (state.tick % 15 < 5) characters(state, e);
+  if (state.tick % 30 >= 10 && state.tick % 30 < 15) governance(state, e);
+  if (state.tick % 20 >= 15) capitalCity(state, e);
 }
 
 // ---------------------------------------------------------------- economy
@@ -68,11 +79,12 @@ function economy(state: GameState, e: Empire) {
         if (p.colony || p.station || p.colonizing) continue;
         const habitable = planetHab(state, p, e, empireMods(state, e)) >= 0.5;
         if (habitable) continue; // reserve for colonisation
-        const kind = p.deposits.research >= 3 ? 'research' : p.type === 'gas_giant' || p.deposits.energy > p.deposits.minerals ? 'energy' : 'mining';
+        const kind = p.deposits.research >= 3 ? 'research' : p.type === 'gas_giant' ? 'gas' : p.deposits.energy > p.deposits.minerals ? 'energy' : 'mining';
         if (execute(state, e.id, { type: 'buildStation', planetId: pid, kind }).ok) return;
       }
     }
   }
+  operationsAI(state, e);
   // Starbase upgrades on the capital and colonised border systems
   if (e.stock.alloys > 400 && e.stock.credits > 300 && e.capitalSystemId != null) {
     const cap = state.galaxy.systems[e.capitalSystemId];
@@ -90,7 +102,7 @@ function economy(state: GameState, e: Empire) {
   // Megastructures for wealthy, advanced AIs
   // (a civilisation chasing the next era wants them sooner)
   if (e.stock.alloys > ((e.era ?? 0) >= 1 ? 1700 : 2500) && e.kind === 'major') {
-    for (const id of ['continuum_engine', 'dyson_swarm', 'stellar_collector', 'grand_archive', 'lattice', 'orbital_ring']) {
+    for (const id of ['continuum_engine', 'sector_array', 'dyson_swarm', 'stellar_collector', 'grand_archive', 'lattice', 'orbital_ring']) {
       for (const sid of ownedSystems(state, e.id)) {
         if (execute(state, e.id, { type: 'startMegastructure', systemId: sid, mega: id }).ok) return;
       }
@@ -245,13 +257,6 @@ function military(state: GameState, e: Empire) {
     if (fs.length < 2) continue;
     fs.sort((a, b) => b.ships.length - a.ships.length);
     for (const o of fs.slice(1)) execute(state, e.id, { type: 'mergeFleets', fleetId: fs[0].id, otherId: o.id });
-  }
-  const admirals = state.admirals.filter((a) => a.ownerId === e.id && a.alive);
-  const main = mainFleet(state, e);
-  if (main && main.admiralId == null) {
-    const free = admirals.find((a) => a.fleetId == null || !state.fleets[a.fleetId]);
-    if (free) execute(state, e.id, { type: 'assignAdmiral', fleetId: main.id, admiralId: free.id });
-    else if (e.stock.credits > 600 && admirals.length < 3) execute(state, e.id, { type: 'recruitAdmiral' });
   }
 }
 
@@ -431,7 +436,7 @@ function operations(state: GameState, e: Empire) {
       if (!s.features.includes('guardian')) continue;
       const lair = enemyStrengthAt(state, e, s.id);
       const path = findPath(state.galaxy, main.systemId, s.id);
-      if (path && path.length <= 5 && myPower > lair * 1.8 && e.explored.includes(s.id)) {
+      if (path && path.length <= 5 && myPower > lair * 1.8 && isExplored(e, s.id)) {
         execute(state, e.id, { type: 'moveFleet', fleetId: main.id, target: s.id });
         return;
       }
@@ -546,3 +551,201 @@ export function runRaiders(state: GameState) {
 }
 
 export { BUILDINGS };
+
+// ---------------------------------------------------------------- characters
+
+/** AI realms manage their people with the same commands as the player:
+ *  fill the council and the main fleet, recruit for empty posts, appoint
+ *  governors, spend skill points and deal with prisoners. */
+function characters(state: GameState, e: Empire) {
+  const mine = () => charactersOf(state, e.id);
+  const idle = (roles: string[]) => mine().filter((c) => !c.assignment && roles.includes(c.role));
+  const score = (c: { role: keyof typeof ROLES }, attrs: Record<string, number>) => ROLES[c.role].primary.reduce((s, a, i) => s + attrs[a] * (3 - i), 0);
+  const best = <T extends import('./types').Character>(list: T[]) => list.slice().sort((a, b) => score(b, effectiveAttrs(b)) - score(a, effectiveAttrs(a)))[0];
+
+  // spend skill points: cheapest available skill in order of definition
+  for (const c of mine()) {
+    while (c.skillPoints > 0) {
+      const s = SKILLS.find((k) => k.role === c.role && !canLearn(c, k.id));
+      if (!s) break;
+      if (!execute(state, e.id, { type: 'learnSkill', charId: c.id, skill: s.id }).ok) break;
+    }
+  }
+
+  // council seats
+  e.council ??= {};
+  for (const seat of COUNCIL_SEATS) {
+    if (e.council[seat.id] != null && state.characters.find((c) => c.id === e.council![seat.id] && c.status === 'active')) continue;
+    const c = best(idle(seat.roles));
+    if (c) execute(state, e.id, { type: 'assignCharacter', charId: c.id, assignment: { kind: 'council', seat: seat.id } });
+  }
+
+  // main fleet commander
+  const main = mainFleet(state, e);
+  if (main && !mine().some((c) => c.assignment?.kind === 'fleet' && c.assignment.fleetId === main.id)) {
+    const c = best(idle(['admiral']));
+    if (c) execute(state, e.id, { type: 'assignCharacter', charId: c.id, assignment: { kind: 'fleet', fleetId: main.id } });
+  }
+  // other war fleets get any remaining admirals or generals
+  for (const f of Object.values(state.fleets)) {
+    if (f.ownerId !== e.id || isCivilianFleet(f) || f.id === main?.id) continue;
+    if (mine().some((c) => c.assignment?.kind === 'fleet' && c.assignment.fleetId === f.id)) continue;
+    const c = best(idle(['admiral', 'general']));
+    if (!c) break;
+    execute(state, e.id, { type: 'assignCharacter', charId: c.id, assignment: { kind: 'fleet', fleetId: f.id } });
+  }
+
+  // governors: the province with most colonies first
+  const sectorWeight = new Map<number, number>();
+  for (const p of state.planets) {
+    if (p.colony?.ownerId !== e.id) continue;
+    const sec = state.galaxy.systems[p.systemId]?.sector;
+    if (sec != null) sectorWeight.set(sec, (sectorWeight.get(sec) ?? 0) + 1);
+  }
+  for (const [sec] of [...sectorWeight].sort((a, b) => b[1] - a[1])) {
+    if (provinceGovernor(state, e.id, sec)) continue;
+    const c = best(idle(['governor']));
+    if (!c) break;
+    execute(state, e.id, { type: 'assignCharacter', charId: c.id, assignment: { kind: 'province', sectorId: sec } });
+  }
+
+  // industrialists to the most developed world; diplomats to the most important court
+  for (const c of idle(['industrialist'])) {
+    const world = state.planets.filter((p) => p.colony?.ownerId === e.id && !mine().some((x) => x.assignment?.kind === 'planet' && x.assignment.planetId === p.id))
+      .sort((a, b) => b.colony!.pops - a.colony!.pops)[0];
+    if (!world) break;
+    execute(state, e.id, { type: 'assignCharacter', charId: c.id, assignment: { kind: 'planet', planetId: world.id } });
+  }
+  for (const c of idle(['diplomat'])) {
+    const court = state.empires.filter((t) => t.alive && t.id !== e.id && (t.kind === 'major' || t.kind === 'minor') && hasContact(state, e.id, t.id)
+      && !warBetween(state, e.id, t.id) && !mine().some((x) => x.assignment?.kind === 'envoy' && x.assignment.empireId === t.id))[0];
+    if (!court) break;
+    execute(state, e.id, { type: 'assignCharacter', charId: c.id, assignment: { kind: 'envoy', empireId: court.id } });
+  }
+
+  // recruit for the most pressing gap, if the purse allows
+  if (mine().length < rosterLimit(state, e)) {
+    const want: string[] = [];
+    for (const seat of COUNCIL_SEATS) if (e.council[seat.id] == null) want.push(...seat.roles);
+    if (main && !mine().some((c) => c.role === 'admiral')) want.unshift('admiral');
+    if (sectorWeight.size > mine().filter((c) => c.role === 'governor').length) want.push('governor');
+    const cands = state.characters.filter((c) => c.status === 'candidate' && c.ownerId === e.id && want.includes(c.role));
+    const pickC = cands.sort((a, b) => want.indexOf(a.role) - want.indexOf(b.role) || b.level - a.level)[0];
+    if (pickC) {
+      const cost = recruitCost(pickC);
+      if (e.stock.credits > cost.credits + 300 && e.stock.influence > cost.influence + 20) execute(state, e.id, { type: 'recruitCharacter', charId: pickC.id });
+    }
+  }
+
+  // prisoners we hold: recruit a willing one, ransom the rest after a while
+  for (const c of captivesHeldBy(state, e.id)) {
+    const held = state.tick - (c.capturedTick ?? state.tick);
+    if (mine().length < rosterLimit(state, e) && recruitChance(state, c) >= 0.5) execute(state, e.id, { type: 'captive', charId: c.id, action: 'recruit' });
+    else if (held > 360) execute(state, e.id, { type: 'captive', charId: c.id, action: held > 720 ? 'pardon' : 'ransom' });
+  }
+  // our people held abroad: buy them back when rich
+  for (const c of state.characters) {
+    if (c.status !== 'captive' || c.ownerId !== e.id) continue;
+    if (e.stock.credits > ransomPrice(c) + 500) execute(state, e.id, { type: 'payRansom', charId: c.id });
+  }
+}
+
+// ---------------------------------------------------------------- governance
+
+function governance(state: GameState, e: Empire) {
+  const value = (r: Record<string, number> | undefined) => Object.entries(r ?? {}).reduce((a, [k, v]) => a + v * (k === 'influence' ? 4 : k === 'credits' ? 0.5 : 1), 0);
+  // answer the council's petitions
+  for (const p of [...(e.petitions ?? [])]) {
+    const def = PETITION_BY_ID[p.def];
+    const h = e.houses?.find((x) => x.id === p.houseId);
+    let best = -1, bestScore = -Infinity;
+    def.options.forEach((o, i) => {
+      if (Object.entries(o.cost ?? {}).some(([k, v]) => (e.stock[k as keyof typeof e.stock] ?? 0) < v * 2)) return;
+      const timed = o.timed ? Object.entries(o.timed.mods).reduce((a, [, v]) => a + v * 120, 0) : 0;
+      const sc = (o.house ?? 0) * ((h?.power ?? 30) / 40) * (h && h.loyalty < 40 ? 1.8 : 1) + (o.allHouses ?? 0) * 3 + (o.member ?? 0) * 0.6 + value(o.gain) * 0.1 - value(o.cost) * 0.06 + timed;
+      if (sc > bestScore) { bestScore = sc; best = i; }
+    });
+    if (best >= 0) execute(state, e.id, { type: 'resolvePetition', petitionId: p.id, option: best });
+  }
+  // keep the houses in hand
+  for (const h of e.houses ?? []) {
+    if (inRevolt(state, h) || h.loyalty < 30) {
+      if (!canActOnHouse(state, e, h, 'suppress') && (e.personality.aggression > 0.5 || inRevolt(state, h))) execute(state, e.id, { type: 'houseAction', houseId: h.id, action: 'suppress' });
+      else if (e.stock.influence > 60) execute(state, e.id, { type: 'houseAction', houseId: h.id, action: 'grant' });
+    }
+  }
+  // decrees
+  if ((e.decrees?.length ?? 0) >= maxDecrees(state, e) || e.stock.influence < 110) return;
+  const wants: string[] = [];
+  const stab = e.stats?.avgStability ?? 50;
+  if (stab < 40) wants.push('festival', 'martial_law', 'tax_relief');
+  if (state.wars.some((w) => w.attackers.includes(e.id) || w.defenders.includes(e.id))) wants.push('war_footing', 'conscription');
+  if (e.stock.credits < 200 && stab > 50 && !(e.houses ?? []).some((h) => h.ambition === 'low_taxes' && h.loyalty < 45)) wants.push('tax_levy');
+  if (e.personality.science > 0.5) wants.push('research_grant');
+  if (e.personality.mercantile > 0.5) wants.push('trade_charter');
+  if (e.personality.expansion > 0.5) wants.push('census');
+  wants.push('building_programme', 'forge_quotas');
+  for (const id of wants) {
+    if (canIssueDecree(state, e, id)) continue;
+    execute(state, e.id, { type: 'issueDecree', decree: id });
+    break;
+  }
+}
+
+// ---------------------------------------------------------------- capital city
+
+/** Raise the capital: the Citadel when it can rise, otherwise the building the realm's temperament favours. */
+function capitalCity(state: GameState, e: Empire) {
+  const cap = e.capital;
+  if (!cap || cap.queue.length >= 1) return;
+  const pers = e.personality;
+  const weight: Record<string, number> = {
+    citadel: 3, throne_hall: 1.6, treasury: 1.5 + pers.mercantile, hall_of_heroes: 0.8, research_institute: 1 + pers.science * 1.5,
+    imperial_shipyards: 0.8 + pers.aggression * 1.5, refinery_complex: 1.2, diplomatic_quarter: 0.6 + pers.diplomacy, military_academy: 0.6 + pers.aggression,
+    intelligence_bureau: 0.6, grand_market: 0.6 + pers.mercantile * 1.5, bastion: 0.5 + (1 - pers.aggression) * 0.6, arcology: 1, stellar_observatory: 1, stellar_forge: 1.2, monument_of_ages: 1,
+  };
+  const free = openPlots(e).find((p) => !plotOccupant(cap, p));
+  let best: string | null = null, bestScore = 0;
+  for (const def of CAPITAL_BUILDINGS) {
+    const plot = cap.buildings[def.id] ? undefined : free;
+    if (canQueueCapital(state, e, def.id, plot)) continue;
+    const cost = capitalCost(def, plannedLevel(e, def.id) + 1);
+    // keep a reserve for the rest of the realm
+    if (Object.entries(cost).some(([k, v]) => (e.stock[k as keyof typeof e.stock] ?? 0) < v * (k === 'credits' ? 1.5 : 1.15) + 20)) continue;
+    const sc = (weight[def.id] ?? 1) / Math.sqrt(1 + plannedLevel(e, def.id));
+    if (sc > bestScore) { bestScore = sc; best = def.id; }
+  }
+  if (best) execute(state, e.id, { type: 'capitalBuild', building: best, plot: cap.buildings[best] ? undefined : free });
+}
+
+// ---------------------------------------------------------------- resource operations
+
+/** Run operations: surge what the realm is short of, rest depleted sites, keep within freighter capacity, upgrade the best. */
+function operationsAI(state: GameState, e: Empire) {
+  const ops = opsOf(state, e.id);
+  if (!ops.length) return;
+  const L = getLedger(state, e);
+  const short = new Set(L.shortages);
+  const prod: Record<string, string[]> = { mining: ['minerals', 'rare'], energy: ['energy'], research: [], gas: ['energy', 'rare'] };
+  for (const p of ops) {
+    const op = p.op!;
+    let want: OpMode = 'standard';
+    if (op.reserve < 0.25) want = 'sustain';
+    else if (prod[p.station!].some((r) => short.has(r as never) || (e.stock as Record<string, number>)[r] < 50) && op.reserve > 0.5) want = 'surge';
+    else if (op.mode === 'sustain' && op.reserve < 0.8) want = 'sustain';
+    if (want !== op.mode) execute(state, e.id, { type: 'setOperationMode', planetId: p.id, mode: want });
+  }
+  // over freighter capacity: rest the weakest operations
+  let over = L.logisticsUsed - L.logisticsCap;
+  for (const p of ops.slice().sort((a, b) => a.op!.reserve - b.op!.reserve)) {
+    if (over <= 0) break;
+    if (p.op!.mode === 'halted') continue;
+    over -= p.op!.level;
+    execute(state, e.id, { type: 'setOperationMode', planetId: p.id, mode: 'halted' });
+  }
+  // upgrade one operation when there is spare capacity and money
+  if (L.logisticsUsed < L.logisticsCap && e.stock.minerals > 400 && e.stock.credits > 250) {
+    const best = ops.filter((p) => p.op!.level < OP_MAX_LEVEL && p.op!.mode !== 'halted').sort((a, b) => b.op!.reserve - a.op!.reserve)[0];
+    if (best) execute(state, e.id, { type: 'upgradeOperation', planetId: best.id });
+  }
+}

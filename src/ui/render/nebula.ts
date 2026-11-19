@@ -1,44 +1,45 @@
-// Galactic backdrop baked once per galaxy with a fragment shader: a warm
-// barred core, spiral arms of blue-white star clouds, rose and teal emission
-// nebulae and dark dust lanes, following the same arm geometry the generator
-// uses to place systems.
+// Galactic disk glow baked once per galaxy with a fragment shader: a warm
+// bulge and bar, spiral arms of blue-white star clouds, rose and teal emission
+// nebulae and dark dust lanes, following the same barred log-spiral geometry
+// the generator uses to place systems (sim/galaxy.ts).
 
 import * as THREE from 'three';
 import { NOISE_GLSL } from './planet3d';
 
 const FRAG = /* glsl */ `
-uniform float uArms; uniform float uRg; uniform vec3 uSeed;
+uniform float uBar; uniform float uRp; uniform vec3 uSeed;
 varying vec2 vUv;
 ${NOISE_GLSL}
+// Matches sim/galaxy.ts: log spirals from rMin = 0.2R with a 13 degree pitch,
+// two major arms at the bar ends and two minor arms between them.
 void main(){
-  vec2 d = vUv - 0.5;
-  float r = length(d) / uRg;            // 0 at core, 1 at the galaxy rim
+  vec2 d = (vUv - 0.5) * 2.0 * uRp;   // in units of R
+  float r = length(d);
   float ang = atan(d.y, d.x);
-  float t = clamp((r - 0.09) / 0.91, 0.0, 1.0);
-  float armPhase = (ang - t * 3.0) * uArms / 6.2831853;
-  float arm = mix(0.55, pow(0.5 + 0.5 * cos(armPhase * 6.2831853), 2.5), smoothstep(0.08, 0.3, r));
-  vec3 p = vec3(vUv * 7.0, 0.0) + uSeed;
+  float phi = ang - uBar - log(max(r, 0.2) / 0.2) / tan(0.2269);
+  float arms = pow(0.5 + 0.5 * cos(4.0 * phi), 3.0) * (0.55 + 0.45 * pow(cos(2.0 * phi), 2.0));
+  arms *= smoothstep(0.12, 0.3, r) * smoothstep(1.15, 0.55, r);
+  vec2 bd = vec2(cos(-uBar) * d.x - sin(-uBar) * d.y, sin(-uBar) * d.x + cos(-uBar) * d.y);
+  float bar = exp(-pow(bd.x / 0.3, 2.0) - pow(bd.y / 0.07, 2.0));
+  float bulge = exp(-r * r / 0.012);
+  vec3 p = vec3(d * 4.0, 0.0) + uSeed;
   float n = fbm(p, 6);
-  float fine = fbm(p * 3.1 + 5.0, 5);
-  float fall = smoothstep(1.15, 0.2, r) * smoothstep(0.5, 0.42, max(abs(d.x), abs(d.y)));
-  float stars = (arm * 0.75 + 0.25) * fall * (0.55 + n * 0.8);
-  // dust lanes trail the arms
-  float lane = pow(0.5 + 0.5 * cos((armPhase - 0.12) * 6.2831853), 10.0) * smoothstep(0.15, 0.4, r) * fall;
-  float dust = lane * smoothstep(0.35, 0.65, fine);
-  vec3 c = vec3(0.30, 0.38, 0.55) * stars * 0.55;
-  // emission nebulae
-  float neb = smoothstep(0.58, 0.82, fbm(p * 1.7 + 11.0, 5)) * arm * fall;
-  float hue = fbm(p * 0.8 + 31.0, 3);
-  c += mix(vec3(0.70, 0.22, 0.38), vec3(0.18, 0.55, 0.58), smoothstep(0.4, 0.6, hue)) * neb * 0.55;
-  // core
-  float core = exp(-r * r * 26.0);
-  c += vec3(1.0, 0.78, 0.50) * core * 0.6 + vec3(0.55, 0.42, 0.40) * exp(-r * 7.0) * 0.25;
-  c *= 1.0 - dust * 0.85;
-  c += vec3(0.008, 0.012, 0.020);
+  float fine = fbm(p * 3.3 + 5.0, 4);
+  float disk = exp(-r / 0.35) * 0.35;
+  float dens = (arms * (0.6 + n * 0.8) + disk * (0.5 + n * 0.6));
+  float lane = pow(0.5 + 0.5 * cos(4.0 * (phi - 0.1)), 12.0) * smoothstep(0.15, 0.35, r) * smoothstep(1.1, 0.5, r);
+  float dust = lane * smoothstep(0.35, 0.7, fine);
+  vec3 c = vec3(0.32, 0.4, 0.58) * dens * 0.75;
+  float neb = smoothstep(0.6, 0.82, fbm(p * 1.6 + 11.0, 5)) * arms;
+  c += mix(vec3(0.75, 0.24, 0.42), vec3(0.2, 0.58, 0.62), smoothstep(0.4, 0.6, fbm(p * 0.7 + 31.0, 3))) * neb * 0.6;
+  c += vec3(1.0, 0.8, 0.52) * (bulge * 1.1 + bar * 0.45) + vec3(0.6, 0.45, 0.38) * exp(-r * 6.0) * 0.25;
+  c *= 1.0 - dust * 0.8;
+  c *= smoothstep(1.2, 0.95, r);
   gl_FragColor = vec4(c, 1.0);
 }`;
 
-export function bakeGalaxyNebula(size: number, arms: number, galaxyRadiusFrac: number, seed: number): HTMLCanvasElement | null {
+/** Bake the galactic disk glow. `extent` is the half-width covered, in units of the galaxy radius R. */
+export function bakeGalaxyNebula(size: number, barAngle: number, extent: number, seed: number): HTMLCanvasElement | null {
   try {
     const cv = document.createElement('canvas');
     const r = new THREE.WebGLRenderer({ canvas: cv, preserveDrawingBuffer: true });
@@ -49,7 +50,7 @@ export function bakeGalaxyNebula(size: number, arms: number, galaxyRadiusFrac: n
     const mat = new THREE.ShaderMaterial({
       vertexShader: 'varying vec2 vUv; void main(){ vUv = vec2(uv.x, 1.0 - uv.y); gl_Position = vec4(position.xy, 0.0, 1.0); }',
       fragmentShader: FRAG,
-      uniforms: { uArms: { value: arms }, uRg: { value: galaxyRadiusFrac }, uSeed: { value: new THREE.Vector3((seed % 97) * 0.37, (seed % 89) * 0.41, (seed % 83) * 0.29) } },
+      uniforms: { uBar: { value: barAngle }, uRp: { value: extent }, uSeed: { value: new THREE.Vector3((seed % 97) * 0.37, (seed % 89) * 0.41, (seed % 83) * 0.29) } },
     });
     scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat));
     r.render(scene, cam);

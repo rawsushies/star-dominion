@@ -3,6 +3,7 @@
 // costs (paid when work starts) and real build times.
 
 import { BUILDINGS } from './data/buildings';
+import { industrialistBonus } from './characters';
 import { SHIPS } from './data/ships';
 import { STARBASE } from './data/ships';
 import { MEGA_BY_ID } from './data/megastructures';
@@ -150,7 +151,7 @@ function progressBuildings(state: GameState, e: Empire, p: Planet, c: Colony) {
       q.paid = true;
     }
   }
-  q.progress += c.stability < 25 ? 0.6 : 1;
+  q.progress += (c.stability < 25 ? 0.6 : 1) * (1 + industrialistBonus(state, p.id).build);
   if (q.progress >= q.total) {
     c.queue.shift();
     const id = q.id as BuildingId;

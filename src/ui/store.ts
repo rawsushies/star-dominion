@@ -12,7 +12,7 @@ import type { GameEvent, GameSettings, GameState } from '../sim/types';
 
 export type ScreenId =
   | 'map' | 'kingdom' | 'planets' | 'system' | 'fleets' | 'military' | 'economy' | 'industry'
-  | 'research' | 'diplomacy' | 'intel' | 'construction' | 'trade' | 'journal' | 'techtree';
+  | 'research' | 'diplomacy' | 'intel' | 'construction' | 'trade' | 'journal' | 'techtree' | 'heroes' | 'council' | 'capital' | 'operations';
 
 export type MapMode = 'political' | 'resources' | 'military' | 'trade' | 'supply';
 
@@ -26,7 +26,7 @@ export interface Win { id: Exclude<ScreenId, 'map'>; x: number; y: number; w: nu
 const WIN_SIZE: Partial<Record<ScreenId, [number, number]>> = {
   kingdom: [1040, 720], planets: [1120, 740], system: [980, 680], fleets: [980, 660], military: [1040, 700],
   economy: [1060, 700], industry: [1060, 720], research: [900, 660], techtree: [1180, 760], diplomacy: [1080, 720],
-  intel: [940, 680], construction: [980, 660], trade: [940, 640], journal: [720, 640],
+  intel: [940, 680], construction: [980, 660], trade: [940, 640], journal: [720, 640], heroes: [1120, 760], council: [1180, 780], capital: [1200, 820], operations: [1100, 720],
 };
 
 function placeWindow(id: Win['id'], wins: Win[], z: number): Win {
@@ -47,7 +47,7 @@ interface UI {
   speed: number;
   lastSpeed: number;
   screen: ScreenId;
-  view: 'galaxy' | 'system';
+  view: 'galaxy' | 'system' | 'planet';
   systemId: number | null;
   planetId: number | null;
   fleetId: number | null;

@@ -1,4 +1,7 @@
 import { TECH_BY_ID } from './data/techs';
+import { canBuildStationOn, defaultOp, OP_MAX_LEVEL, OP_MODES, opUpgradeCost } from './operations';
+import { canQueueCapital, queueCapital, cancelCapital } from './capital';
+import { canIssueDecree, issueDecree, revokeDecree, canResolvePetition, resolvePetition, houseById, canActOnHouse, actOnHouse } from './governance';
 import { ERAS } from './data/eras';
 // Command layer: the only way the UI or the AI changes game state. Every
 // command is validated against the rules (ownership, costs, tech, limits).
@@ -10,18 +13,19 @@ import { SHIPS } from './data/ships';
 import { GOVERNMENTS, POLICY_BY_ID } from './data/governments';
 import { MEGA_BY_ID } from './data/megastructures';
 import { STARBASE } from './data/ships';
-import { ADMIRAL_NAMES } from './data/names';
 import { buildingCost, buildingDays, canBuild, canBuildShip, shipCost, shipDays, starbaseUpgradeCost } from './construction';
 import { createFleet, isCivilianFleet, routeFleet, removeFleet } from './fleets';
 import { canResearch } from './research';
-import { applyDeal, breakTreaty, declareWar, evaluateProposal, evaluateContract, makePeace, type Evaluation, canDeclareWar, hasContact } from './diplomacy';
+import { addMemory, applyDeal, breakTreaty, declareWar, evaluateProposal, evaluateContract, makePeace, type Evaluation, canDeclareWar, hasContact } from './diplomacy';
 import { computeLedger } from './economy';
 import { empireMods, hasTech, mod } from './modifiers';
 import { planetHab } from './economy';
-import { hasTreaty, isHostile } from './territory';
+import { hasTreaty, isHostile, isExplored, warBetween } from './territory';
 import { canAfford, log, nextId, pay, refund } from './util';
-import { int, pick } from './rng';
-import type { Cost, BuildingId, DealItem, Fleet, FleetOrder, GameState, GovernmentId, PeaceTerm, ResId, ShipClass, StationKind, TreatyType } from './types';
+import { next } from './rng';
+import { charById, charactersOf, createCharacter, rosterLimit, recruitCost, canAssign, assign, unassign, describeAssignment, canLearn, equip, unequip, releaseCaptive, recruitChance, ransomPrice } from './characters';
+import { ITEM_BY_ID, type EquipSlot } from './data/characters';
+import type { CharAssignment, Cost, BuildingId, DealItem, Fleet, FleetOrder, GameState, GovernmentId, PeaceTerm, ResId, ShipClass, StationKind, TreatyType , OpMode } from './types';
 
 export type Command =
   | { type: 'queueBuilding'; planetId: number; building: BuildingId }
@@ -29,6 +33,9 @@ export type Command =
   | { type: 'cancelQueue'; planetId: number; index: number; ships?: boolean }
   | { type: 'queueShip'; planetId: number; cls: ShipClass; fleetId?: number | null }
   | { type: 'buildStation'; planetId: number; kind: StationKind }
+  | { type: 'upgradeOperation'; planetId: number }
+  | { type: 'setOperationMode'; planetId: number; mode: OpMode }
+  | { type: 'dismantleOperation'; planetId: number }
   | { type: 'upgradeStarbase'; systemId: number }
   | { type: 'moveFleet'; fleetId: number; target: number }
   | { type: 'fleetOrder'; fleetId: number; order: FleetOrder }
@@ -39,6 +46,21 @@ export type Command =
   | { type: 'disbandFleet'; fleetId: number }
   | { type: 'assignAdmiral'; fleetId: number; admiralId: number | null }
   | { type: 'recruitAdmiral' }
+  | { type: 'recruitCharacter'; charId: number }
+  | { type: 'dismissCharacter'; charId: number }
+  | { type: 'assignCharacter'; charId: number; assignment: CharAssignment | null }
+  | { type: 'learnSkill'; charId: number; skill: string }
+  | { type: 'commissionItem'; item: string }
+  | { type: 'equipItem'; charId: number; item: string }
+  | { type: 'unequipItem'; charId: number; slot: EquipSlot }
+  | { type: 'captive'; charId: number; action: 'pardon' | 'recruit' | 'ransom' }
+  | { type: 'payRansom'; charId: number }
+  | { type: 'capitalBuild'; building: string; plot?: number }
+  | { type: 'capitalCancel'; index: number }
+  | { type: 'issueDecree'; decree: string }
+  | { type: 'revokeDecree'; decree: string }
+  | { type: 'resolvePetition'; petitionId: number; option: number }
+  | { type: 'houseAction'; houseId: number; action: 'grant' | 'suppress' | 'honour' }
   | { type: 'setResearch'; tech: string }
   | { type: 'queueResearch'; tech: string }
   | { type: 'dequeueResearch'; tech: string }
@@ -128,11 +150,35 @@ export function execute(state: GameState, empireId: number, cmd: Command): Comma
       if (!p) return fail('No such planet');
       const sys = state.galaxy.systems[p.systemId];
       if (sys.owner !== empireId) return fail('System not owned');
-      if (p.colony) return fail('Colonised worlds cannot host extractors');
-      if (p.station) return fail('A station already exists');
-      if (cmd.kind === 'research' && p.deposits.research <= 0) return fail('No research anomaly here');
+      const why = canBuildStationOn(p, cmd.kind);
+      if (why) return fail(why);
       if (!pay(e, STATION_COST)) return fail('Insufficient resources');
       p.station = cmd.kind;
+      p.op = defaultOp(state.tick);
+      return OK;
+    }
+    case 'upgradeOperation': {
+      const p = state.planets[cmd.planetId];
+      if (!p?.station || !p.op || state.galaxy.systems[p.systemId].owner !== empireId) return fail('Not one of your operations');
+      if (p.op.level >= OP_MAX_LEVEL) return fail('Already at its highest level');
+      const cost = opUpgradeCost(p.op.level + 1);
+      if (!pay(e, cost as Cost)) return fail('Insufficient resources');
+      p.op.level++;
+      return OK;
+    }
+    case 'setOperationMode': {
+      const p = state.planets[cmd.planetId];
+      if (!p?.station || !p.op || state.galaxy.systems[p.systemId].owner !== empireId) return fail('Not one of your operations');
+      if (!OP_MODES[cmd.mode]) return fail('Unknown mode');
+      p.op.mode = cmd.mode;
+      return OK;
+    }
+    case 'dismantleOperation': {
+      const p = state.planets[cmd.planetId];
+      if (!p?.station || state.galaxy.systems[p.systemId].owner !== empireId) return fail('Not one of your operations');
+      e.stock.minerals += Math.floor(STATION_COST.minerals * 0.25 * (p.op?.level ?? 1));
+      p.station = null;
+      delete p.op;
       return OK;
     }
     case 'upgradeStarbase': {
@@ -169,7 +215,7 @@ export function execute(state: GameState, empireId: number, cmd: Command): Comma
         if (!f.ships.some((s) => s.cls === 'constructor')) return fail('Requires a construction ship');
         const sys = state.galaxy.systems[o.systemId];
         if (!sys || sys.owner != null) return fail('System already claimed');
-        if (!e.explored.includes(o.systemId)) return fail('System unexplored');
+        if (!isExplored(e, o.systemId)) return fail('System unexplored');
         if (!routeFleet(state, f, o.systemId)) return fail('No route');
       } else if (o.type === 'invade') {
         if (f.troops <= 0) return fail('No troops embarked — add Troop Transports');
@@ -204,7 +250,7 @@ export function execute(state: GameState, empireId: number, cmd: Command): Comma
       a.ships.push(...b.ships);
       a.troops += b.troops;
       a.supply = Math.min(a.supply, b.supply);
-      if (a.admiralId == null && b.admiralId != null) { a.admiralId = b.admiralId; const ad = state.admirals.find((x) => x.id === b.admiralId); if (ad) ad.fleetId = a.id; b.admiralId = null; }
+      if (a.admiralId == null && b.admiralId != null) { const ld = charById(state, b.admiralId); if (ld) assign(state, ld, { kind: 'fleet', fleetId: a.id }); }
       removeFleet(state, b);
       if (isCivilianFleet(a)) a.stance = 'passive';
       return OK;
@@ -241,24 +287,155 @@ export function execute(state: GameState, empireId: number, cmd: Command): Comma
       return OK;
     }
     case 'assignAdmiral': {
+      // legacy command: assign any fleet-capable character
       const f = fleetOf(cmd.fleetId);
       if (!f) return fail('Not your fleet');
-      if (f.admiralId != null) { const old = state.admirals.find((a) => a.id === f.admiralId); if (old) old.fleetId = null; f.admiralId = null; }
-      if (cmd.admiralId != null) {
-        const a = state.admirals.find((x) => x.id === cmd.admiralId && x.ownerId === empireId && x.alive);
-        if (!a) return fail('No such admiral');
-        if (a.fleetId != null && state.fleets[a.fleetId]) state.fleets[a.fleetId].admiralId = null;
-        a.fleetId = f.id;
-        f.admiralId = a.id;
-      }
-      return OK;
+      if (cmd.admiralId == null) { const cur = charById(state, f.admiralId); if (cur) unassign(state, cur); f.admiralId = null; return OK; }
+      return execute(state, empireId, { type: 'assignCharacter', charId: cmd.admiralId, assignment: { kind: 'fleet', fleetId: f.id } });
     }
     case 'recruitAdmiral': {
-      const count = state.admirals.filter((a) => a.ownerId === empireId && a.alive).length;
-      if (count >= 6) return fail('Admiralty is full (6)');
+      // legacy command: hire a fresh admiral directly
+      if (charactersOf(state, empireId).length >= rosterLimit(state, e)) return fail(`Roster is full (${rosterLimit(state, e)})`);
       if (!pay(e, ADMIRAL_COST)) return fail('Requires 150 credits and 20 influence');
-      const traits = ['tactician', 'aggressive', 'logistician', 'cautious', 'gunner'] as const;
-      state.admirals.push({ id: nextId(state), ownerId: empireId, name: `${pick(state.rng, ADMIRAL_NAMES)}`, skill: int(state.rng, 1, 3), xp: 0, trait: pick(state.rng, traits), fleetId: null, alive: true });
+      createCharacter(state, empireId, 'admiral');
+      return OK;
+    }
+    case 'recruitCharacter': {
+      const c = charById(state, cmd.charId);
+      if (!c || c.ownerId !== empireId || c.status !== 'candidate') return fail('That candidate is not available');
+      if (charactersOf(state, empireId).length >= rosterLimit(state, e)) return fail(`Roster is full (${rosterLimit(state, e)}). Expand the Hall of Heroes or dismiss someone.`);
+      const cost = recruitCost(c);
+      if (!pay(e, cost)) return fail(`Requires ${cost.credits} credits and ${cost.influence} influence`);
+      c.status = 'active';
+      c.bio.push({ tick: state.tick, text: `Entered the service of the ${e.name}.` });
+      return OK;
+    }
+    case 'dismissCharacter': {
+      const c = charById(state, cmd.charId);
+      if (!c || c.ownerId !== empireId || c.status !== 'active') return fail('Not in your service');
+      unassign(state, c);
+      for (const slot of Object.keys(c.equipment) as EquipSlot[]) unequip(c, e, slot);
+      c.status = 'retired';
+      c.bio.push({ tick: state.tick, text: `Dismissed from the service of the ${e.name}.` });
+      return OK;
+    }
+    case 'assignCharacter': {
+      const c = charById(state, cmd.charId);
+      if (!c || c.ownerId !== empireId) return fail('Not in your service');
+      const why = canAssign(state, c, cmd.assignment);
+      if (why) return fail(why);
+      assign(state, c, cmd.assignment);
+      if (cmd.assignment) c.bio.push({ tick: state.tick, text: `${describeAssignment(state, cmd.assignment)}.` });
+      return OK;
+    }
+    case 'learnSkill': {
+      const c = charById(state, cmd.charId);
+      if (!c || c.ownerId !== empireId || c.status !== 'active') return fail('Not in your service');
+      const why = canLearn(c, cmd.skill);
+      if (why) return fail(why);
+      c.skills[cmd.skill] = (c.skills[cmd.skill] ?? 0) + 1;
+      c.skillPoints--;
+      return OK;
+    }
+    case 'commissionItem': {
+      const it = ITEM_BY_ID[cmd.item];
+      if (!it || it.findable) return fail('That cannot be commissioned');
+      const forge = e.capital?.buildings.military_academy?.level ?? 0;
+      if (forge < 1) return fail('Requires a Military Academy in the capital');
+      if (!pay(e, it.cost as Cost)) return fail('Not enough resources');
+      (e.armory ??= []).push(it.id);
+      return OK;
+    }
+    case 'equipItem': {
+      const c = charById(state, cmd.charId);
+      if (!c || c.ownerId !== empireId || c.status !== 'active') return fail('Not in your service');
+      const why = equip(c, e, cmd.item);
+      return why ? fail(why) : OK;
+    }
+    case 'unequipItem': {
+      const c = charById(state, cmd.charId);
+      if (!c || c.ownerId !== empireId) return fail('Not in your service');
+      unequip(c, e, cmd.slot);
+      return OK;
+    }
+    case 'captive': {
+      const c = charById(state, cmd.charId);
+      if (!c || c.status !== 'captive' || c.captorId !== empireId) return fail('You hold no such prisoner');
+      const home = state.empires[c.ownerId];
+      if (cmd.action === 'pardon') {
+        releaseCaptive(state, c, `Pardoned and released by the ${e.name}.`);
+        addMemory(state, home.id, empireId, 'pardon', 20, 1, 'Pardoned our commanders');
+        log(state, { kind: 'capture', severity: 'info', title: `${c.name} pardoned`, text: `The ${e.name} has released ${c.name} to the ${home.name}.`, empires: [empireId, home.id] });
+        return OK;
+      }
+      if (cmd.action === 'recruit') {
+        if (charactersOf(state, empireId).length >= rosterLimit(state, e)) return fail('Your roster is full');
+        if (!pay(e, { influence: 25 })) return fail('Requires 25 influence');
+        if (next(state.rng) < recruitChance(state, c)) {
+          const from = home.name;
+          c.ownerId = empireId; c.status = 'active'; c.captorId = null; c.loyalty = 35; c.assignment = null;
+          c.bio.push({ tick: state.tick, text: `Swore allegiance to the ${e.name} after captivity, forsaking the ${from}.` });
+          addMemory(state, home.id, empireId, 'turncoat', -15, 0.5, 'Turned our commanders');
+          log(state, { kind: 'capture', severity: 'good', title: `${c.name} joins you`, text: `Your former prisoner now serves the ${e.name}.`, empires: [empireId, home.id] });
+          return { ok: true, message: 'recruited' };
+        }
+        c.loyalty = Math.min(100, c.loyalty + 5);
+        return { ok: true, message: `${c.name} refused your offer.` };
+      }
+      // ransom: the captive's realm pays to have them back
+      const price = ransomPrice(c);
+      if (!home.alive) return fail('Their realm has fallen');
+      if (warBetween(state, empireId, home.id)) return fail('They will not pay ransom while at war with you');
+      if (home.stock.credits < price) return fail(`The ${home.name} cannot pay ${price} credits`);
+      home.stock.credits -= price;
+      e.stock.credits += price;
+      releaseCaptive(state, c, `Ransomed back from the ${e.name} for ${price} credits.`);
+      return { ok: true, message: `Ransomed for ${price} credits` };
+    }
+    case 'capitalBuild': {
+      const why = canQueueCapital(state, e, cmd.building, cmd.plot);
+      if (why) return fail(why);
+      queueCapital(state, e, cmd.building, cmd.plot);
+      return OK;
+    }
+    case 'capitalCancel': {
+      if (!cancelCapital(e, cmd.index)) return fail('No such work in the queue');
+      return OK;
+    }
+    case 'issueDecree': {
+      const why = canIssueDecree(state, e, cmd.decree);
+      if (why) return fail(why);
+      issueDecree(state, e, cmd.decree);
+      return OK;
+    }
+    case 'revokeDecree': {
+      if (!e.decrees?.some((d) => d.id === cmd.decree)) return fail('That decree is not in force');
+      revokeDecree(state, e, cmd.decree);
+      return OK;
+    }
+    case 'resolvePetition': {
+      const why = canResolvePetition(e, cmd.petitionId, cmd.option);
+      if (why) return fail(why);
+      resolvePetition(state, e, cmd.petitionId, cmd.option);
+      return OK;
+    }
+    case 'houseAction': {
+      const h = houseById(e, cmd.houseId);
+      const why = canActOnHouse(state, e, h, cmd.action);
+      if (why) return fail(why);
+      actOnHouse(state, e, h!, cmd.action);
+      return OK;
+    }
+    case 'payRansom': {
+      const c = charById(state, cmd.charId);
+      if (!c || c.status !== 'captive' || c.ownerId !== empireId) return fail('Not one of your captured people');
+      const holder = state.empires[c.captorId ?? -1];
+      if (!holder) return fail('Their captors are gone');
+      if (warBetween(state, empireId, holder.id)) return fail('No ransom can be arranged while at war');
+      const price = ransomPrice(c);
+      if (!pay(e, { credits: price })) return fail(`Requires ${price} credits`);
+      holder.stock.credits += price;
+      releaseCaptive(state, c, `Ransomed home by the ${e.name} for ${price} credits.`);
       return OK;
     }
     case 'setResearch': {

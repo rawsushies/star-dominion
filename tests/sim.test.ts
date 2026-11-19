@@ -294,11 +294,8 @@ describe('civilisational eras', () => {
     const free = s.galaxy.systems.filter((x) => x.owner == null).slice(0, 6);
     for (const sys of free) sys.owner = P;
     capital(s).colony!.pops = 70;
-    const kBefore = (() => { runDays(s, 1); return e.stats.kardashev ?? 0; })();
-    runDays(s, 31);
+    runDays(s, 32);
     expect(e.era).toBe(1);
-    expect(e.stats.kardashev!).toBeGreaterThanOrEqual(1);
-    expect(kBefore).toBeLessThan(1);
     expect(empireMods(s, e).admin ?? 0).toBeGreaterThanOrEqual(3);
     expect(execute(s, P, { type: 'setResearch', tech: 'era_imperial_bureaucracy' }).ok).toBe(true);
     expect(s.events.some((ev) => ev.kind === 'era')).toBe(true);

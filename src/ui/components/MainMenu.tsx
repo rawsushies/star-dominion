@@ -2,7 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useUI, loadGame } from '../store';
 import { newGame, DEFAULT_SETTINGS } from '../../sim/engine';
 import { GOVERNMENTS } from '../../sim/data/governments';
-import { drawGalaxy } from '../render/galaxyRenderer';
+import { GalaxyView3D, galaxyCam } from '../render/galaxy3d';
+import { generateGalaxy, GALAXY_LABELS } from '../../sim/galaxy';
+import { makeRng } from '../../sim/rng';
+import type { GameState } from '../../sim/types';
 import { listSaves, type SaveMeta } from '../../persistence/idb';
 import { formatDate } from '../../sim/util';
 import { cls } from './common';
@@ -24,31 +27,29 @@ export function MainMenu() {
   const [err, setErr] = useState('');
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => { listSaves().then(setSaves).catch(() => {}); }, []);
-  const preview = useMemo(() => newGame({ ...s, playerName: s.playerName || 'Your realm' }), [s.seed, s.galaxySize, s.aiCount, s.playerClimate]);
+  // Large galaxies preview the generated galaxy alone (fast); small ones show the starting kingdoms too.
+  const preview = useMemo<GameState>(() => {
+    if (s.galaxySize !== 'milky') return newGame({ ...s, playerName: s.playerName || 'Your realm' });
+    const { galaxy, planets } = generateGalaxy(makeRng(s.seed), 'milky', s.seed);
+    return { galaxy, planets, empires: [], fleets: {}, battles: [], playerId: 0, settings: { ...s }, tick: 0 } as unknown as GameState;
+  }, [s.seed, s.galaxySize, s.aiCount, s.playerClimate]);
 
   useEffect(() => {
     const cv = ref.current!;
-    const ctx = cv.getContext('2d')!;
+    let view: GalaxyView3D | null = null;
+    try { view = new GalaxyView3D(cv); } catch { view = null; }
     let raf = 0;
+    const R = preview.galaxy.shape?.R ?? preview.galaxy.width / 2;
     const draw = (t: number) => {
       const r = cv.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
-      if (cv.width !== Math.round(r.width * dpr)) { cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr); }
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      const g = preview.galaxy;
-      const zoom = Math.min(r.width, r.height) / g.width * 1.15;
-      // reveal the whole map for the preview
-      const p = preview.empires[0];
-      p.explored = g.systems.map((x) => x.id);
-      drawGalaxy(ctx, preview, { w: r.width, h: r.height, dpr, cam: { x: g.width / 2 + Math.sin(t / 9000) * 20 + r.width * 0.12 / zoom, y: g.height / 2, zoom }, selectedSystem: null, selectedFleet: null, hoverSystem: null, mode: 'political', time: t });
-      // vignette for legibility
-      const v = ctx.createLinearGradient(0, 0, r.width, 0);
-      v.addColorStop(0, 'rgba(7,11,20,0.75)'); v.addColorStop(0.45, 'rgba(7,11,20,0.15)'); v.addColorStop(1, 'rgba(7,11,20,0.7)');
-      ctx.fillStyle = v; ctx.fillRect(0, 0, r.width, r.height);
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      galaxyCam.tx = preview.galaxy.width / 2 - R * 0.28; galaxyCam.ty = preview.galaxy.height / 2; galaxyCam.tz = 0;
+      galaxyCam.dist = R * 2.1; galaxyCam.pitch = 0.62; galaxyCam.yaw = 0.4 + t / 60000;
+      view?.frame(preview, { w: r.width, h: r.height, dpr, time: t, selectedSystem: null, selectedFleet: null, hoverSystem: null, mode: 'political', preview: true }, null);
       raf = requestAnimationFrame(draw);
     };
     raf = requestAnimationFrame(draw);
-    return () => cancelAnimationFrame(raf);
+    return () => { cancelAnimationFrame(raf); view?.dispose(); };
   }, [preview]);
 
   const up = (p: Partial<GameSettings>) => setS({ ...s, ...p });
@@ -83,7 +84,8 @@ export function MainMenu() {
         </div>
         <div className="field">
           <label>Galaxy</label>
-          <div className="seg">{(['small', 'medium', 'large'] as const).map((z) => <button type="button" key={z} className={cls(s.galaxySize === z && 'on')} onClick={() => up({ galaxySize: z })}>{z === 'small' ? '30 stars' : z === 'medium' ? '60 stars' : '120 stars'}</button>)}</div>
+          <div className="seg">{(['small', 'medium', 'large', 'milky'] as const).map((z) => <button type="button" key={z} className={cls(s.galaxySize === z && 'on')} onClick={() => up({ galaxySize: z })}>{z === 'milky' ? 'Milky Way' : GALAXY_LABELS[z]}</button>)}</div>
+          {s.galaxySize === 'milky' && <span className="hint">10,000 star systems in a barred spiral. Your kingdom and its rivals start together in an outer arm; the rest of the galaxy is frontier.</span>}
         </div>
         <div className="field">
           <label>Rival kingdoms</label>
