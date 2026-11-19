@@ -1,0 +1,134 @@
+[
+  {
+    "name": "a",
+    "size": "desktop",
+    "medianMs": 383.2,
+    "p95Ms": 400,
+    "fps": 2.6,
+    "calls": 418,
+    "triangles": 50495,
+    "geometries": 616,
+    "textures": 21
+  },
+  {
+    "name": "a",
+    "size": "phone",
+    "medianMs": 200,
+    "p95Ms": 216.7,
+    "fps": 5,
+    "calls": 173,
+    "triangles": 44395,
+    "geometries": 612,
+    "textures": 20
+  },
+  {
+    "name": "b",
+    "size": "desktop",
+    "medianMs": 2266.6,
+    "p95Ms": 2349.9,
+    "fps": 0.4,
+    "calls": 1,
+    "triangles": 1,
+    "geometries": 627,
+    "textures": 41
+  },
+  {
+    "name": "b",
+    "size": "phone",
+    "medianMs": 883.3,
+    "p95Ms": 916.6,
+    "fps": 1.1,
+    "calls": 1,
+    "triangles": 1,
+    "geometries": 623,
+    "textures": 40
+  },
+  {
+    "name": "c",
+    "size": "desktop",
+    "medianMs": 3516.6,
+    "p95Ms": 3816.6,
+    "fps": 0.3,
+    "calls": 1,
+    "triangles": 1,
+    "geometries": 277,
+    "textures": 64
+  },
+  {
+    "name": "c",
+    "size": "phone",
+    "medianMs": 1633.2,
+    "p95Ms": 1666.7,
+    "fps": 0.6,
+    "calls": 1,
+    "triangles": 1,
+    "geometries": 268,
+    "textures": 65
+  },
+  {
+    "name": "c-ortho",
+    "size": "desktop",
+    "medianMs": 2966.6,
+    "p95Ms": 3116.6,
+    "fps": 0.3,
+    "calls": 1,
+    "triangles": 1,
+    "geometries": 280,
+    "textures": 67
+  },
+  {
+    "name": "c-ortho",
+    "size": "phone",
+    "medianMs": 1549.9,
+    "p95Ms": 1633.3,
+    "fps": 0.6,
+    "calls": 1,
+    "triangles": 1,
+    "geometries": 279,
+    "textures": 66
+  },
+  {
+    "name": "c-mobile",
+    "size": "desktop",
+    "medianMs": 1100,
+    "p95Ms": 1266.6,
+    "fps": 0.9,
+    "calls": 1,
+    "triangles": 1,
+    "geometries": 272,
+    "textures": 48
+  },
+  {
+    "name": "c-mobile",
+    "size": "phone",
+    "medianMs": 500,
+    "p95Ms": 549.9,
+    "fps": 2,
+    "calls": 1,
+    "triangles": 1,
+    "geometries": 263,
+    "textures": 49
+  },
+  {
+    "name": "b-mobile",
+    "size": "desktop",
+    "medianMs": 1000,
+    "p95Ms": 1116.6,
+    "fps": 1,
+    "calls": 1,
+    "triangles": 1,
+    "geometries": 627,
+    "textures": 30
+  },
+  {
+    "name": "b-mobile",
+    "size": "phone",
+    "medianMs": 333.3,
+    "p95Ms": 433.3,
+    "fps": 3,
+    "calls": 1,
+    "triangles": 1,
+    "geometries": 623,
+    "textures": 29
+  }
+]

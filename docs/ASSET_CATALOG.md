@@ -12,6 +12,10 @@ Every 3D model the game ships with is **CC0 1.0 (public domain)**. No attributio
 - **Checks:** `tests/assets.test.ts` confirms that every file exists, parses as GLB, embeds its textures and comes from a CC0 pack. It also checks that every ship class, character role and capital building is mapped, and that animated models have an idle clip and opaque materials.
 - **Paid assets, or assets that need an account:** see `docs/ASSET_WISHLIST.md`.
 
+## Candidate sources under review (milestone 12)
+
+The capital laboratory evaluates the KayKit Medieval Hexagon Pack (environment pieces only) and KayKit Space Base Bits, both CC0, from the creator's own GitHub repositories. They are fetched into `dev-assets/` for development only. Sources, sizes and renders are in [`CAPITAL_LAB.md`](CAPITAL_LAB.md).
+
 ## Sources used
 
 | Pack | Creator | Source | License | Format received | Used for |

@@ -518,7 +518,8 @@ export class CapitalView3D {
     const f = this.frames;
     const fps = f.length > 1 ? ((f.length - 1) * 1000) / (f[f.length - 1] - f[0]) : 0;
     const r = this.renderer.info;
-    return { fps, tier: this.pipeline?.tier ?? 'production', calls: r.render.calls, triangles: r.render.triangles, geometries: r.memory.geometries, textures: r.memory.textures };
+    if (this.pipeline) return { fps, tier: this.pipeline.tier, ...this.pipeline.info() };
+    return { fps, tier: 'production', calls: r.render.calls, triangles: r.render.triangles, geometries: r.memory.geometries, textures: r.memory.textures, passes: 1, shadowMap: 2048, pixelRatio: this.renderer.getPixelRatio(), aoScale: 0 };
   }
 
   private updateLabels() {

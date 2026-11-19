@@ -42,6 +42,9 @@ src/
       capital3d.ts  the capital city built from sourced building parts by tier
       hero3d.ts     animated character stage (Hall of Heroes, throne-room ruler)
       battle3d.ts   3D replay of a recorded BattleReport
+      pipeline.ts   shared post-processing pipeline and quality tiers (HDR sky/PMREM, fitted
+                    shadows, GTAO, emissive bloom, ACES output)
+      capitalDiorama.ts, dioramaLayout.ts   candidate terraced-island capital (laboratory only)
       nebula.ts     background bake
       assets/
         catalog.ts  registry of sourced models by role (ship class, character role,
@@ -53,11 +56,13 @@ src/
     planetLab.ts    /lab.html: every planet type rendered live
     assetViewer.ts  /assets.html: every production model, labelled with its licence
     compare.ts      /compare.html: candidate asset sets compared side by side
+    capitalLab*.ts  /capitallab.html: capital variants A/B/C, tiers, gallery; sampleCapital.ts
     candidates.ts   the candidate sets, their sources, verified facts and verdicts
 scripts/
   soak-seeds.ts         multi-seed, multi-year invariant check (npm run soak:seeds)
   fetch-candidates.mjs  downloads CC0 candidate packs into dev-assets/ (gitignored)
   capture-candidates.mjs  renders gallery previews into docs/asset-previews/m11
+  capture-capital-lab.mjs renders capital-lab screenshots and measurements (docs/asset-previews/m12)
 tests/              vitest: simulation suite, milestone suites, 30-year soak
   e2e/              Playwright browser interaction tests (npm run test:e2e)
 ```

@@ -34,12 +34,17 @@ export interface TierSettings {
   density: number;
   /** camera distance beyond which small detail props are hidden */
   detailDistance: number;
+  /** whether vegetation casts shadows and takes part in ambient occlusion */
+  vegetationShadows: boolean;
+  vegetationAO: boolean;
+  /** use only the lighter tree models */
+  lightVegetation: boolean;
 }
 
 export const TIERS: Record<QualityTier, TierSettings> = {
-  desktop: { label: 'Desktop', maxPixelRatio: 2, msaa: 4, shadowMap: 4096, shadowType: THREE.PCFSoftShadowMap, gtao: { samples: 16, denoiseSamples: 16, resolution: 1 }, bloom: { strength: 0.32, radius: 0.35, threshold: 4.5 }, density: 1, detailDistance: 260 },
-  medium: { label: 'Medium', maxPixelRatio: 1.5, msaa: 2, shadowMap: 2048, shadowType: THREE.PCFSoftShadowMap, gtao: { samples: 12, denoiseSamples: 8, resolution: 0.75 }, bloom: { strength: 0.28, radius: 0.3, threshold: 4.5 }, density: 0.75, detailDistance: 190 },
-  mobile: { label: 'Mobile', maxPixelRatio: 1, msaa: 0, shadowMap: 1024, shadowType: THREE.PCFShadowMap, gtao: { samples: 8, denoiseSamples: 4, resolution: 0.5 }, bloom: null, density: 0.5, detailDistance: 140 },
+  desktop: { label: 'Desktop', maxPixelRatio: 2, msaa: 4, shadowMap: 4096, shadowType: THREE.PCFSoftShadowMap, gtao: { samples: 16, denoiseSamples: 16, resolution: 1 }, bloom: { strength: 0.32, radius: 0.35, threshold: 4.5 }, density: 1, detailDistance: 260, vegetationShadows: true, vegetationAO: true, lightVegetation: false },
+  medium: { label: 'Medium', maxPixelRatio: 1.5, msaa: 2, shadowMap: 2048, shadowType: THREE.PCFSoftShadowMap, gtao: { samples: 12, denoiseSamples: 8, resolution: 0.75 }, bloom: { strength: 0.28, radius: 0.3, threshold: 4.5 }, density: 0.75, detailDistance: 190, vegetationShadows: true, vegetationAO: false, lightVegetation: false },
+  mobile: { label: 'Mobile', maxPixelRatio: 1, msaa: 0, shadowMap: 1024, shadowType: THREE.PCFShadowMap, gtao: { samples: 8, denoiseSamples: 4, resolution: 0.5 }, bloom: null, density: 0.5, detailDistance: 140, vegetationShadows: false, vegetationAO: false, lightVegetation: true },
 };
 
 /** A conservative guess at the device class; callers can override it. */
@@ -200,13 +205,17 @@ export class RenderPipeline {
   }
 
   render() {
+    // count every pass of the frame (scene, AO normal pass, bloom, output), not just the last
+    this.renderer.info.autoReset = false;
+    this.renderer.info.reset();
     this.composer.render();
   }
 
   /** GPU-side counters from the last frame (draw calls, triangles, live geometries and textures). */
   info() {
     const r = this.renderer.info;
-    return { calls: r.render.calls, triangles: r.render.triangles, geometries: r.memory.geometries, textures: r.memory.textures };
+    const passes = 1 + (this.gtao ? 1 : 0) + (this.bloom ? 1 : 0) + 1;
+    return { calls: r.render.calls, triangles: r.render.triangles, geometries: r.memory.geometries, textures: r.memory.textures, passes, shadowMap: this.settings.shadowMap, pixelRatio: this.renderer.getPixelRatio(), aoScale: this.settings.gtao?.resolution ?? 0 };
   }
 
   dispose() {

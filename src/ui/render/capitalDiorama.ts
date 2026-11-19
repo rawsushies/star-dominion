@@ -11,6 +11,7 @@
 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { CAPITAL_BY_ID, CITADEL_PLOT } from '../../sim/data/capital';
 import { openPlots, plotOccupant } from '../../sim/capital';
 import type { Empire } from '../../sim/types';
@@ -99,6 +100,43 @@ function rippleNormalMap(size = 128): THREE.DataTexture {
   return t;
 }
 
+/**
+ * Merge the many small static procedural meshes (ribbons, ramps, pylons, rings) into one mesh per
+ * material, cutting draw calls in every pass. Pick targets, water and anything marked
+ * `userData.keep` stay separate.
+ */
+export function mergeStatic(group: THREE.Group): number {
+  group.updateMatrixWorld(true);
+  const buckets = new Map<string, { mat: THREE.Material; geos: THREE.BufferGeometry[]; cast: boolean; meshes: THREE.Mesh[] }>();
+  group.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh || (m as THREE.InstancedMesh).isInstancedMesh || m.userData.plot != null || m.userData.noAO || m.userData.keep) return;
+    const mat = m.material as THREE.Material;
+    if (Array.isArray(m.material) || !mat.visible || (mat as THREE.MeshBasicMaterial).transparent) return;
+    const g = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone();
+    for (const k of Object.keys(g.attributes)) if (!['position', 'normal', 'color'].includes(k)) g.deleteAttribute(k);
+    if (!g.attributes.normal) g.computeVertexNormals();
+    g.applyMatrix4(m.matrixWorld);
+    const key = `${mat.uuid}|${Object.keys(g.attributes).sort().join()}|${m.castShadow}`;
+    let b = buckets.get(key);
+    if (!b) buckets.set(key, (b = { mat, geos: [], cast: m.castShadow, meshes: [] }));
+    b.geos.push(g); b.meshes.push(m);
+  });
+  let saved = 0;
+  for (const b of buckets.values()) {
+    if (b.geos.length < 2) { b.geos.forEach((g) => g.dispose()); continue; }
+    const merged = mergeGeometries(b.geos);
+    b.geos.forEach((g) => g.dispose());
+    if (!merged) continue;
+    for (const m of b.meshes) { m.parent?.remove(m); m.geometry.dispose(); }
+    const mesh = new THREE.Mesh(merged, b.mat);
+    mesh.castShadow = b.cast; mesh.receiveShadow = true;
+    group.add(mesh);
+    saved += b.meshes.length - 1;
+  }
+  return saved;
+}
+
 export class DioramaCapitalView3D {
   renderer: THREE.WebGLRenderer;
   scene = new THREE.Scene();
@@ -125,6 +163,8 @@ export class DioramaCapitalView3D {
   private raf = 0;
   private disposed = false;
   private frames: number[] = [];
+  /** Instance counts per vegetation model (for the laboratory's statistics). */
+  vegetation: Record<string, number> = {};
   private mats: Record<string, THREE.MeshStandardMaterial>;
   ready: Promise<void>;
 
@@ -152,6 +192,7 @@ export class DioramaCapitalView3D {
       ghost: new THREE.MeshStandardMaterial({ color: 0xd9c9a0, transparent: true, opacity: 0.35 }),
     };
     this.buildTerrain();
+    mergeStatic(this.static_);
     this.scene.add(this.static_, this.city, this.groves);
     this.selMesh = new THREE.Mesh(new THREE.RingGeometry(PLOT_RADIUS + 0.15, PLOT_RADIUS + 0.45, 48), new THREE.MeshBasicMaterial({ color: 0xffd36a, side: THREE.DoubleSide, transparent: true, opacity: 0.95 }));
     this.selMesh.rotation.x = -Math.PI / 2; this.selMesh.visible = false;
@@ -227,7 +268,9 @@ export class DioramaCapitalView3D {
         });
         im.instanceMatrix.needsUpdate = true;
         im.computeBoundingSphere();
-        im.castShadow = true; im.receiveShadow = true;
+        const tier = TIERS[this.opts.quality];
+        im.castShadow = target !== this.groves || tier.vegetationShadows; im.receiveShadow = true;
+        if (target === this.groves && !tier.vegetationAO) im.userData.noAO = true;
         target.add(im);
         if (isDetail) this.detail.push(im);
       }
@@ -538,7 +581,9 @@ export class DioramaCapitalView3D {
       if (!wood && cluster < 0.42) continue;
       const k = hash(n * 5);
       const kind = wood ? (k < 0.5 ? 'groveA' : 'groveB') : cluster > 0.75 ? (k < 0.5 ? 'groveA' : 'groveB') : cluster > 0.6 ? (k < 0.5 ? 'groveA2' : 'groveB2') : k < 0.5 ? 'treeA' : 'treeB';
-      groves[kind].push({ x, y: h, z, ry: hash(n + 9) * Math.PI * 2, s: 0.85 + hash(n + 4) * 0.35 });
+      const light = TIERS[this.opts.quality].lightVegetation;
+      const use = light ? ({ groveB: 'groveA2', groveB2: 'groveA2', groveA: 'groveA2', treeB: 'treeA' } as Record<string, string>)[kind] ?? kind : kind;
+      groves[use].push({ x, y: h, z, ry: hash(n + 9) * Math.PI * 2, s: 0.85 + hash(n + 4) * 0.35 });
     }
     // canal planting
     for (let i = 0; i < 60 * dens; i++) {
@@ -547,6 +592,7 @@ export class DioramaCapitalView3D {
       const r = CANAL.radius + (hash(i * 7) - 0.5) * CANAL.width * 0.7;
       groves[i % 3 ? 'lily' : 'reeds'].push({ x: Math.cos(a) * r, y: CANAL.level + 0.01, z: Math.sin(a) * r, ry: hash(i) * 6, s: 0.8 + hash(i + 2) * 0.4 });
     }
+    this.vegetation = Object.fromEntries(Object.entries(groves).map(([k, v]) => [k, v.length]));
     for (const [id, list] of Object.entries(groves)) this.instance(id as ModelId, list, this.groves, id.startsWith('rock') || id === 'lily' || id === 'reeds');
   }
 
@@ -564,6 +610,7 @@ export class DioramaCapitalView3D {
       this.sig = sig;
       for (const o of [...this.city.children]) { this.city.remove(o); disposeObject(o, this.sharedResources()); }
       this.tops.clear();
+      const pads = new THREE.Group(); // merged into a few meshes after the loop
       for (const s of this.slots) {
         const id = plotOccupant(cap, s.plot);
         const isCitadel = s.plot === CITADEL_PLOT;
@@ -571,10 +618,10 @@ export class DioramaCapitalView3D {
         if (!isCitadel) {
           // a round paved pad with a metal rim; an empty plot shows a faint holographic ring
           const pad = new THREE.Mesh(new THREE.CylinderGeometry(PLOT_RADIUS, PLOT_RADIUS + 0.1, 0.18, 48), this.mats.paving);
-          pad.position.set(s.x, s.y + 0.09, s.z); pad.receiveShadow = true; pad.userData.plot = s.plot;
+          pad.position.set(s.x, s.y + 0.09, s.z); pad.receiveShadow = true; // picking uses the pick pads
           const rim = new THREE.Mesh(new THREE.TorusGeometry(PLOT_RADIUS + 0.02, 0.06, 6, 48), this.mats.trim);
           rim.rotation.x = Math.PI / 2; rim.position.set(s.x, s.y + 0.19, s.z);
-          this.city.add(pad, rim);
+          pads.add(pad, rim);
           if (!id) {
             const holo = new THREE.Mesh(new THREE.RingGeometry(PLOT_RADIUS * 0.55, PLOT_RADIUS * 0.62, 48), this.mats.holo);
             holo.rotation.x = -Math.PI / 2; holo.position.set(s.x, s.y + 0.21, s.z); holo.userData.plot = s.plot;
@@ -609,6 +656,8 @@ export class DioramaCapitalView3D {
           this.city.add(sc);
         }
       }
+      mergeStatic(pads);
+      this.city.add(pads);
       if (openChanged) {
         const locked = new Set(this.slots.map((s) => s.plot).filter((p) => !open.has(p)));
         this.rebuildVegetation(TIERS[this.opts.quality].density, locked);
@@ -700,7 +749,7 @@ export class DioramaCapitalView3D {
   stats() {
     const f = this.frames;
     const fps = f.length > 1 ? ((f.length - 1) * 1000) / (f[f.length - 1] - f[0]) : 0;
-    return { fps, tier: this.opts.quality, ...this.pipeline.info() };
+    return { fps, tier: this.opts.quality, ...this.pipeline.info(), vegetation: this.vegetation };
   }
 
   private updateLabels() {
