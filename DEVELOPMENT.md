@@ -8,6 +8,7 @@ npm run dev        # http://localhost:5173
 npm test           # simulation tests + 30-year soak
 npm run build      # type-check + production build into dist/
 npm run soak       # soak test only, with yearly reports
+npm run soak:seeds -- 12 101 303   # multi-seed invariant check: years, then seeds
 ```
 
 - `/lab.html` on the dev server shows every planet type rendered live, which is useful when tuning the planet shader.
@@ -97,8 +98,8 @@ This log is updated at each milestone, so work can resume after any interruption
 | 6 | Resource operations and logistics | Done | `tests/operations.test.ts` (6): site validation, gas harvesters, ledger integration, levels and modes, reserve drain and recovery, overstretch, cut-off and blockade, logistics tenders, industrialist bonus, old-save defaults, AI runs operations within capacity, save determinism. Playwright: found, surge and upgrade from the Operations screen |
 | 7 | 3D ships and combat presentation | Done | Battle replays in 3D (`src/ui/render/battle3d.ts`) driven by the recorded `BattleReport`: real hulls in facing formations, beams, torpedoes and strike craft by role, shield flashes, hull damage tint, explosions with debris, starbases and planetary batteries from sourced parts. System-view fleet formations from milestone 5b. Playwright on a real 30-round simulated battle: 445 shots shown, 9 of 10 recorded kills by round 29 (the tenth falls in the final round), scrubbing works, no console errors. The simulation is untouched |
 | 8 | Sovereign interfaces | Done | Throne room (ruler figure, standing, matters awaiting a decision, links to the ministries), War room (wars and war score, fronts with threat against defence, hostile fleets sighted, our fleets and commanders, battle replays), Chronicle (yearly record in `src/sim/chronicle.ts`, a history chart of each realm, headlines per year). These join the existing council, capital, Hall of Heroes, diplomacy and kingdom screens. `tests/chronicle.test.ts` (2): yearly records, no repeated headlines, save determinism, old saves. Playwright on a game simulated for 4 years: all three screens render, a matter opens its screen, no console errors |
-| 9 | Public deployment | Pending | |
-| 10 | Integrity: migrations, long simulations, docs | Ongoing | `tests/migration.test.ts` loads the pre-3D v1 fixture |
+| 9 | Public deployment | Done | `.github/workflows/deploy.yml` builds on every push to `main` and publishes `dist/` to the `gh-pages` branch. Live at https://rawsushies.github.io/star-dominion/ (HTTP 200). Vite uses a relative `base` (`./`), so the build works under any sub-path |
+| 10 | Integrity: migrations, long simulations, docs | Done | `tests/migration.test.ts` loads the pre-3D v1 fixture, and every milestone test checks old-save defaults and save/load fingerprints. `scripts/soak-seeds.ts` runs several seeds and checks invariants: finite stocks, Kardashev in range, Citadel ≤ 30, valid ownership and assignments, logistics within capacity, and save round-trip equality. The soak found AI realms overstretching freighters (41/28). Fixed in `sim/ai.ts`: no new stations without spare capacity, and halted sites restart only when they fit. It also found that rebel states born mid-game lacked governance fields, so a save round-trip changed them (seed 202, year 20). Fixed in `blankEmpire`, with a regression test in `tests/integrity.test.ts`. Seeds 101, 202 and 303 over 30 years now pass every invariant |
 
 **Benchmarks (10,000-system Milky Way, 5 kingdoms and 12 independent realms):**
 

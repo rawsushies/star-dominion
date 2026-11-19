@@ -66,6 +66,9 @@ function blankEmpire(id: number, partial: Partial<Empire>): Empire {
     personality: { aggression: 0.4, expansion: 0.5, mercantile: 0.5, science: 0.5, diplomacy: 0.5, doctrine: 'balanced' },
     timedMods: [],
     council: {},
+    decrees: [],
+    decreeCooldowns: {},
+    petitions: [],
     armory: [],
     warExhaustion: 0,
     era: 0,
@@ -403,7 +406,8 @@ function colonyMonthly(state: GameState) {
   }
 }
 
-function revolt(state: GameState, planetId: number) {
+/** A world throws off its ruler: it returns to its original owner, or declares itself a rebel state. Exported for tests. */
+export function revolt(state: GameState, planetId: number) {
   const p = state.planets[planetId];
   const c = p.colony!;
   const owner = state.empires[c.ownerId];
