@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { STAR_TYPES } from '../../sim/data/planets';
 import type { GameState, Planet } from '../../sim/types';
 import { buildPlanet, type PlanetBuild } from './planet3d';
+import { releaseView } from './assets/release';
 
 export const planetCam = { yaw: 0.5, pitch: 0.18, dist: 5.2 };
 
@@ -117,6 +118,6 @@ export class PlanetView3D {
     this.main?.dispose();
     for (const m of this.moons) m.b.dispose();
     for (const d of this.disposables) d.dispose();
-    this.renderer.dispose();
+    releaseView(this.scene, this.renderer);
   }
 }

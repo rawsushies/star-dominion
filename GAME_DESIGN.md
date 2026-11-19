@@ -18,8 +18,8 @@ You are the sovereign of a young interstellar kingdom: one world, a few ships, a
 
 ## Galaxy
 
-- Galaxies come in three sizes: 30, 60 or 120 systems.
-- Systems are scattered over spiral arms around a dense core.
+- Galaxies come in four sizes: 30, 60 or 120 systems, or a **Milky Way of 10,000 systems**.
+- Small galaxies scatter systems over spiral arms around a dense core. The Milky Way is a 3D barred spiral: a bulge and central bar, two major and two minor arms, a flared disc, clusters and a halo, with named sectors. It is explored in a 3D renderer.
 - Hyperlanes form a planar graph that is always connected, with a few extra crossings for shortcuts.
 - **Stars:** yellow, orange, red, white, blue, neutron, pulsar or black hole. Star type changes megastructure options and battle conditions (a pulsar disables shields).
 - **Bodies:** 12 planet types plus moons and asteroid belts. Each type has its own district mix and yields, and habitability depends on your species' climate (verdant, arid or boreal).
@@ -85,7 +85,7 @@ Research is a monthly flow rather than a stockpile.
   - damage hits shields, then armour, then hull;
   - point defence thins strike craft;
   - outmatched fleets retreat.
-- Every battle is recorded and can be replayed round by round in the battle viewer.
+- Every battle is recorded and can be replayed round by round, in 3D, with the real hulls in formation.
 - **Invasion:** first win the orbit by defeating fleets, starbase and planetary defences. Then troop transports land against the garrison. Conquered worlds resist for years.
 
 ## Diplomacy
@@ -117,23 +117,75 @@ Research is a monthly flow rather than a stockpile.
 
 All are built in stages over years.
 
-## Eras (civilisational evolution)
+## Kardashev index (energy)
 
-Each kingdom has a **Kardashev rating** shown under its name. The rating is its current era's type plus its progress toward the next era.
+The Kardashev index is a scientific energy rating, kept separate from political eras (`src/sim/power.ts`).
 
-| Era | Type | Requirements | Bonuses |
-|---|---|---|---|
-| Age of Houses | 0.7 | start | — |
-| Interstellar Imperium | I | 10 techs, 4 systems, 60 population | +3 admin, +6 naval, +10% research, +2 stability |
-| Stellar Ascendancy | II | 26 techs, *Stellar Engineering*, 2 megastructure stages, 160 population | +25% energy, +15% research, +10% alloys, +10% hull |
-| Galactic Hegemony | III | 42 techs, *Galactic Lattice Theory*, 25% of the galaxy, 6 megastructure stages | +20% core output, +15% damage, +10 admin, +30 naval |
-| Transcendent Continuum | IV | *Dimensional Engineering*, Continuum Engine stage 1 | +40% research and energy, +25% shields, +25% growth |
-| Omega Sovereignty | V | *Omega Theorem*, Continuum Engine stage 3 | **Ascension victory** |
+- **P** is the realm's usable power in watts, built from real infrastructure:
+  - the planetary grid (energy jobs, collector stations, capital power plants);
+  - stellar harvesting (collectors and Dyson swarms capture part of their star's luminosity);
+  - galactic harvesting (sector-scale arrays);
+  - the Continuum Engine (a speculative vacuum-energy tap).
+- **K = (log10(P) − 6) / 10** (Sagan's interpolation). Type I is 10¹⁶ W, Type II is 10²⁶ W and Type III is 10³⁶ W.
+- Type IV and V (10⁴⁶ and 10⁵⁶ W) go beyond Kardashev's original scale. They are labelled *speculative* wherever they appear.
+- The throne room ranks the great realms by K.
+
+## Eras (political evolution)
+
+Eras are political ages. Some list a minimum Kardashev index among their requirements, but an era is not a Kardashev type.
+
+| Era | Requirements | Bonuses |
+|---|---|---|
+| Age of Houses | start | — |
+| Interstellar Imperium | 10 techs, 4 systems, 60 population | +3 admin, +6 naval, +10% research, +2 stability |
+| Stellar Ascendancy | 26 techs, *Stellar Engineering*, K ≥ 1.0, 160 population | +25% energy, +15% research, +10% alloys, +10% hull |
+| Galactic Hegemony | 42 techs, *Galactic Lattice Theory*, 25% of the galaxy, K ≥ 2.0 | +20% core output, +15% damage, +10 admin, +30 naval |
+| Transcendent Continuum | *Dimensional Engineering*, K ≥ 3.0, Continuum Engine stage 1 | +40% research and energy, +25% shields, +25% growth |
+| Omega Sovereignty | *Omega Theorem*, Continuum Engine stage 3 | **Ascension victory** |
 
 - Era bonuses stack.
 - Ascension technologies can only be researched once the matching era is reached.
 - Reaching a new era pauses the game and shows a "new age" screen.
 - AI kingdoms follow the same ladder, and the dispatches log announces when a rival advances.
+
+## Characters (Hall of Heroes)
+
+- **Nine roles:** admiral, general, governor, scientist, diplomat, chancellor, industrialist, explorer and spymaster.
+- Characters have attributes, traits, levels, skill points, loyalty and a salary. The roster is limited, and the capital's Hall of Heroes raises the limit.
+- **Posts:** fleet command, planetary governorship, resource operations, and the six council seats.
+- Characters can be captured in battle. Captives can be pardoned, ransomed or recruited, and they are exchanged at peace.
+
+## Governance
+
+- **Royal council:** six seats (Chancellor of the Treasury, Grand Marshal, High Steward of Industry, Archscholar, Envoy-General and Spymaster). Each seat turns its holder's attributes into realm modifiers.
+- **Decrees:** twelve timed edicts, such as extraordinary levy, royal festival, war footing, martial law and imperial census. Each has a cost, strength, duration and cooldown. At most three are in force at once, or four with a level-10 throne hall.
+- **Great houses:** each realm has noble houses tied to provinces. Their loyalty feeds stability. Disloyal houses revolt, and a revolt can be suppressed or bought off with grants.
+- **Petitions:** matters arise for the council and lapse to a default if they go unanswered.
+- **Provinces** are the galaxy's sectors. Governors add administrative capacity.
+
+## Imperial capital
+
+- The capital world holds a city of plots around the **Citadel (levels 1–30)**. Each Citadel level opens plots and raises the cap on every other building.
+- **Sixteen buildings:** Citadel, throne hall, royal treasury, Hall of Heroes, research institute, imperial shipyards, refinery complex, diplomatic quarter, military academy, intelligence bureau, grand market, bastion walls, arcology spires, stellar observatory, stellar forge and monument of the ages.
+- Buildings are queued, cost ordinary resources, and feed realm modifiers through the same ledger as everything else.
+- Demolition refunds 75%. A conquered capital is sacked.
+
+## Resource operations
+
+- Mining, energy, gas and research stations on uncolonised bodies run as **operations** with levels 1–5 and four modes:
+  - **standard:** steady output, with a reserve that falls slowly;
+  - **surge:** +60% output at double upkeep, with a reserve that drains fast;
+  - **sustain:** −30% output while the reserve recovers;
+  - **halted:** no output or upkeep, and logistics capacity is freed.
+- Deliveries need freighter **logistics capacity** (logistics tenders add more). An operation outside the supply network delivers half. A hostile warfleet in the system blockades it completely.
+- An industrialist can direct an operation and raise its output.
+- Output enters the ordinary economy ledger. There is no second economy.
+
+## Sovereign screens
+
+- **Throne room:** the ruler's portrait, standing among the great realms, the matters awaiting a decision (each one opens its ministry) and the ministries.
+- **War room:** wars and war score, fronts with threat against defence, hostile fleets sighted, our fleets and their commanders, and 3D battle replays.
+- **Chronicle:** a yearly record of every realm, a history chart, and the headlines of each year.
 
 ## Victory and defeat
 
@@ -156,6 +208,8 @@ Each kingdom has a **Kardashev rating** shown under its name. The rating is its 
 - Tooltips explain every resource line, gauge and stat.
 
 ## Known limitations
+
+- The visual direction for the capital, ships, heroes and villains is under review (milestone 11). See `docs/ASSET_WISHLIST.md`. The current models are placeholders that have not been approved.
 
 - Era 2 and beyond are late-game goals. In 30-year test runs, AI kingdoms reliably reach Type I but rarely Type II. Megastructure appetite is still being tuned.
 - There is no ground-combat screen: invasions resolve automatically.

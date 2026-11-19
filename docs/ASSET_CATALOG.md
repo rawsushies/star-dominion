@@ -1,10 +1,14 @@
 # Asset catalog
 
+> **Status (milestone 11): under visual review.** The models below are the current production set. They work, but the capital, hero and villain looks are **not approved** as the final visual direction. Candidate replacements, live comparison renders and the decisions needed are in [`ASSET_WISHLIST.md`](ASSET_WISHLIST.md). Nothing below will be replaced until a direction is approved.
+
 Every 3D model the game ships with is **CC0 1.0 (public domain)**. No attribution is required, and commercial use, embedding and redistribution are allowed. The game credits each creator anyway, in this file and in the asset viewer.
 
 - **Registry in code:** `src/ui/render/assets/catalog.ts`. Rendering code asks for models by role (ship class, character role, capital building), never by file, so replacing an asset means editing that one file.
 - **Model files:** `public/assets/models/{ships,chars,villains,city,space}`, 91 GLB files, 22 MB in total. Textures are embedded and converted to WebP with a 1024 px maximum.
 - **Asset viewer:** run `npm run dev`, then open `/assets.html`. It has five tabs: Spacecraft, Heroes and commanders, Antagonists, Capital buildings (every tier) and Capital arrangement.
+- **Comparison gallery (development only):** `/compare.html` renders candidate sets beside the production set. Candidate packs are fetched with `npm run candidates:fetch` into `dev-assets/` (gitignored) and never reach the production build.
+- **Loading and failures:** `src/ui/render/assets/loader.ts` loads each model once. A failed load is recorded, logged and announced, and the HUD shows a notice naming the missing models. Views free their GPU resources through `releaseView` when they close.
 - **Checks:** `tests/assets.test.ts` confirms that every file exists, parses as GLB, embeds its textures and comes from a CC0 pack. It also checks that every ship class, character role and capital building is mapped, and that animated models have an idle clip and opaque materials.
 - **Paid assets, or assets that need an account:** see `docs/ASSET_WISHLIST.md`.
 
@@ -47,7 +51,7 @@ Each capital building has **level tiers**. Every tier is a composition of source
 | Stellar forge | 1, 8 | Kenney generator and chimney, then industrial building-r |
 | Monument of the ages | 1, 5 | Quaternius planet globe on a metal plinth |
 
-Status: **integrated**. The capital view (`src/ui/render/capital3d.ts`) builds every occupied plot from these parts. The earlier procedural models now appear only for the moment before the models load, or if a file fails to load. The plateau, walls, roads, trees, shield dome and sky are still procedural supporting elements.
+Status: **integrated, not approved as final**. The capital view (`src/ui/render/capital3d.ts`) builds every occupied plot from these parts. The earlier procedural models now appear only for the moment before the models load, or if a file fails to load. The plateau, walls, roads, trees, shield dome and sky are still procedural supporting elements.
 
 ## Military spacecraft
 
@@ -98,9 +102,9 @@ Gap: no CC0 mining, cargo, science or diplomatic vessels were found in a matchin
 
 All bodies are rigged and carry 11 animations: Idle, Walk, Walk_Carry, Punch, Shoot_OneHanded, RecieveHit, Defeat, Victory, PickUp, SitDown and StandUp. The Hall of Heroes plays Idle on a lit stage. The pack draws skin as a dark silhouette, so the game tints the *Skin* material to a human tone per character.
 
-Status: **integrated**.
+Status: **integrated, not approved as final**.
 
-Limitation: the bodies have stylised chibi proportions, and the pack's fantasy costumes (knights, vikings, wizards) are deliberately not used. Quaternius's *Universal Base Characters* (CC0, realistic proportions, standard humanoid rig) would be better. Its only download route is itch.io's interactive download page, which could not be used from this environment. It is listed in the wishlist for a manual download.
+Limitation: the bodies have stylised chibi proportions, and the pack's fantasy costumes (knights, vikings, wizards) are deliberately not used. Quaternius's *Universal Base Characters* (CC0, realistic proportions, standard humanoid rig) would be better. Its only download route is itch.io's download page in a browser; automated downloads were refused here. Its skeleton and proportions were verified through the CC0 Universal Animation Library mannequin, which shares them (see the wishlist).
 
 ## Villains and antagonists
 

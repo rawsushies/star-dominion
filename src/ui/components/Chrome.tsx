@@ -6,6 +6,7 @@ import { listSaves, deleteSave, type SaveMeta } from '../../persistence/idb';
 import { cls } from './common';
 import { focusSystem } from './MapView';
 import { AccountPanel } from './Account';
+import { assetFailures, onAssetFailure, type AssetFailure } from '../render/assets/loader';
 
 export const NAV: { id: ScreenId; label: string; key?: string }[] = [
   { id: 'map', label: 'Galaxy', key: 'F1' },
@@ -62,6 +63,21 @@ export function Toasts() {
           <div className="tx">{t.ev.text}</div>
         </div>
       ))}
+    </div>
+  );
+}
+
+/** Names any 3D model that failed to load, so a placeholder is never shown without explanation. */
+export function AssetNotice() {
+  const [failed, setFailed] = useState<AssetFailure[]>(() => assetFailures());
+  const [hidden, setHidden] = useState(false);
+  useEffect(() => onAssetFailure(() => { setFailed(assetFailures()); setHidden(false); }), []);
+  if (!failed.length || hidden) return null;
+  const names = failed.map((f) => f.id.replace(/_/g, ' '));
+  return (
+    <div className="asset-notice" role="status" data-testid="asset-notice">
+      <span>{failed.length === 1 ? '1 3D model' : `${failed.length} 3D models`} could not be loaded ({names.slice(0, 3).join(', ')}{names.length > 3 ? ', …' : ''}). A simple placeholder shape is shown in their place.</span>
+      <button className="btn sm" onClick={() => setHidden(true)}>Dismiss</button>
     </div>
   );
 }
