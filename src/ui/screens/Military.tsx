@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { useUI, useGame } from '../store';
-import { SHIPS, SIZE_WEIGHT } from '../../sim/data/ships';
 import { fleetPower } from '../../sim/fleets';
 import { getLedger } from '../../sim/engine';
 import { visibleSystems, isHostile, armed } from '../../sim/territory';
@@ -8,8 +7,8 @@ import { PEACE_LABEL } from '../../sim/diplomacy';
 import { formatDate } from '../../sim/util';
 import { Sheet, Section, Swatch, cls, fmt, Meter } from '../components/common';
 import { focusSystem } from '../components/MapView';
-import { hexA } from '../render/planet3d';
-import type { BattleReport, GameState, PeaceTerm } from '../../sim/types';
+import { BattleView3D } from '../render/battle3d';
+import type { BattleReport, PeaceTerm } from '../../sim/types';
 
 export function MilitaryScreen() {
   const g = useGame();
@@ -109,28 +108,51 @@ function PeaceButtons({ warId }: { warId: number }) {
   );
 }
 
-/** Replays a recorded battle round by round: hull bars and fire lines between ships. */
+/** Replays a recorded battle in 3D: the real hulls, beams, torpedoes, strike craft, shields and explosions. */
 function BattleViewer({ b }: { b: BattleReport }) {
   const g = useGame();
   const ref = useRef<HTMLCanvasElement>(null);
-  const [round, setRound] = useState(0);
+  const view = useRef<BattleView3D | null>(null);
+  const [time, setTime] = useState(0);
   const [playing, setPlaying] = useState(true);
+  const [ready, setReady] = useState(false);
   const maxRound = Math.max(1, Math.min(b.rounds, b.ships[0]?.hp.length ?? 1));
-  useEffect(() => { setRound(0); setPlaying(true); }, [b.id]);
   useEffect(() => {
-    if (!playing) return;
-    const t = window.setInterval(() => setRound((r) => (r + 1 >= maxRound ? (setPlaying(false), r) : r + 1)), 380);
-    return () => window.clearInterval(t);
-  }, [playing, maxRound]);
-  useEffect(() => { drawBattle(ref.current!, g, b, round); }, [round, b, g]);
+    const v = new BattleView3D(ref.current!);
+    view.current = v;
+    (window as unknown as { __sdBattle?: BattleView3D }).__sdBattle = v;
+    return () => { v.dispose(); view.current = null; };
+  }, []);
+  useEffect(() => {
+    setReady(false); setTime(0); setPlaying(true);
+    view.current?.load(g, b).then(() => setReady(true));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [b.id]);
+  useEffect(() => {
+    if (!playing || !ready) return;
+    let raf = 0, last = performance.now();
+    const step = (now: number) => {
+      const dt = (now - last) / 1000; last = now;
+      setTime((t) => { const n = t + dt * 0.8; if (n >= maxRound) { setPlaying(false); return maxRound - 0.001; } return n; });
+      raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [playing, ready, maxRound]);
+  useEffect(() => { view.current?.setTime(time); }, [time, ready]);
+  const round = Math.min(maxRound - 1, Math.floor(time));
   const sideName = (s: 0 | 1) => b.sides[s].map((i) => g.empires[i].name).join(', ');
   return (
     <div style={{ marginTop: 10 }}>
       <div className="row between"><span className="serif" style={{ fontSize: 20, fontWeight: 600 }}>Battle of {g.galaxy.systems[b.systemId].name}</span><span className="hint">{b.ongoing ? 'Still raging' : b.winner === -1 ? 'Broken off' : `${sideName(b.winner as 0 | 1)} victorious`}</span></div>
-      <canvas ref={ref} style={{ width: '100%', height: 300, display: 'block', marginTop: 6, border: '1px solid var(--rule)' }} />
+      <div style={{ position: 'relative', marginTop: 6 }}>
+        <canvas ref={ref} data-testid="battle3d" style={{ width: '100%', height: 340, display: 'block', border: '1px solid var(--rule)', cursor: 'grab', touchAction: 'none' }} />
+        {!ready && <div className="hint" style={{ position: 'absolute', left: 10, top: 8 }}>Loading the fleets…</div>}
+        <div className="hint" style={{ position: 'absolute', right: 10, bottom: 8 }}>Drag to turn the camera, scroll to zoom.</div>
+      </div>
       <div className="row" style={{ marginTop: 6 }}>
-        <button className="btn small" onClick={() => { if (round >= maxRound - 1) setRound(0); setPlaying(!playing); }}>{playing ? 'Pause' : 'Play'}</button>
-        <input type="range" min={0} max={maxRound - 1} value={round} onChange={(e) => { setPlaying(false); setRound(+e.target.value); }} className="grow" aria-label="Battle round" />
+        <button className="btn small" onClick={() => { if (time >= maxRound - 0.01) setTime(0); setPlaying(!playing); }}>{playing ? 'Pause' : 'Play'}</button>
+        <input type="range" min={0} max={maxRound - 1} step={0.01} value={time} onChange={(e) => { setPlaying(false); setTime(+e.target.value); }} className="grow" aria-label="Battle round" />
         <span className="num faint">Round {round + 1}/{maxRound}</span>
       </div>
       <div className="kv" style={{ marginTop: 8 }}>
@@ -142,61 +164,3 @@ function BattleViewer({ b }: { b: BattleReport }) {
   );
 }
 
-function drawBattle(cv: HTMLCanvasElement, g: GameState, b: BattleReport, round: number) {
-  const r = cv.getBoundingClientRect();
-  const dpr = window.devicePixelRatio || 1;
-  cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr);
-  const ctx = cv.getContext('2d')!;
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  const w = r.width, h = r.height;
-  ctx.fillStyle = '#070b14'; ctx.fillRect(0, 0, w, h);
-  for (let i = 0; i < 90; i++) { ctx.fillStyle = `rgba(220,214,200,${(i * 37 % 10) / 40})`; ctx.fillRect((i * 97) % w, (i * 53) % h, 1, 1); }
-  const pos = new Map<number, [number, number, number]>();
-  for (const side of [0, 1] as const) {
-    const ships = b.ships.filter((s) => s.side === side);
-    const cols = Math.max(1, Math.ceil(ships.length / 9));
-    ships.forEach((s, i) => {
-      const col = Math.floor(i / 9), row = i % 9;
-      const x = side === 0 ? 40 + col * 30 : w - 40 - col * 30;
-      const y = 24 + row * ((h - 48) / Math.max(1, Math.min(9, ships.length) - 1 || 1));
-      const sz = s.id < 0 ? 12 : 4 + SIZE_WEIGHT[SHIPS[s.cls].size] * 2.4;
-      pos.set(s.id, [x, ships.length === 1 ? h / 2 : y, sz]);
-      void cols;
-    });
-  }
-  // fire lines for this round
-  for (const sh of b.shots) {
-    if (sh.r !== round) continue;
-    const a = pos.get(sh.from), t = pos.get(sh.to);
-    if (!a || !t) continue;
-    const from = b.ships.find((s) => s.id === sh.from)!;
-    ctx.strokeStyle = hexA(g.empires[from.owner].color, 0.55);
-    ctx.lineWidth = Math.min(2.5, 0.6 + sh.dmg / 80);
-    ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(t[0], t[1]); ctx.stroke();
-    ctx.fillStyle = 'rgba(255,230,180,0.9)';
-    ctx.fillRect(t[0] - 1.5, t[1] - 1.5, 3, 3);
-  }
-  for (const s of b.ships) {
-    const p = pos.get(s.id)!;
-    const hp = s.hp[Math.min(round, s.hp.length - 1)] ?? 1;
-    const col = g.empires[s.owner].color;
-    ctx.save();
-    ctx.translate(p[0], p[1]);
-    ctx.globalAlpha = hp <= 0 ? 0.18 : 1;
-    ctx.fillStyle = col;
-    ctx.beginPath();
-    const k = p[2];
-    if (s.id < 0) { for (let i = 0; i < 8; i++) { const a = Math.PI / 4 * i + Math.PI / 8; i ? ctx.lineTo(Math.cos(a) * k, Math.sin(a) * k) : ctx.moveTo(Math.cos(a) * k, Math.sin(a) * k); } }
-    else if (s.side === 0) { ctx.moveTo(k, 0); ctx.lineTo(-k, -k * 0.7); ctx.lineTo(-k * 0.5, 0); ctx.lineTo(-k, k * 0.7); }
-    else { ctx.moveTo(-k, 0); ctx.lineTo(k, -k * 0.7); ctx.lineTo(k * 0.5, 0); ctx.lineTo(k, k * 0.7); }
-    ctx.closePath(); ctx.fill();
-    ctx.globalAlpha = 1;
-    if (hp > 0) {
-      ctx.fillStyle = '#22324a'; ctx.fillRect(-10, k + 3, 20, 2);
-      ctx.fillStyle = hp < 0.35 ? '#d2604a' : '#5fa79a'; ctx.fillRect(-10, k + 3, 20 * hp, 2);
-    } else {
-      ctx.strokeStyle = 'rgba(210,96,74,0.7)'; ctx.beginPath(); ctx.moveTo(-5, -5); ctx.lineTo(5, 5); ctx.moveTo(5, -5); ctx.lineTo(-5, 5); ctx.stroke();
-    }
-    ctx.restore();
-  }
-}
