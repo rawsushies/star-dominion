@@ -14,12 +14,15 @@ npm run test:e2e   # Playwright browser tests (starts its own dev server; needs 
 npm run candidates:fetch    # download CC0 candidate asset packs into dev-assets/ (gitignored)
 npm run candidates:capture  # re-render docs/asset-previews/m11 (dev server on :5173 must be running)
 npm run lab:capture -- http://localhost:5173 --perf   # capital laboratory screenshots + measurements
+npm run candidates:fetch -- k-sci-fi-sounds k-interface-sounds && python3 -I scripts/build_audio.py
+                   # rebuild public/assets/audio/sfx and src/audio/manifest.json from Kenney's CC0 packs
 ```
 
 - `/lab.html` on the dev server shows every planet type rendered live, which is useful when tuning the planet shader.
 - `/capitallab.html` on the dev server is the capital laboratory: the same sample capital as A (production), B (new lighting pipeline) and C (terraced diorama), with quality tiers and an FPS meter; `?gallery=1` shows the committed screenshots side by side. See `docs/CAPITAL_LAB.md`.
 - `/compare.html` on the dev server is the asset comparison gallery: candidate sets for the capital, ships, heroes and villains, rendered side by side with the production set, plus external sets shown with their creators' previews. Run `npm run candidates:fetch` first.
 - `/assets.html` on the dev server is the 3D asset viewer: every ship class, character body, antagonist, capital building tier and a full capital arrangement, each labelled with creator and licence.
+- `window.__sdAudio.debug()` reports the music context, live sections, ambience scene, context state and any failed sound files.
 - Debug hook: `window.__sd` is the zustand UI store. `__sd.getState().game` is the live `GameState`. For example, `__sd.getState().setSpeed(3)`.
 
 ## Deployment
@@ -82,6 +85,12 @@ These Firebase web keys identify the project and are not secrets. Access is cont
 - Keep `GameState` plain JSON. When adding a field, give it a default in `save.ts` so older saves keep loading.
 - All randomness inside the simulation must use `state.rng` helpers. Never use `Math.random()` there.
 - UI copy is sentence case and states plainly what an action does.
+- **Guidance stays truthful.**
+  - A new mechanic needs a Codex entry (`src/guidance/codex.ts`) that describes what the code does.
+  - A new window needs an entry in `src/guidance/screens.ts`.
+  - Numbers belong in generated entries, never hand-written.
+  - Lesson highlights use `data-guide` anchors (`<Section guide="…">`).
+- New sounds go through `scripts/build_audio.py` (source, licence and manifest) and need a rule in `src/audio/manager.ts` if they can repeat quickly.
 
 ## Known limitations and next steps
 
@@ -109,3 +118,4 @@ This log is updated at each milestone, so work can resume after any interruption
 | 10 | Integrity: migrations, long simulations, docs | Done | `tests/migration.test.ts` loads the pre-3D v1 fixture, and every milestone test checks old-save defaults and save/load fingerprints. `scripts/soak-seeds.ts` runs several seeds and checks invariants: finite stocks, Kardashev in range, Citadel ≤ 30, valid ownership and assignments, logistics within capacity, and save round-trip equality. The soak found AI realms overstretching freighters (41/28). Fixed in `sim/ai.ts`: no new stations without spare capacity, and halted sites restart only when they fit. It also found that rebel states born mid-game lacked governance fields, so a save round-trip changed them (seed 202, year 20). Fixed in `blankEmpire`, with a regression test in `tests/integrity.test.ts`. Seeds 101, 202 and 303 over 30 years now pass every invariant |
 | 11 | Visual identity: asset research and comparison | **At the approval gate** | Researched OpenGameArt, itch.io, Sketchfab (API), Fab (API), Poly Haven, ambientCG and CGTrader; TurboSquid, Kenney.nl and Poly Pizza are blocked by the proxy. 13 CC0 packs fetched reproducibly (`scripts/candidate-sources.json`) and rendered in the dev-only `/compare.html` gallery with per-model triangle, texture and animation counts; external sets are shown with creator previews. Findings, renders and three directions are in `docs/ASSET_WISHLIST.md`. **No production asset was replaced.** Engineering: the loader records and announces failures, and the HUD names missing models (`tests/e2e/assets.spec.ts`); every 3D view frees its GPU resources through `releaseView` (`tests/render-resources.test.ts`). Quality: Playwright tests are in the repo (`tests/e2e`, `npm run test:e2e`), and CI (`.github/workflows/ci.yml`) runs tsc, vitest, the build, a 3-seed integrity run and the browser tests, with a nightly 30-year 5-seed run. ARCHITECTURE.md and GAME_DESIGN.md are brought up to date |
 | 12 | Diorama rendering: capital laboratory | **At the approval gate** | `capitallab.html` renders the same sample capital as A (production, unchanged), B (production scene through the new pipeline) and C (terraced island diorama with KayKit CC0 environment and Space Base dressing). `src/ui/render/pipeline.ts`: HDR sky + PMREM environment, fitted sun shadows, GTAO with a mobile profile and water excluded, emissive-only bloom, ACES via OutputPass; desktop/medium/mobile tiers. Diorama: instanced chunked vegetation, merged static geometry, detail culling; mobile tier 0.43M triangles and 393 draw calls per frame. Tests: `tests/diorama-layout.test.ts`, `tests/pipeline.test.ts`, `tests/e2e/capital-lab.spec.ts` (plot picking, variant switching, zero GPU resources after dispose, visual regression). Device frame rates not measured (SwiftShader only). **Production capital not replaced.** Details in `docs/CAPITAL_LAB.md` |
+| 13 | Onboarding, guidance, Codex and audio | Done (browser tests written; to be confirmed by CI) | `docs/GUIDANCE.md`, `docs/AUDIO.md`, `docs/GUIDANCE_AUDIT.md`. `tests/guidance.test.ts` (16) and `tests/audio.test.ts` (12) pass; the full unit suite passes. Manually driven in Chromium: lesson 1 completed by real actions, Codex search and entries, info drawers, audio unlocked after a click, music switching contexts, no failed files and no console errors. `tests/e2e/guidance.spec.ts` and `audio.spec.ts` were not run locally (the run was stopped on request) |
