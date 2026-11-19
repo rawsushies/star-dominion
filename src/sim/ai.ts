@@ -72,7 +72,8 @@ function economy(state: GameState, e: Empire) {
     execute(state, e.id, { type: 'queueBuilding', planetId: p.id, building: best });
   }
   // Orbital extractors on owned uncolonised bodies
-  if (e.stock.minerals > 250 && e.stock.credits > 120) {
+  const Lops = getLedger(state, e);
+  if (e.stock.minerals > 250 && e.stock.credits > 120 && Lops.logisticsUsed < Lops.logisticsCap) {
     for (const sid of ownedSystems(state, e.id)) {
       for (const pid of state.galaxy.systems[sid].planetIds) {
         const p = state.planets[pid];
@@ -727,8 +728,13 @@ function operationsAI(state: GameState, e: Empire) {
   const L = getLedger(state, e);
   const short = new Set(L.shortages);
   const prod: Record<string, string[]> = { mining: ['minerals', 'rare'], energy: ['energy'], research: [], gas: ['energy', 'rare'] };
+  let spare = L.logisticsCap - L.logisticsUsed;
   for (const p of ops) {
     const op = p.op!;
+    if (op.mode === 'halted') {
+      if (spare >= op.level && op.reserve > 0.3) { spare -= op.level; execute(state, e.id, { type: 'setOperationMode', planetId: p.id, mode: 'standard' }); }
+      continue;
+    }
     let want: OpMode = 'standard';
     if (op.reserve < 0.25) want = 'sustain';
     else if (prod[p.station!].some((r) => short.has(r as never) || (e.stock as Record<string, number>)[r] < 50) && op.reserve > 0.5) want = 'surge';
@@ -744,7 +750,7 @@ function operationsAI(state: GameState, e: Empire) {
     execute(state, e.id, { type: 'setOperationMode', planetId: p.id, mode: 'halted' });
   }
   // upgrade one operation when there is spare capacity and money
-  if (L.logisticsUsed < L.logisticsCap && e.stock.minerals > 400 && e.stock.credits > 250) {
+  if (spare > 0 && L.logisticsUsed < L.logisticsCap && e.stock.minerals > 400 && e.stock.credits > 250) {
     const best = ops.filter((p) => p.op!.level < OP_MAX_LEVEL && p.op!.mode !== 'halted').sort((a, b) => b.op!.reserve - a.op!.reserve)[0];
     if (best) execute(state, e.id, { type: 'upgradeOperation', planetId: best.id });
   }

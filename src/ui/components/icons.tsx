@@ -21,6 +21,9 @@ const ICONS: Record<ScreenId, JSX.Element> = {
   council: <g {...P}><circle cx="12" cy="12" r="3" /><circle cx="12" cy="4.5" r="1.6" /><circle cx="19" cy="9" r="1.6" /><circle cx="17" cy="17.5" r="1.6" /><circle cx="7" cy="17.5" r="1.6" /><circle cx="5" cy="9" r="1.6" /></g>,
   capital: <g {...P}><path d="M3 21 H21" /><path d="M5 21 V12 H9 V21" /><path d="M10 21 V6 L12 3 L14 6 V21" /><path d="M15 21 V10 H19 V21" /></g>,
   operations: <g {...P}><circle cx="12" cy="12" r="3" /><path d="M12 3 V6 M12 18 V21 M3 12 H6 M18 12 H21 M5.6 5.6 L7.8 7.8 M16.2 16.2 L18.4 18.4 M5.6 18.4 L7.8 16.2 M16.2 7.8 L18.4 5.6" /></g>,
+  throne: <g {...P}><path d="M7 21 V10 L5 6 L8 7.5 L12 3 L16 7.5 L19 6 L17 10 V21" /><path d="M7 15 H17 M5 21 H19" /></g>,
+  warroom: <g {...P}><rect x="3" y="5" width="18" height="13" /><path d="M7 14 L10 10 L13 12 L17 8" /><path d="M9 21 H15" /></g>,
+  chronicle: <g {...P}><path d="M5 4 H16 A3 3 0 0 1 16 10 H8 A3 3 0 0 0 8 16 H19" /><path d="M5 4 V20 H17" /></g>,
   techtree: <g {...P}><circle cx="5" cy="12" r="2" /><circle cx="19" cy="6" r="2" /><circle cx="19" cy="18" r="2" /><circle cx="12" cy="12" r="2" /><path d="M7 12 H10 M14 12 L17 7 M14 12 L17 17" /></g>,
 };
 
