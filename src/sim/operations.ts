@@ -61,9 +61,9 @@ export function opsOf(state: GameState, empireId: number): Planet[] {
 }
 
 /** Freighter capacity of a realm, in operation levels. */
-export function logisticsCapacity(state: GameState, e: Empire, mods: Mods): number {
+export function logisticsCapacity(state: GameState, e: Empire, mods: Mods, mine?: Planet[]): number {
   let cap = 4;
-  for (const p of state.planets) if (p.colony?.ownerId === e.id && p.colony.buildings.spaceport) cap += 2;
+  for (const p of mine ?? state.planets) if (p.colony?.ownerId === e.id && p.colony.buildings.spaceport) cap += 2;
   cap += Math.floor((e.capital?.buildings.imperial_shipyards?.level ?? 0) / 2);
   for (const id in state.fleets) {
     const f = state.fleets[id];

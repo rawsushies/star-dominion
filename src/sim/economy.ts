@@ -91,9 +91,9 @@ export function planetHab(state: GameState, p: Planet, e: Empire, mods: Mods): n
   return habitability(p.type, e.climate, mod(mods, 'habitability'), hasFlag(state, e, 'domes'));
 }
 
-export function storageCap(state: GameState, e: Empire, mods: Mods): Record<ResId, number> {
+export function storageCap(state: GameState, e: Empire, mods: Mods, mine?: Planet[]): Record<ResId, number> {
   let goods = 2000;
-  for (const p of state.planets) {
+  for (const p of mine ?? state.planets) {
     if (p.colony?.ownerId !== e.id) continue;
     for (const b in p.colony.buildings) goods += (BUILDINGS[b as BuildingId].storage ?? 0) * (p.colony.buildings[b as BuildingId] ?? 0);
   }
@@ -125,12 +125,15 @@ export function computeLedger(state: GameState, e: Empire): Ledger {
     if (ex) ex.amount += amount; else lines.push({ key, label, amount });
   };
   const planets: Record<number, PlanetReport> = {};
+  // the realm's colonies, collected once for every per-colony pass below
+  const mine: Planet[] = [];
+  for (const p of state.planets) if (p.colony?.ownerId === e.id) mine.push(p);
   const network = supplyNetwork(state, e.id);
   const owned = ownedSystems(state, e.id);
-  const logisticsCap = logisticsCapacity(state, e, mods);
+  const logisticsCap = logisticsCapacity(state, e, mods, mine);
   const logisticsUse = logisticsUsed(state, e.id);
   const logisticsEff = logisticsUse > logisticsCap ? logisticsCap / logisticsUse : 1;
-  const adminCap = adminCapacity(state, e, mods);
+  const adminCap = adminCapacity(state, e, mods, mine);
   const adminUsed = owned.length;
   const overcap = Math.max(0, adminUsed - adminCap);
   const capitalSys = e.capitalSystemId;
@@ -143,7 +146,7 @@ export function computeLedger(state: GameState, e: Empire): Ledger {
   let tradeLost = 0;
   let navalCap = 8 + mod(mods, 'navalCap');
 
-  for (const p of state.planets) {
+  for (const p of mine) {
     const c = p.colony;
     if (!c || c.ownerId !== e.id) continue;
     colonies++;
@@ -261,7 +264,7 @@ export function computeLedger(state: GameState, e: Empire): Ledger {
   }
   const shortages = RESOURCES.filter((r) => r !== 'influence' && shortageOf(e, r) && net[r] < 0);
   return {
-    lines, net, income, expense, cap: storageCap(state, e, mods), planets, shortages,
+    lines, net, income, expense, cap: storageCap(state, e, mods, mine), planets, shortages,
     adminCap, adminUsed, navalCap: Math.round(navalCap), navalUsed, tradeTotal, tradeLost, logisticsCap, logisticsUsed: logisticsUse,
   };
 }

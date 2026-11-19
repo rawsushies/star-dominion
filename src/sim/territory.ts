@@ -4,7 +4,7 @@ import { adjacency, jumpDistances, jumpsWithin, ensureBodies } from './galaxy';
 import { BUILDINGS } from './data/buildings';
 import { SHIPS } from './data/ships';
 import { empireMods, mod, type Mods } from './modifiers';
-import type { BuildingId, Empire, GameState } from './types';
+import type { BuildingId, Empire, GameState, Planet } from './types';
 
 /** Bumped whenever ownership changes through setSystemOwner. */
 let ownershipEpoch = 0;
@@ -117,20 +117,32 @@ export function hostileArmedPresence(state: GameState, empireId: number, systemI
   return false;
 }
 
-export function adminCapacity(state: GameState, e: Empire, mods?: Mods): number {
+export function adminCapacity(state: GameState, e: Empire, mods?: Mods, mine?: Planet[]): number {
   const m = mods ?? empireMods(state, e);
   let cap = 6 + mod(m, 'admin');
-  for (const p of state.planets) {
+  for (const p of mine ?? state.planets) {
     if (p.colony?.ownerId !== e.id) continue;
     for (const b in p.colony.buildings) cap += (BUILDINGS[b as BuildingId].admin ?? 0) * (p.colony.buildings[b as BuildingId] ?? 0);
   }
   return Math.round(cap);
 }
 
+const claimDist = new WeakMap<GameState, { key: string; by: Map<number, ArrayLike<number>> }>();
+/** Jumps from an empire's territory to every system, shared by all claim-cost queries until
+ * ownership changes (the AI prices many candidate systems in one pass). */
+function territoryDistances(state: GameState, empireId: number, owned: number[]): ArrayLike<number> {
+  const key = `${state.tick}:${ownershipEpoch}`;
+  let c = claimDist.get(state);
+  if (!c || c.key !== key) { c = { key, by: new Map() }; claimDist.set(state, c); }
+  let d = c.by.get(empireId);
+  if (!d) { d = jumpDistances(state.galaxy, owned); c.by.set(empireId, d); }
+  return d;
+}
+
 /** Influence cost to raise an outpost in a system. */
 export function claimCost(state: GameState, e: Empire, systemId: number): number {
   const owned = ownedSystems(state, e.id);
-  const dist = owned.length ? jumpDistances(state.galaxy, owned)[systemId] : 0;
+  const dist = owned.length ? territoryDistances(state, e.id, owned)[systemId] : 0;
   const m = empireMods(state, e);
   const base = 25 + 8 * Math.max(0, (Number.isFinite(dist) ? dist : 6) - 1) + Math.max(0, owned.length - 8) * 1.5;
   return Math.round(base * Math.max(0.3, 1 + mod(m, 'claimCost')));
