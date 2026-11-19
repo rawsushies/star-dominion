@@ -1,13 +1,21 @@
-// Full-body hero figure for the Hall of Heroes: a procedural character on a
-// lit stage, dressed for their role and realm, holding what they have
-// equipped. Built from primitives so every character looks distinct without
-// any art assets.
+// Full-body figure on a lit stage for the Hall of Heroes, the throne room and envoy panels. People
+// are built from the modular human kit (characters/humanKit.ts) dressed by archetype; the older
+// single-mesh bodies, then a primitive stand-in, cover loading and any load failure.
 
 import * as THREE from 'three';
 import type { Character } from '../../sim/types';
 import { CHARACTER_MODELS, type AssetId } from './assets/catalog';
 import { loadAsset, instance, normalised } from './assets/loader';
 import { releaseView } from './assets/release';
+import { Human, readyHumans } from './characters/humanKit';
+import { humanSpec, type Archetype } from './characters/archetypes';
+
+/** Base poses hold; now and then a figure makes a gesture and returns to it. */
+const GESTURES: Partial<Record<Archetype, string[]>> = {
+  sovereign: ['yes', 'talk'], admiral: ['yes', 'talk'], general: ['pistol_aim'], governor: ['yes', 'no'], scientist: ['interact', 'comms'],
+  diplomat: ['yes', 'hail'], chancellor: ['no', 'yes'], industrialist: ['interact', 'hail'], explorer: ['comms'], spymaster: ['comms'],
+  rival: ['no', 'command'], villain: ['command'],
+};
 
 function hash(n: number): number {
   const x = Math.sin(n * 91.7 + 17.3) * 43758.5453;
@@ -44,7 +52,11 @@ export class HeroView3D {
   private mixer: THREE.AnimationMixer | null = null;
   private clock = new THREE.Clock();
   /** which sourced model is on stage (null while the placeholder figure shows) */
-  model: AssetId | null = null;
+  model: AssetId | 'human' | null = null;
+  private human: Human | null = null;
+  private base = 'idle';
+  private gestures: string[] = [];
+  private nextGesture = 0;
 
   constructor(private canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
@@ -101,12 +113,48 @@ export class HeroView3D {
 
   /** Dress the figure for a character (rebuilt only when their look changes). */
   show(c: Character, realmColor: string) {
-    const key = `${c.id}|${c.role}|${realmColor}`;
+    const prop = c.equipment?.weapon ? 'pistol' as const : undefined;
+    this.present(c.role, c.id, realmColor, `${c.id}|${c.role}|${realmColor}|${prop ?? ''}`, () => this.legacy(c, realmColor), prop);
+  }
+
+  /** A person who is not on the roster: the sovereign, a rival ruler, a villain. */
+  showArchetype(a: Archetype, seed: number, realmColor: string, stand: Character) {
+    this.present(a, seed, realmColor, `${a}|${seed}|${realmColor}`, () => this.legacy(stand, realmColor));
+  }
+
+  private present(a: Archetype, seed: number, realmColor: string, key: string, fallback: () => void, prop?: 'pistol') {
     if (key === this.key) return;
+    this.key = key;
+    this.clearFigure();
+    readyHumans().then(() => {
+      if (this.disposed || this.key !== key) return;
+      const spec = humanSpec(a, seed);
+      if (prop && !spec.prop) { spec.prop = prop; spec.anim = 'pistol_idle'; }
+      const h = new Human(spec);
+      this.figure.clear();
+      this.figure.add(h.root);
+      this.human = h;
+      this.base = spec.anim;
+      this.gestures = spec.prop ? ['pistol_aim'] : GESTURES[a] ?? [];
+      this.nextGesture = performance.now() + 6000 + (seed % 5) * 900;
+      this.model = 'human';
+      void realmColor;
+    }).catch(() => { if (!this.disposed && this.key === key) fallback(); });
+  }
+
+  private clearFigure() {
+    this.human?.dispose();
+    this.human = null;
+    this.mixer = null;
+    this.model = null;
+    this.figure.clear();
+  }
+
+  /** The older single-mesh bodies, used only if the human kit cannot load. */
+  private legacy(c: Character, realmColor: string) {
+    const key = this.key;
     const id = CHARACTER_MODELS[c.role][c.id % CHARACTER_MODELS[c.role].length];
     this.showPlaceholder(c, realmColor);
-    this.key = key;
-    this.model = null;
     loadAsset(id).then((gltf) => {
       if (this.disposed || this.key !== key) return;
       const o = instance(id);
@@ -126,7 +174,6 @@ export class HeroView3D {
         m.castShadow = true;
       });
       const fig = normalised(o, { height: 1.55 });
-      // the realm's colour as a sash of light at the feet
       this.figure.clear();
       this.figure.add(fig);
       this.mixer = new THREE.AnimationMixer(o);
@@ -222,7 +269,16 @@ export class HeroView3D {
     if (!w || !hgt) return;
     const sz = this.renderer.getSize(new THREE.Vector2());
     if (sz.x !== w || sz.y !== hgt) { this.renderer.setSize(w, hgt, false); this.camera.aspect = w / hgt; this.camera.updateProjectionMatrix(); }
-    this.mixer?.update(this.clock.getDelta());
+    const dt = this.clock.getDelta();
+    this.mixer?.update(dt);
+    if (this.human) {
+      this.human.update(dt);
+      if (this.gestures.length && t > this.nextGesture) {
+        const g = this.gestures[Math.floor(t / 1000) % this.gestures.length];
+        this.human.gesture(g, this.base);
+        this.nextGesture = t + 9000 + (t % 4000);
+      }
+    }
     this.figure.rotation.y = this.yaw + (this.dragging ? 0 : Math.sin(t / 3000) * 0.45);
     this.figure.position.y = Math.sin(t / 1400) * 0.005;
     this.figure.traverse((o) => { if (o.userData.float) { o.position.y = 0.3 + Math.sin(t / 500) * 0.05; o.rotation.y = t / 900; } });
@@ -234,6 +290,8 @@ export class HeroView3D {
 
   dispose() {
     this.disposed = true;
+    this.human?.dispose();
+    this.human = null;
     cancelAnimationFrame(this.raf);
     releaseView(this.scene, this.renderer);
   }

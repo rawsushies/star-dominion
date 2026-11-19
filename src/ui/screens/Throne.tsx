@@ -60,9 +60,9 @@ function RulerFigure({ g }: { g: GameState }) {
     const v = new HeroView3D(ref.current!);
     // the sovereign is not a roster character; present them in noble dress
     const ruler = { id: e.id * 7 + e.emblem, role: 'governor', level: 20, equipment: {}, traits: [], name: e.ruler } as unknown as Character;
-    v.show(ruler, e.color);
+    v.showArchetype('sovereign', e.id * 7 + e.emblem + (e.rulerBorn ?? 0), e.color, ruler);
     return () => v.dispose();
-  }, [e.id, e.color, e.emblem, e.ruler]);
+  }, [e.id, e.color, e.emblem, e.ruler, e.rulerBorn]);
   return <canvas ref={ref} className="hero-figure" style={{ height: 420 }} aria-label={`Portrait of ${e.ruler}`} />;
 }
 

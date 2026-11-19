@@ -22,7 +22,7 @@ describe('sourced 3D assets', () => {
       expect(existsSync(path), `${id} -> ${path}`).toBe(true);
       expect(statSync(path).size).toBeLessThan(2_500_000);
       const j = readGlb(path);
-      expect(j.meshes?.length ?? 0, id).toBeGreaterThan(0);
+      if (!('clipsOnly' in a && a.clipsOnly)) expect(j.meshes?.length ?? 0, id).toBeGreaterThan(0);
       for (const img of j.images ?? []) expect(img.uri, `${id} has an external texture`).toBeUndefined();
       expect(LICENSES).toContain(PACKS[a.pack].license);
     }
@@ -32,7 +32,8 @@ describe('sourced 3D assets', () => {
     for (const [id, a] of Object.entries(ASSETS)) {
       if (!('animated' in a) || !a.animated) continue;
       const j = readGlb(`public/assets/models/${a.file}`);
-      expect((j.animations ?? []).some((x) => /idle/i.test(x.name)), id).toBe(true);
+      const from = 'clipsFrom' in a && a.clipsFrom ? ASSETS[a.clipsFrom as keyof typeof ASSETS] : a;
+      expect((readGlb(`public/assets/models/${from.file}`).animations ?? []).some((x) => /idle/i.test(x.name)), id).toBe(true);
       for (const m of j.materials ?? []) expect(m.alphaMode ?? 'OPAQUE', id).toBe('OPAQUE');
     }
   });

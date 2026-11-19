@@ -197,6 +197,29 @@
         "3D Models/Solar Sail Concept/*.glb",
         "3D Models/Skylab/*.glb"
       ]
+    },
+    {
+      "id": "q-universal-animation-2",
+      "url": "https://opengameart.org/sites/default/files/universal_animation_library_2standard.zip",
+      "page": "https://opengameart.org/content/universal-animation-library-2",
+      "creator": "Quaternius",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "q-universal-base-characters",
+      "itch": "https://quaternius.itch.io/universal-base-characters",
+      "file": "Universal Base Characters[Standard].zip",
+      "page": "https://quaternius.com/packs/universalbasecharacters.html",
+      "creator": "Quaternius",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "q-outfits-fantasy",
+      "itch": "https://quaternius.itch.io/modular-character-outfits-fantasy",
+      "file": "Modular Character Outfits - Fantasy[Standard].zip",
+      "page": "https://quaternius.com/packs/modularcharacteroutfitsfantasy.html",
+      "creator": "Quaternius",
+      "license": "CC0 1.0"
     }
   ]
 }

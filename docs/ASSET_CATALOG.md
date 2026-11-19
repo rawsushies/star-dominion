@@ -129,6 +129,27 @@ Planets, stars, nebulae, galaxy, plateau and sky are procedural shaders. They ar
 
 Solar arrays, water tower, connector tubes, trusses and the landing pad are catalogued for decoration (`DECOR`) and for future colony and spaceport views.
 
+## Characters (modular human kit)
+
+People in the Hall of Heroes, the throne room and envoy panels are built from Quaternius' free Standard packs, all CC0. `npm run candidates:fetch` downloads them; the itch.io-only packs use the store's own free-download flow.
+
+| Pack | Free Standard contents used |
+|---|---|
+| Universal Base Characters | 2 bodies (only the head is kept), 5 hairstyles, beard, eyebrows |
+| Modular Character Outfits - Fantasy | Ranger and Peasant outfits, male and female, as separate body, arm, leg, feet, hood and pauldron parts |
+| Universal Animation Library 1 and 2 | 24 clips: idle, talking, folded arms, formal walk, pistol idle, aim and shoot, sword, command gesture, interact, yes, no, comms, sitting, hit, death |
+| Sci-Fi Essentials Kit | pistol and revolver held in the hand |
+
+All the packs share one 65-bone skeleton with identical rest poses, so clips from either library play on any body without retargeting (`tests/human-kit.test.ts` checks this from the files). `scripts/blender/build_characters.py` builds `chars2/male.glb` and `female.glb`, each with every part on one armature, plus `anims.glb` and `props.glb`. `scripts/optimize-glb.mjs` quantizes vertex data and resamples the clips.
+
+Archetypes (`src/ui/render/characters/archetypes.ts`) pick the parts, recolour the outfit textures with a gradient map in the shader (separate cloth and leather palettes), and set skin and hair tones, proportions, a base pose, gestures and a held sidearm. A character's id picks the variant and the person, so saves and ids are unchanged. The dev-only lab is `charlab.html`. Previews: `docs/asset-previews/characters/`.
+
+Limits of the free packs:
+- Only two outfit families exist, so uniforms are recoloured Ranger and Peasant parts. There are no long coats, robes or helmets.
+- Neither animation library has a salute.
+- There are no alien humanoid leaders. Alien realms would need another pack.
+- The Source versions, which add more outfits and parts, are paid and were not bought.
+
 ## Megastructures (assembled from sourced parts)
 
 The nine megastructure models in `public/assets/models/mega/` are not hand-modelled or generated. `scripts/blender/assemble_megastructures.py` imports downloaded parts, trims them to the pieces wanted, places linked copies and groups them into `stage_<n>` nodes, one per construction stage. Fetch the sources with `npm run candidates:fetch -- q-ultimate-space-kit k-space-kit kaykit-space-base nasa-3d`.
