@@ -1,18 +1,111 @@
 {
-  "_comment": "Candidate asset packs for the development comparison gallery (compare.html). Downloaded by `npm run candidates:fetch` into dev-assets/candidates/<id>/ (gitignored). Only CC0 packs with a public direct download are listed; nothing here ships in the production build.",
+  "_comment": "Candidate asset packs for the development comparison gallery (compare.html). Downloaded by `npm run candidates:fetch` into dev-assets/candidates/<id>/ (gitignored). Only CC0 packs with a public direct download or a public git repository published by the creator are listed; nothing here ships in the production build.",
   "packs": [
-    { "id": "q-ultimate-space-kit", "url": "https://opengameart.org/sites/default/files/ultimate_space_kit-glb.zip", "page": "https://opengameart.org/content/ultimate-space-kit-by-quaternius", "creator": "Quaternius", "license": "CC0 1.0" },
-    { "id": "q-sci-fi-essentials", "url": "https://opengameart.org/sites/default/files/sci-fi_essentials_kit_models.zip", "page": "https://opengameart.org/content/sci-fi-essentials-kit", "creator": "Quaternius", "license": "CC0 1.0" },
-    { "id": "q-sci-fi-essentials-tex", "url": "https://opengameart.org/sites/default/files/sci-fi_essentials_kit_textures.zip", "page": "https://opengameart.org/content/sci-fi-essentials-kit", "creator": "Quaternius", "license": "CC0 1.0", "into": "q-sci-fi-essentials" },
-    { "id": "q-universal-animation", "url": "https://opengameart.org/sites/default/files/universal_animation_librarystandard.zip", "page": "https://opengameart.org/content/universal-animation-library", "creator": "Quaternius", "license": "CC0 1.0" },
-    { "id": "q-animated-human", "url": "https://opengameart.org/sites/default/files/Animated%20Human%20by%20%40Quaternius_0.zip", "page": "https://opengameart.org/content/animated-human-low-poly", "creator": "Quaternius", "license": "CC0 1.0" },
-    { "id": "q-posed-humans", "url": "https://opengameart.org/sites/default/files/Posed%20Background%20Characters%20by%20%40Quaternius.zip", "page": "https://opengameart.org/content/lowpoly-posed-humans", "creator": "Quaternius", "license": "CC0 1.0" },
-    { "id": "k-space-kit", "url": "https://opengameart.org/sites/default/files/spacekit_2.0.zip", "page": "https://opengameart.org/content/space-kit-remade", "creator": "Kenney", "license": "CC0 1.0" },
-    { "id": "k-space-station-kit", "url": "https://opengameart.org/sites/default/files/kenney_space-station-kit.zip", "page": "https://opengameart.org/content/space-station-kit", "creator": "Kenney", "license": "CC0 1.0" },
-    { "id": "k-modular-space-kit", "url": "https://opengameart.org/sites/default/files/kenney_modular-space-kit_1.0.zip", "page": "https://opengameart.org/content/modular-space-kit", "creator": "Kenney", "license": "CC0 1.0" },
-    { "id": "majadroid-ships", "url": "https://opengameart.org/sites/default/files/lowpoly-spaceships-by-majadroid.zip", "page": "https://opengameart.org/content/3d-lowpoly-spaceships-and-components", "creator": "Majadroid (Maik Hoffmann)", "license": "CC0 1.0" },
-    { "id": "g2od-cargo", "url": "https://opengameart.org/sites/default/files/cargo.zip", "page": "https://opengameart.org/content/cargo-spaceship-0", "creator": "g2od", "license": "CC0 1.0" },
-    { "id": "cdmir-alien-bug", "url": "https://opengameart.org/sites/default/files/alien-bug.zip", "page": "https://opengameart.org/content/alien-bug-animated", "creator": "cdmir", "license": "CC0 1.0" },
-    { "id": "pixelmannen-robots", "url": "https://opengameart.org/sites/default/files/Robots.zip", "page": "https://opengameart.org/content/robot-pack-3d", "creator": "pixelmannen", "license": "CC0 1.0" }
+    {
+      "id": "q-ultimate-space-kit",
+      "url": "https://opengameart.org/sites/default/files/ultimate_space_kit-glb.zip",
+      "page": "https://opengameart.org/content/ultimate-space-kit-by-quaternius",
+      "creator": "Quaternius",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "q-sci-fi-essentials",
+      "url": "https://opengameart.org/sites/default/files/sci-fi_essentials_kit_models.zip",
+      "page": "https://opengameart.org/content/sci-fi-essentials-kit",
+      "creator": "Quaternius",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "q-sci-fi-essentials-tex",
+      "url": "https://opengameart.org/sites/default/files/sci-fi_essentials_kit_textures.zip",
+      "page": "https://opengameart.org/content/sci-fi-essentials-kit",
+      "creator": "Quaternius",
+      "license": "CC0 1.0",
+      "into": "q-sci-fi-essentials"
+    },
+    {
+      "id": "q-universal-animation",
+      "url": "https://opengameart.org/sites/default/files/universal_animation_librarystandard.zip",
+      "page": "https://opengameart.org/content/universal-animation-library",
+      "creator": "Quaternius",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "q-animated-human",
+      "url": "https://opengameart.org/sites/default/files/Animated%20Human%20by%20%40Quaternius_0.zip",
+      "page": "https://opengameart.org/content/animated-human-low-poly",
+      "creator": "Quaternius",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "q-posed-humans",
+      "url": "https://opengameart.org/sites/default/files/Posed%20Background%20Characters%20by%20%40Quaternius.zip",
+      "page": "https://opengameart.org/content/lowpoly-posed-humans",
+      "creator": "Quaternius",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "k-space-kit",
+      "url": "https://opengameart.org/sites/default/files/spacekit_2.0.zip",
+      "page": "https://opengameart.org/content/space-kit-remade",
+      "creator": "Kenney",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "k-space-station-kit",
+      "url": "https://opengameart.org/sites/default/files/kenney_space-station-kit.zip",
+      "page": "https://opengameart.org/content/space-station-kit",
+      "creator": "Kenney",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "k-modular-space-kit",
+      "url": "https://opengameart.org/sites/default/files/kenney_modular-space-kit_1.0.zip",
+      "page": "https://opengameart.org/content/modular-space-kit",
+      "creator": "Kenney",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "majadroid-ships",
+      "url": "https://opengameart.org/sites/default/files/lowpoly-spaceships-by-majadroid.zip",
+      "page": "https://opengameart.org/content/3d-lowpoly-spaceships-and-components",
+      "creator": "Majadroid (Maik Hoffmann)",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "g2od-cargo",
+      "url": "https://opengameart.org/sites/default/files/cargo.zip",
+      "page": "https://opengameart.org/content/cargo-spaceship-0",
+      "creator": "g2od",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "cdmir-alien-bug",
+      "url": "https://opengameart.org/sites/default/files/alien-bug.zip",
+      "page": "https://opengameart.org/content/alien-bug-animated",
+      "creator": "cdmir",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "pixelmannen-robots",
+      "url": "https://opengameart.org/sites/default/files/Robots.zip",
+      "page": "https://opengameart.org/content/robot-pack-3d",
+      "creator": "pixelmannen",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "kaykit-medieval-hexagon",
+      "git": "https://github.com/KayKit-Game-Assets/KayKit-Medieval-Hexagon-Pack-1.0.git",
+      "page": "https://github.com/KayKit-Game-Assets/KayKit-Medieval-Hexagon-Pack-1.0",
+      "creator": "Kay Lousberg (KayKit)",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "kaykit-space-base",
+      "git": "https://github.com/KayKit-Game-Assets/KayKit-Space-Base-Bits-1.0.git",
+      "page": "https://github.com/KayKit-Game-Assets/KayKit-Space-Base-Bits-1.0",
+      "creator": "Kay Lousberg (KayKit)",
+      "license": "CC0 1.0"
+    }
   ]
 }

@@ -11,6 +11,7 @@ import type { Empire } from '../../sim/types';
 import { BUILDING_TIERS, DECOR, tierFor, type AssetId } from './assets/catalog';
 import { instance, normalised, preload } from './assets/loader';
 import { releaseView } from './assets/release';
+import { RenderPipeline, type QualityTier, type PassToggles } from './pipeline';
 
 /** Every sourced model the capital can use. */
 export const CAPITAL_ASSETS: AssetId[] = [...new Set([...Object.values(BUILDING_TIERS).flatMap((ts) => ts.flatMap((t) => t.parts.map((p) => p.asset))), ...Object.values(DECOR)])];
@@ -236,8 +237,11 @@ export class CapitalView3D {
   private raf = 0;
   private selected: number | null = null;
   private disposed = false;
+  /** Opt-in post-processing pipeline (capital laboratory, variant B). Production passes no options. */
+  readonly pipeline: RenderPipeline | null = null;
+  private frames: number[] = [];
 
-  constructor(private canvas: HTMLCanvasElement, private overlay: HTMLDivElement, color: string, private onPick: (plot: number | null) => void) {
+  constructor(private canvas: HTMLCanvasElement, private overlay: HTMLDivElement, color: string, private onPick: (plot: number | null) => void, opts: { quality?: QualityTier; passes?: PassToggles } = {}) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     this.renderer.shadowMap.enabled = true;
@@ -252,6 +256,15 @@ export class CapitalView3D {
     this.selMesh.rotation.z = Math.PI / 4;
     this.selMesh.visible = false;
     this.scene.add(this.selMesh);
+    if (opts.quality) {
+      // replace the legacy lights and flat sky with the pipeline's sun, HDR sky and environment
+      this.scene.traverse((o) => { if ((o as THREE.Light).isLight) o.userData.legacy = true; });
+      for (const o of this.scene.children.filter((c) => c.userData.legacy)) this.scene.remove(o);
+      this.scene.background = null;
+      this.scene.fog = new THREE.Fog(0xcfe3f5, 140, 520);
+      this.pipeline = new RenderPipeline(this.renderer, this.scene, this.camera, opts.quality, { elevation: 38, azimuth: -52, intensity: 3.4 }, opts.passes);
+      this.pipeline.fitShadow(new THREE.Box3(new THREE.Vector3(-W * 0.85, -2, -D * 1.1), new THREE.Vector3(W * 0.85, 16, D * 1.1)));
+    }
     this.bindInput();
     preload(CAPITAL_ASSETS).then(() => { this.sig = ''; this.assetsReady = true; if (this.last && !this.disposed) this.sync(...this.last); });
     const loop = (t: number) => { if (this.disposed) return; this.frame(t); this.raf = requestAnimationFrame(loop); };
@@ -436,6 +449,7 @@ export class CapitalView3D {
         }
       }
     }
+    this.pipeline?.setEnvironmentIntensity(this.scene, 0.5);
     this.selected = sel;
     if (sel != null) { const c = plotCentre(sel); this.selMesh.position.set(c.x, 0.36, c.z); this.selMesh.visible = true; } else this.selMesh.visible = false;
   }
@@ -478,7 +492,10 @@ export class CapitalView3D {
     const w = this.canvas.clientWidth, h = this.canvas.clientHeight;
     if (!w || !h) return;
     const size = this.renderer.getSize(new THREE.Vector2());
-    if (size.x !== w || size.y !== h) { this.renderer.setSize(w, h, false); this.camera.aspect = w / h; this.camera.updateProjectionMatrix(); }
+    if (size.x !== w || size.y !== h || this.camera.aspect !== w / h) {
+      if (this.pipeline) this.pipeline.setSize(w, h); else this.renderer.setSize(w, h, false);
+      this.camera.aspect = w / h; this.camera.updateProjectionMatrix();
+    }
     const { yaw, pitch, dist } = this.cam;
     this.camera.position.set(Math.sin(yaw) * Math.cos(pitch) * dist, Math.sin(pitch) * dist, Math.cos(yaw) * Math.cos(pitch) * dist);
     this.camera.lookAt(0, 1.5, 0);
@@ -490,8 +507,18 @@ export class CapitalView3D {
     }
     for (const c of this.clouds) { c.position.x += 0.02; if (c.position.x > 140) c.position.x = -140; }
     this.scene.traverse((o) => { if (o.userData.dome) ((o as THREE.Mesh).material as THREE.ShaderMaterial).uniforms.t.value = t / 1000; });
-    this.renderer.render(this.scene, this.camera);
+    if (this.pipeline) this.pipeline.render(); else this.renderer.render(this.scene, this.camera);
+    const now = performance.now();
+    this.frames.push(now); while (this.frames.length && now - this.frames[0] > 2000) this.frames.shift();
     this.updateLabels();
+  }
+
+  /** Frames per second over the last two seconds, and GPU counters. */
+  stats() {
+    const f = this.frames;
+    const fps = f.length > 1 ? ((f.length - 1) * 1000) / (f[f.length - 1] - f[0]) : 0;
+    const r = this.renderer.info;
+    return { fps, tier: this.pipeline?.tier ?? 'production', calls: r.render.calls, triangles: r.render.triangles, geometries: r.memory.geometries, textures: r.memory.textures };
   }
 
   private updateLabels() {
@@ -522,6 +549,7 @@ export class CapitalView3D {
     this.disposed = true;
     cancelAnimationFrame(this.raf);
     for (const el of this.labels.values()) el.remove();
+    this.pipeline?.dispose();
     releaseView(this.scene, this.renderer);
   }
 }
