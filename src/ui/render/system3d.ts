@@ -50,6 +50,8 @@ import { hash2 } from '../../sim/rng';
 import type { GameState, Planet, StarSystem } from '../../sim/types';
 import { buildPlanet, hexA, NOISE_GLSL, type PlanetBuild } from './planet3d';
 import { releaseView } from './assets/release';
+import { SystemMegastructures } from './megastructures3d';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 
 export interface SysHit { kind: 'planet' | 'fleet' | 'starbase'; id: number; x: number; y: number; r: number }
 
@@ -119,7 +121,6 @@ export class SystemView3D {
   private starMat: THREE.ShaderMaterial | null = null;
   private starRadius = 1.6;
   private starbase: THREE.Object3D | null = null;
-  private swarm: THREE.Points | null = null;
   private glowTex = glowTexture();
   private disposables: { dispose(): void }[] = [];
   private maxR = 20;
@@ -127,6 +128,9 @@ export class SystemView3D {
   private fleetSig = '';
   private fleetPos = new Map<number, THREE.Vector3>();
   private shipsReady = false;
+  private megas: SystemMegastructures | null = null;
+  private env: THREE.WebGLRenderTarget | null = null;
+  private lastTime = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -158,12 +162,13 @@ export class SystemView3D {
   }
 
   private clear() {
+    this.megas?.dispose(); this.megas = null;
     for (const b of this.bodies) b.build.dispose();
     for (const d of this.disposables) d.dispose();
     this.disposables = [];
     this.bodies = [];
     this.scene.clear();
-    this.starbase = null; this.swarm = null; this.starMat = null;
+    this.starbase = null; this.starMat = null;
   }
 
   private build(state: GameState, sys: StarSystem) {
@@ -177,6 +182,9 @@ export class SystemView3D {
     this.scene.add(fill);
     this.scene.add(this.fleetGroup);
     this.fleetSig = '';
+    // a soft reflected environment so metal hulls and megastructures read as metal
+    if (!this.env) { const pm = new THREE.PMREMGenerator(this.renderer); this.env = pm.fromScene(new RoomEnvironment(), 0.04); pm.dispose(); }
+    this.scene.environment = this.env.texture;
   }
 
   private buildScene(state: GameState, sys: StarSystem) {
@@ -305,21 +313,16 @@ export class SystemView3D {
       this.starbase = g;
       this.disposables.push(mat, core.geometry, hoop.geometry, hoop.material as THREE.Material);
     }
-    // dyson swarm
-    const dyson = sys.megastructures.find((m) => m.id === 'dyson_swarm');
-    if (dyson) {
-      const frac = (dyson.stage + (dyson.building ? dyson.progress / 360 : 0)) / 4;
-      const n = Math.round(1400 * frac), dp = new Float32Array(n * 3);
-      for (let i = 0; i < n; i++) {
-        const u = hash2(i, 21, 7) * 2 - 1, a = hash2(i, 22, 7) * Math.PI * 2, s = Math.sqrt(1 - u * u), rr = this.starRadius * (1.7 + hash2(i, 23, 7) * 0.5);
-        dp.set([Math.cos(a) * s * rr, u * rr, Math.sin(a) * s * rr], i * 3);
-      }
-      const dg = new THREE.BufferGeometry();
-      dg.setAttribute('position', new THREE.BufferAttribute(dp, 3));
-      const dm = new THREE.PointsMaterial({ size: 0.06, color: 0xe0c07e });
-      this.swarm = new THREE.Points(dg, dm);
-      this.scene.add(this.swarm);
-      this.disposables.push(dg, dm);
+    // megastructures: staged models (completed stages solid, the one under construction as scaffold)
+    if (sys.megastructures.length) {
+      const byId = new Map(this.bodies.map((b) => [b.planet.id, b]));
+      this.megas = new SystemMegastructures(state, sys, {
+        starRadius: this.starRadius, maxR: this.maxR,
+        planetPos: (id) => byId.get(id)?.pos ?? null,
+        planetRadius: (id) => byId.get(id)?.radius ?? 0.6,
+        starbasePos: this.starbase ? this.starbase.position : null,
+      });
+      this.scene.add(this.megas.group);
     }
   }
 
@@ -343,7 +346,6 @@ export class SystemView3D {
     this.camera.lookAt(0, 0, 0);
     if (this.starMat) this.starMat.uniforms.uT.value = time / 1000;
     if (this.starbase) this.starbase.rotation.y = time * 0.0003;
-    if (this.swarm) this.swarm.rotation.y = time * 0.00005;
     // place bodies (parents are listed before their moons)
     const tmp = new THREE.Vector3();
     for (const b of this.bodies) {
@@ -354,6 +356,8 @@ export class SystemView3D {
       b.build.setLight(tmp.copy(b.pos).multiplyScalar(-1));
       b.build.setTime(time);
     }
+    this.megas?.update(Math.min(0.1, Math.max(0, (time - this.lastTime) / 1000)));
+    this.lastTime = time;
     this.syncFleets(state, sys, visibleSystems(state, state.playerId).has(sys.id));
     for (const [i, g] of this.fleetGroup.children.entries()) g.position.y += Math.sin(time / 1300 + i) * 0.0008;
     this.renderer.render(this.scene, this.camera);
@@ -428,7 +432,7 @@ export class SystemView3D {
     return hits;
   }
 
-  dispose() { this.clear(); releaseView(this.scene, this.renderer); }
+  dispose() { this.clear(); this.env?.dispose(); this.env = null; releaseView(this.scene, this.renderer); }
 }
 
 function bracket(ctx: CanvasRenderingContext2D, x: number, y: number, k: number) {

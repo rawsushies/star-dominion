@@ -283,7 +283,7 @@ export interface Empire {
   governmentChangedTick: number;
   policies: Record<string, string>;
   stock: Stock;
-  research: { current: string | null; progress: number; queue: string[]; done: string[] };
+  research: { current: string | null; progress: number; queue: string[]; done: string[]; /** levels of repeatable future studies */ future?: number };
   explored: number[]; // system ids
   personality: Personality;
   timedMods: TimedModifier[];

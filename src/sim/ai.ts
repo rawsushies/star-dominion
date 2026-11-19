@@ -32,6 +32,8 @@ import { rulerAge, heirOf, HEIR_COST } from './succession';
 import { covertOps, networkBonus, validateOp } from './espionage';
 import { isAtWarWith } from './economy';
 import type { CovertKind } from './types';
+import { MEGA_BY_ID } from './data/megastructures';
+import { megaInstalment } from './construction';
 
 export function runAI(state: GameState, e: Empire) {
   const isMajor = e.kind === 'major';
@@ -163,8 +165,13 @@ function economy(state: GameState, e: Empire) {
   }
   // Megastructures for wealthy, advanced AIs
   // (a civilisation chasing the next era wants them sooner)
-  if (e.stock.alloys > ((e.era ?? 0) >= 1 ? 1700 : 2500) && e.kind === 'major') {
-    for (const id of ['continuum_engine', 'sector_array', 'dyson_swarm', 'stellar_collector', 'grand_archive', 'lattice', 'orbital_ring']) {
+  // (one great work at a time; start when three months of instalments are in the treasury)
+  const building = state.galaxy.systems.some((s) => s.megastructures.some((m) => m.ownerId === e.id && m.building));
+  if (!building && e.kind === 'major') {
+    for (const id of ['continuum_engine', 'sector_array', 'dyson_swarm', 'stellar_collector', 'grand_archive', 'lattice', 'orbital_ring', 'hypergate', 'bastion']) {
+      const def = MEGA_BY_ID[id];
+      const quarter = Object.fromEntries(Object.entries(megaInstalment(def)).map(([k, v]) => [k, v * 90]));
+      if (!canAfford(e, quarter as never)) continue;
       for (const sid of ownedSystems(state, e.id)) {
         if (execute(state, e.id, { type: 'startMegastructure', systemId: sid, mega: id }).ok) return;
       }
@@ -267,6 +274,16 @@ function market(state: GameState, e: Empire) {
   for (const r of ['minerals', 'energy', 'food', 'alloys', 'electronics', 'rare'] as const) {
     if (e.stock[r] > L.cap[r] * 0.85) execute(state, e.id, { type: 'market', res: r, amount: -Math.round(e.stock[r] * 0.2) });
     else if (e.stock[r] < 30 && L.net[r] < 0 && e.stock.credits > 400) execute(state, e.id, { type: 'market', res: r, amount: 80 });
+  }
+  // a hoarded treasury builds nothing: invest surplus credits in the goods great works and fleets need
+  if (e.stock.credits > 4000) {
+    const budget = (e.stock.credits - 4000) * 0.15;
+    for (const [r, share, fill] of [['alloys', 0.6, 0.6], ['components', 0.25, 0.3], ['electronics', 0.15, 0.3]] as const) {
+      const room = L.cap[r] * fill - e.stock[r];
+      if (room <= 20) continue;
+      const amount = Math.round(Math.min(room, (budget * share) / Math.max(0.5, state.market.price[r])));
+      if (amount > 10) execute(state, e.id, { type: 'market', res: r, amount });
+    }
   }
 }
 

@@ -634,7 +634,10 @@ export function execute(state: GameState, empireId: number, cmd: Command): Comma
       if (sys.megastructures.some((m) => m.id === def.id)) return fail('Already present in this system');
       if (def.unique && state.galaxy.systems.some((s) => s.megastructures.some((m) => m.id === def.id && m.ownerId === empireId))) return fail('Only one per realm');
       if (def.id === 'orbital_ring' && !sys.planetIds.some((p) => state.planets[p].colony?.ownerId === empireId && (state.planets[p].colony?.buildings.shipyard ?? 0) > 0)) return fail('Requires a colony with a shipyard in this system');
-      if (!canAfford(e, def.stageCost)) return fail('Cannot afford the first stage');
+      // the first month of instalments must be in the treasury; the rest is paid as work goes on
+      const month: Record<string, number> = {};
+      for (const [k, v] of Object.entries(megaInstalment(def))) month[k] = v * 30;
+      if (!canAfford(e, month as never)) return fail('Cannot fund the first month of work');
       sys.megastructures.push({ id: def.id, ownerId: empireId, stage: 0, progress: 0, building: true });
       log(state, { kind: 'megastructure', severity: 'info', title: `${def.label} begun`, text: `Construction started at ${sys.name}.`, empires: [], systemId: sys.id });
       return OK;
@@ -646,6 +649,7 @@ import { TECHS } from './data/techs';
 import { DESIGNATIONS, DESIGNATION_COOLDOWN, DESIGNATION_COST, type DesignationId } from './data/designations';
 import { designateHeir } from './succession';
 import { launchOp, cancelOp } from './espionage';
+import { megaInstalment } from './construction';
 import type { CovertKind } from './types';
 const TECHS_REQ: Record<string, string[]> = Object.fromEntries(TECHS.map((t) => [t.id, t.requires]));
 

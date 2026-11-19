@@ -129,6 +129,26 @@ Planets, stars, nebulae, galaxy, plateau and sky are procedural shaders. They ar
 
 Solar arrays, water tower, connector tubes, trusses and the landing pad are catalogued for decoration (`DECOR`) and for future colony and spaceport views.
 
+## Megastructures (assembled from sourced parts)
+
+The nine megastructure models in `public/assets/models/mega/` are not hand-modelled or generated. `scripts/blender/assemble_megastructures.py` imports downloaded parts, trims them to the pieces wanted, places linked copies and groups them into `stage_<n>` nodes, one per construction stage. Fetch the sources with `npm run candidates:fetch -- q-ultimate-space-kit k-space-kit kaykit-space-base nasa-3d`.
+
+| Part source | Licence | Used for |
+|---|---|---|
+| Quaternius Ultimate Space Kit | CC0 | transit tubes (ring and gate tori), trusses, habitats, domes, antennas |
+| Kenney Space Kit | CC0 | structural frames, turrets, fuel tanks, generators (re-skinned to one hull material) |
+| KayKit Space Base Bits | CC0 | tall frames, solar panels, lights |
+| NASA 3D Resources | Public domain | Deep Space Network 70 m dish (collector and array), TDRS umbrella antenna (relays, emitters), solar sail (Dyson swarm statites) |
+
+NASA media are not copyrighted. The NASA usage guidelines still apply: the models carry no NASA insignia and imply no endorsement. Textures are reduced to 512 px and the dish is decimated to half its faces, so every model stays under 2 MB. Previews: `docs/asset-previews/m14/`.
+
+| Rejected for megastructures | Reason |
+|---|---|
+| The earlier procedural kit (`scripts/blender/megastructures.py`) | Primitive geometry, replaced on review |
+| ISS and TDRS solar arrays cut out of their spacecraft | The arrays are many loose strips, so extraction left slivers |
+| Quaternius Modular Sci-Fi (2021) and MegaKit | Interior pieces |
+| OpenGameArt single models (Acharkl station, space port, Bellanger shipyard) | Ground props or very dense meshes |
+
 ## Evaluated and rejected
 
 | Asset | Source | Reason |

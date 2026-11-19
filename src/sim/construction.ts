@@ -121,9 +121,9 @@ export function progressConstruction(state: GameState) {
       if (!m.building) continue;
       const def = MEGA_BY_ID[m.id];
       const e = state.empires[m.ownerId];
-      if (m.progress === 0) {
-        if (!pay(e, def.stageCost)) continue; // waiting for funds
-      }
+      // stages are paid in daily instalments, so great works fit within normal storage;
+      // a day the realm cannot pay, the work waits
+      if (!pay(e, megaInstalment(def))) continue;
       m.progress++;
       if (m.progress >= def.stageDays) {
         m.stage++;
@@ -138,6 +138,13 @@ export function progressConstruction(state: GameState) {
       }
     }
   }
+}
+
+/** One day's share of a megastructure stage's cost. */
+export function megaInstalment(def: { stageCost: Record<string, number | undefined>; stageDays: number }): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(def.stageCost)) out[k] = (v ?? 0) / def.stageDays;
+  return out;
 }
 
 function progressBuildings(state: GameState, e: Empire, p: Planet, c: Colony) {

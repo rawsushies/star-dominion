@@ -41,6 +41,7 @@ function signature(state: GameState, e: Empire, megas: { id: string; stage: numb
     e.government,
     Object.values(e.policies).join(','),
     e.research.done.length,
+    e.research.future ?? 0,
     e.timedMods.map((t) => t.key + t.value).join(','),
     megas.map((m) => m.id + m.stage).join(','),
     state.settings.difficulty,
@@ -88,6 +89,9 @@ function compute(state: GameState, e: Empire) {
   }
   for (const m of megas) add(MEGA_BY_ID[m.id]?.modsPerStage, m.stage);
   for (let i = 1; i <= (e.era ?? 0) && i < ERAS.length; i++) add(ERAS[i].mods);
+  // repeatable future studies once the tree is complete
+  const fl = e.research.future ?? 0;
+  if (fl) add({ 'output.energy': 0.02, 'output.minerals': 0.02, 'output.alloys': 0.02, 'output.research': 0.02, shipHull: 0.01 }, fl);
   add(councilMods(state, e));
   add(governanceMods(state, e));
   add(capitalMods(e));
