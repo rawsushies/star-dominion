@@ -14,7 +14,8 @@
     "soak:seeds": "vite-node scripts/soak-seeds.ts",
     "candidates:fetch": "node scripts/fetch-candidates.mjs",
     "test:e2e": "playwright test",
-    "candidates:capture": "node scripts/capture-candidates.mjs"
+    "candidates:capture": "node scripts/capture-candidates.mjs",
+    "lab:capture": "node scripts/capture-capital-lab.mjs"
   },
   "dependencies": {
     "@fontsource/barlow-condensed": "5.1.0",

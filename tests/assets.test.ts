@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { existsSync, readFileSync, statSync } from 'node:fs';
-import { ASSETS, PACKS, SHIP_MODELS, CHARACTER_MODELS, ANTAGONIST_MODELS, BUILDING_TIERS, DECOR, tierFor } from '../src/ui/render/assets/catalog';
+import { ASSETS, PACKS, LICENSES, SHIP_MODELS, CHARACTER_MODELS, ANTAGONIST_MODELS, BUILDING_TIERS, DECOR, tierFor } from '../src/ui/render/assets/catalog';
 import { SHIPS } from '../src/sim/data/ships';
 import { ROLE_ORDER } from '../src/sim/data/characters';
 import { CAPITAL_BUILDINGS } from '../src/sim/data/capital';
@@ -16,7 +16,7 @@ function readGlb(path: string) {
 }
 
 describe('sourced 3D assets', () => {
-  it('every catalogued file exists, is a valid self-contained GLB and comes from a CC0 pack', () => {
+  it('every catalogued file exists, is a valid self-contained GLB and comes from a CC0 or public-domain pack', () => {
     for (const [id, a] of Object.entries(ASSETS)) {
       const path = `public/assets/models/${a.file}`;
       expect(existsSync(path), `${id} -> ${path}`).toBe(true);
@@ -24,7 +24,7 @@ describe('sourced 3D assets', () => {
       const j = readGlb(path);
       expect(j.meshes?.length ?? 0, id).toBeGreaterThan(0);
       for (const img of j.images ?? []) expect(img.uri, `${id} has an external texture`).toBeUndefined();
-      expect(PACKS[a.pack].license).toBe('CC0 1.0');
+      expect(LICENSES).toContain(PACKS[a.pack].license);
     }
   });
 

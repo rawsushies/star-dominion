@@ -26,6 +26,8 @@ import { runAI, runRaiders } from './ai';
 import { MARKET_BASE } from './commands';
 import { emptyStock, log, nextId } from './util';
 import { RESOURCES, type Climate, type Colony, type Empire, type GameSettings, type GameState, type GovernmentId, type PlanetType, type BuildingId, type ResId } from './types';
+import { successionMonthly, ensureRuler } from './succession';
+import { espionageTick } from './espionage';
 
 export const SAVE_VERSION = 1;
 
@@ -215,7 +217,7 @@ export function newGame(settings: Partial<GameSettings> = {}): GameState {
     e.explored = [];
     for (const id of [e.capitalSystemId, ...adj[e.capitalSystemId]]) markExplored(state, e, id);
   }
-  for (const e of state.empires) { ensureHouses(state, e); ensureCapital(e); }
+  for (const e of state.empires) { ensureHouses(state, e); ensureCapital(e); ensureRuler(state, e); }
   refreshCandidates(state);
   updateStats(state);
   recordYear(state);
@@ -377,6 +379,8 @@ function monthly(state: GameState) {
   eliminationCheck(state);
   charactersMonthly(state, (a, b, v, label) => addMemory(state, a, b, 'envoy', v, 0.5, label));
   governanceMonthly(state);
+  successionMonthly(state);
+  espionageTick(state, 30);
   operationsMonthly(state);
   if (state.tick % 360 === 0) refreshCandidates(state);
   updateStats(state);
@@ -435,6 +439,7 @@ export function revolt(state: GameState, planetId: number) {
     explored: [p.systemId, ...adjacency(state.galaxy)[p.systemId]],
   });
   rebels.stock = { ...emptyStock(), credits: 200, minerals: 200, energy: 100, food: 100, alloys: 80, influence: 20 };
+  ensureRuler(state, rebels); // so a save made before the next month round-trips unchanged
   state.empires.push(rebels);
   c.ownerId = id;
   c.originalOwnerId = null;

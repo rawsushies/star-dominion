@@ -27,6 +27,13 @@ import { CAPITAL_BUILDINGS } from './data/capital';
 import { next, chance } from './rng';
 import type { BuildingId, Empire, Fleet, GameState, PeaceTerm, Planet, ShipClass, TreatyType , OpMode } from './types';
 import type { TechCategory } from './data/techs';
+import type { DesignationId } from './data/designations';
+import { rulerAge, heirOf, HEIR_COST } from './succession';
+import { covertOps, networkBonus, validateOp } from './espionage';
+import { isAtWarWith } from './economy';
+import type { CovertKind } from './types';
+import { MEGA_BY_ID } from './data/megastructures';
+import { megaInstalment } from './construction';
 
 export function runAI(state: GameState, e: Empire) {
   const isMajor = e.kind === 'major';
@@ -43,7 +50,63 @@ export function runAI(state: GameState, e: Empire) {
   if (state.tick % 30 < 5) diplomacy(state, e);
   if (state.tick % 15 < 5) characters(state, e);
   if (state.tick % 30 >= 10 && state.tick % 30 < 15) governance(state, e);
+  if (state.tick % 90 >= 20 && state.tick % 90 < 25) designations(state, e);
+  if (state.tick % 60 >= 40 && state.tick % 60 < 45) heir(state, e);
+  if (state.tick % 30 >= 25 && isMajor) covert(state, e);
   if (state.tick % 20 >= 15) capitalCity(state, e);
+}
+
+// ---------------------------------------------------------------- espionage
+
+/** Idle spymasters go to work: sabotage and theft against enemies, networks and theft against rivals. */
+function covert(state: GameState, e: Empire) {
+  const busy = new Set(covertOps(state).map((o) => o.agentId));
+  const agents = state.characters.filter((c) => c.ownerId === e.id && c.status === 'active' && c.role === 'spymaster' && !busy.has(c.id));
+  if (!agents.length || e.stock.credits < 300) return;
+  const rivals = state.empires.filter((o) => o.alive && o.id !== e.id && (o.kind === 'major' || o.kind === 'minor'))
+    .map((o) => ({ o, war: isAtWarWith(state, e.id, o.id), op: opinion(state, e.id, o.id) }))
+    .sort((a, b) => Number(b.war) - Number(a.war) || a.op - b.op);
+  const agent = agents[0];
+  for (const { o, war } of rivals) {
+    const theirWorld = state.planets.filter((p) => p.colony?.ownerId === o.id).sort((a, b) => b.colony!.pops - a.colony!.pops)[0];
+    const plan: [CovertKind, number | null][] = war && theirWorld ? [['sabotage', theirWorld.id], ['incite_unrest', theirWorld.id], ['steal_tech', null]]
+      : networkBonus(state, e.id, o.id) ? [['steal_tech', null]] : [['gather_intel', null]];
+    for (const [kind, planet] of plan) {
+      if (!validateOp(state, e, o.id, kind, agent.id, planet)) { execute(state, e.id, { type: 'launchCovert', targetId: o.id, kind, agentId: agent.id, planetId: planet }); return; }
+    }
+  }
+}
+
+// ---------------------------------------------------------------- succession
+
+/** Name an heir once the sovereign is no longer young: the most capable courtier, preferring loyal houses. */
+function heir(state: GameState, e: Empire) {
+  if (rulerAge(state, e) < 45 || heirOf(state, e) || e.stock.influence < HEIR_COST + 5) return;
+  const loyalty = (houseId: number | null | undefined) => e.houses?.find((h) => h.id === houseId)?.loyalty ?? 40;
+  const best = state.characters.filter((c) => c.ownerId === e.id && c.status === 'active').sort((a, b) => (b.level * 10 + loyalty(b.houseId)) - (a.level * 10 + loyalty(a.houseId)))[0];
+  if (best) execute(state, e.id, { type: 'designateHeir', charId: best.id });
+}
+
+// ---------------------------------------------------------------- province designations
+
+const DESIG_FOR: Partial<Record<string, DesignationId>> = { food: 'agrarian', minerals: 'mining', rare: 'mining', energy: 'energy', alloys: 'forge', electronics: 'forge', components: 'forge', research: 'research', trade: 'trade', credits: 'trade' };
+
+/** Give each settled province the role its industry already leans towards. */
+function designations(state: GameState, e: Empire) {
+  for (const p of state.planets) {
+    const c = p.colony;
+    if (!c || c.ownerId !== e.id || p.id === e.capitalPlanetId || c.pops < 3) continue;
+    if (state.tick - (c.designationTick ?? -99999) < 360 * 3 && c.designation) continue;
+    const weight: Record<string, number> = {};
+    for (const [b, n] of Object.entries(c.buildings)) for (const [k, v] of Object.entries(BUILDINGS[b as BuildingId].output)) weight[k] = (weight[k] ?? 0) + (v as number) * (n ?? 0);
+    let want: DesignationId = 'balanced';
+    if ((c.buildings.orbital_defense ?? 0) >= 3) want = 'fortress';
+    else {
+      const top = Object.entries(weight).sort((a, b) => b[1] - a[1])[0];
+      if (top && top[1] > 0) want = DESIG_FOR[top[0]] ?? 'balanced';
+    }
+    if (want !== (c.designation ?? 'balanced') && e.stock.influence >= 32) execute(state, e.id, { type: 'setDesignation', planetId: p.id, designation: want });
+  }
 }
 
 // ---------------------------------------------------------------- economy
@@ -102,9 +165,16 @@ function economy(state: GameState, e: Empire) {
   }
   // Megastructures for wealthy, advanced AIs
   // (a civilisation chasing the next era wants them sooner)
-  if (e.stock.alloys > ((e.era ?? 0) >= 1 ? 1700 : 2500) && e.kind === 'major') {
-    for (const id of ['continuum_engine', 'sector_array', 'dyson_swarm', 'stellar_collector', 'grand_archive', 'lattice', 'orbital_ring']) {
-      for (const sid of ownedSystems(state, e.id)) {
+  // (one great work at a time; start when three months of instalments are in the treasury)
+  if (e.kind === 'major') {
+    const mine = ownedSystems(state, e.id);
+    const building = mine.some((sid) => state.galaxy.systems[sid].megastructures.some((m) => m.ownerId === e.id && m.building));
+    for (const id of building ? [] : ['continuum_engine', 'sector_array', 'dyson_swarm', 'stellar_collector', 'grand_archive', 'lattice', 'orbital_ring', 'hypergate', 'bastion']) {
+      const def = MEGA_BY_ID[id];
+      if (!hasTech(e, def.tech)) continue;
+      const quarter = Object.fromEntries(Object.entries(megaInstalment(def)).map(([k, v]) => [k, v * 90]));
+      if (!canAfford(e, quarter as never)) continue;
+      for (const sid of mine) {
         if (execute(state, e.id, { type: 'startMegastructure', systemId: sid, mega: id }).ok) return;
       }
     }
@@ -206,6 +276,16 @@ function market(state: GameState, e: Empire) {
   for (const r of ['minerals', 'energy', 'food', 'alloys', 'electronics', 'rare'] as const) {
     if (e.stock[r] > L.cap[r] * 0.85) execute(state, e.id, { type: 'market', res: r, amount: -Math.round(e.stock[r] * 0.2) });
     else if (e.stock[r] < 30 && L.net[r] < 0 && e.stock.credits > 400) execute(state, e.id, { type: 'market', res: r, amount: 80 });
+  }
+  // a hoarded treasury builds nothing: invest surplus credits in the goods great works and fleets need
+  if (e.stock.credits > 4000) {
+    const budget = (e.stock.credits - 4000) * 0.15;
+    for (const [r, share, fill] of [['alloys', 0.6, 0.6], ['components', 0.25, 0.3], ['electronics', 0.15, 0.3]] as const) {
+      const room = L.cap[r] * fill - e.stock[r];
+      if (room <= 20) continue;
+      const amount = Math.round(Math.min(room, (budget * share) / Math.max(0.5, state.market.price[r])));
+      if (amount > 10) execute(state, e.id, { type: 'market', res: r, amount });
+    }
   }
 }
 

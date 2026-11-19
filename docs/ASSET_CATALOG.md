@@ -12,6 +12,10 @@ Every 3D model the game ships with is **CC0 1.0 (public domain)**. No attributio
 - **Checks:** `tests/assets.test.ts` confirms that every file exists, parses as GLB, embeds its textures and comes from a CC0 pack. It also checks that every ship class, character role and capital building is mapped, and that animated models have an idle clip and opaque materials.
 - **Paid assets, or assets that need an account:** see `docs/ASSET_WISHLIST.md`.
 
+## Candidate sources under review (milestone 12)
+
+The capital laboratory evaluates the KayKit Medieval Hexagon Pack (environment pieces only) and KayKit Space Base Bits, both CC0, from the creator's own GitHub repositories. They are fetched into `dev-assets/` for development only. Sources, sizes and renders are in [`CAPITAL_LAB.md`](CAPITAL_LAB.md).
+
 ## Sources used
 
 | Pack | Creator | Source | License | Format received | Used for |
@@ -124,6 +128,26 @@ Planets, stars, nebulae, galaxy, plateau and sky are procedural shaders. They ar
 ## Supporting assets
 
 Solar arrays, water tower, connector tubes, trusses and the landing pad are catalogued for decoration (`DECOR`) and for future colony and spaceport views.
+
+## Megastructures (assembled from sourced parts)
+
+The nine megastructure models in `public/assets/models/mega/` are not hand-modelled or generated. `scripts/blender/assemble_megastructures.py` imports downloaded parts, trims them to the pieces wanted, places linked copies and groups them into `stage_<n>` nodes, one per construction stage. Fetch the sources with `npm run candidates:fetch -- q-ultimate-space-kit k-space-kit kaykit-space-base nasa-3d`.
+
+| Part source | Licence | Used for |
+|---|---|---|
+| Quaternius Ultimate Space Kit | CC0 | transit tubes (ring and gate tori), trusses, habitats, domes, antennas |
+| Kenney Space Kit | CC0 | structural frames, turrets, fuel tanks, generators (re-skinned to one hull material) |
+| KayKit Space Base Bits | CC0 | tall frames, solar panels, lights |
+| NASA 3D Resources | Public domain | Deep Space Network 70 m dish (collector and array), TDRS umbrella antenna (relays, emitters), solar sail (Dyson swarm statites) |
+
+NASA media are not copyrighted. The NASA usage guidelines still apply: the models carry no NASA insignia and imply no endorsement. Textures are reduced to 512 px and the dish is decimated to half its faces, so every model stays under 2 MB. Previews: `docs/asset-previews/m14/`.
+
+| Rejected for megastructures | Reason |
+|---|---|
+| The earlier procedural kit (`scripts/blender/megastructures.py`) | Primitive geometry, replaced on review |
+| ISS and TDRS solar arrays cut out of their spacecraft | The arrays are many loose strips, so extraction left slivers |
+| Quaternius Modular Sci-Fi (2021) and MegaKit | Interior pieces |
+| OpenGameArt single models (Acharkl station, space port, Bellanger shipyard) | Ground props or very dense meshes |
 
 ## Evaluated and rejected
 

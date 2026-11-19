@@ -1,5 +1,5 @@
 // Registry of externally sourced 3D assets and how the game uses them.
-// Every model here is CC0 (public domain); see docs/ASSET_CATALOG.md for
+// Every model here is CC0 or public domain (NASA); see docs/ASSET_CATALOG.md for
 // sources and evaluation notes. Rendering code asks for models by role
 // (ship class, character role, capital building), never by file, so any
 // asset can be swapped by editing this file alone.
@@ -7,7 +7,9 @@
 import type { ShipClass } from '../../../sim/types';
 import type { CharRole } from '../../../sim/data/characters';
 
-export interface PackInfo { name: string; creator: string; url: string; license: 'CC0 1.0' }
+export type License = 'CC0 1.0' | 'CC0 1.0 + public domain (NASA)';
+export const LICENSES: readonly License[] = ['CC0 1.0', 'CC0 1.0 + public domain (NASA)'];
+export interface PackInfo { name: string; creator: string; url: string; license: License }
 export const PACKS = {
   qShips: { name: 'Ultimate Spaceships (May 2021)', creator: 'Quaternius', url: 'https://opengameart.org/content/lowpoly-spaceships-pack', license: 'CC0 1.0' },
   qSpace: { name: 'Ultimate Space Kit', creator: 'Quaternius', url: 'https://opengameart.org/content/ultimate-space-kit-by-quaternius', license: 'CC0 1.0' },
@@ -16,6 +18,9 @@ export const PACKS = {
   kSpace: { name: 'Space Kit 2.0', creator: 'Kenney', url: 'https://opengameart.org/content/space-kit-remade', license: 'CC0 1.0' },
   kCommercial: { name: 'City Kit (Commercial) 2.1', creator: 'Kenney', url: 'https://opengameart.org/content/city-kit-commercial', license: 'CC0 1.0' },
   kIndustrial: { name: 'City Kit (Industrial) 2.0', creator: 'Kenney', url: 'https://opengameart.org/content/city-kit-industrial', license: 'CC0 1.0' },
+  // assembled (not modelled) by scripts/blender/assemble_megastructures.py from Quaternius Ultimate Space Kit,
+  // Kenney Space Kit, KayKit Space Base Bits (all CC0) and NASA 3D Resources hardware (public domain)
+  sdMega: { name: 'Megastructures assembled from Quaternius, Kenney, KayKit and NASA parts', creator: 'Quaternius, Kenney, Kay Lousberg, NASA; assembled by the Star Dominion project', url: 'scripts/blender/assemble_megastructures.py', license: 'CC0 1.0 + public domain (NASA)' },
 } satisfies Record<string, PackInfo>;
 export type PackId = keyof typeof PACKS;
 
@@ -27,6 +32,7 @@ export function assetUrl(a: AssetDef): string { return `${BASE}assets/models/${a
 const ships = (n: string): AssetDef => ({ file: `ships/${n}.glb`, pack: 'qShips' });
 const city = (n: string, pack: PackId): AssetDef => ({ file: `city/${n}.glb`, pack });
 const space = (n: string, pack: PackId): AssetDef => ({ file: `space/${n}.glb`, pack });
+const mega = (n: string): AssetDef => ({ file: `mega/${n}.glb`, pack: 'sdMega' });
 const char = (n: string): AssetDef => ({ file: `chars/${n}.glb`, pack: 'qChars', animated: true });
 
 export const ASSETS = {
@@ -61,6 +67,10 @@ export const ASSETS = {
   rocket_base: space('k_rocket_baseA', 'kSpace'), rocket_fuel: space('k_rocket_fuelA', 'kSpace'), rocket_sides: space('k_rocket_sidesA', 'kSpace'), rocket_top: space('k_rocket_topA', 'kSpace'), rocket_fins: space('k_rocket_finsA', 'kSpace'),
   turret2: space('k_turret_double', 'kSpace'), turret: space('k_turret_single', 'kSpace'), gate: space('k_gate_complex', 'kSpace'), generator: space('k_machine_generatorLarge', 'kSpace'),
   truss: space('k_structure_detailed', 'kSpace'), pad: space('k_platform_large', 'kSpace'),
+  // megastructures: one node per construction stage (stage_1 … stage_n)
+  mega_orbital_ring: mega('orbital_ring'), mega_bastion: mega('bastion'), mega_dyson_panel: mega('dyson_panel'),
+  mega_stellar_collector: mega('stellar_collector'), mega_hypergate: mega('hypergate'), mega_grand_archive: mega('grand_archive'),
+  mega_lattice_relay: mega('lattice_relay'), mega_sector_array: mega('sector_array'), mega_continuum_engine: mega('continuum_engine'),
 } satisfies Record<string, AssetDef>;
 export type AssetId = keyof typeof ASSETS;
 
