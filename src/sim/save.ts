@@ -24,9 +24,10 @@ export function deserialize(json: string): GameState {
   for (const e of s.empires) if (e.era == null) e.era = 0;
   upgradeGalaxy(s.galaxy);
   ensureOps(s);
+  s.chronicle ??= [];
   migrateAdmirals(s as GameState & { admirals?: never[] });
   for (const e of s.empires) { e.council ??= {}; e.armory ??= []; ensureHouses(s, e); ensureCapital(e); }
-  if (s.empires.some((e) => e.stats?.powerW == null)) updateStats(s);
+  if (s.empires.some((e) => e.alive && e.kind === 'major' && e.stats?.powerW == null)) updateStats(s);
   return s;
 }
 

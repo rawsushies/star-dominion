@@ -3,6 +3,7 @@
 // economy/population/research per empire -> monthly systems -> AI.
 
 import { eraMonthly } from './eras';
+import { recordYear } from './chronicle';
 import { operationsMonthly } from './operations';
 import { ensureCapital, progressCapitals } from './capital';
 import { governanceMonthly, ensureHouses } from './governance';
@@ -214,6 +215,7 @@ export function newGame(settings: Partial<GameSettings> = {}): GameState {
   for (const e of state.empires) { ensureHouses(state, e); ensureCapital(e); }
   refreshCandidates(state);
   updateStats(state);
+  recordYear(state);
   log(state, { kind: 'start', severity: 'info', title: 'A new reign begins', text: `${state.empires[0].ruler} ascends the throne of the ${state.empires[0].name}. The galaxy awaits.`, empires: [0] });
   return state;
 }
@@ -375,6 +377,7 @@ function monthly(state: GameState) {
   operationsMonthly(state);
   if (state.tick % 360 === 0) refreshCandidates(state);
   updateStats(state);
+  if (state.tick % 360 === 0) recordYear(state);
   eraMonthly(state);
   victoryCheck(state);
 }

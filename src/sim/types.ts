@@ -365,6 +365,9 @@ export type PeaceTerm = 'status_quo' | 'tribute' | 'vassalize' | 'cede';
 
 export interface TradeDeal { id: number; a: number; b: number; aGives: Cost; bGives: Cost; until: number }
 
+export interface ChronicleStat { id: number; k: number; pop: number; systems: number; colonies: number; military: number; citadel: number; era: number; alive: boolean }
+export interface ChronicleYear { tick: number; stats: ChronicleStat[]; headlines: { tick: number; title: string; kind: string; empires: number[] }[] }
+
 export interface GameEvent {
   id: number;
   tick: number;
@@ -425,6 +428,8 @@ export interface GameState {
   tradeDeals: TradeDeal[];
   proposals: Proposal[];
   events: GameEvent[];
+  /** yearly record of every sovereign realm's standing and the year's headlines (sim/chronicle.ts) */
+  chronicle?: ChronicleYear[];
   battles: BattleReport[];
   market: Market;
   nextId: number;

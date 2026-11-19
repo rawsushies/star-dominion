@@ -17,6 +17,9 @@ import { HeroesScreen } from './Heroes';
 import { CouncilScreen } from './Council';
 import { CapitalScreen } from './Capital';
 import { OperationsScreen } from './Operations';
+import { ThroneScreen } from './Throne';
+import { WarRoomScreen } from './WarRoom';
+import { ChronicleScreen } from './Chronicle';
 
 export const SCREENS: Record<Exclude<ScreenId, 'map'>, ComponentType> = {
   kingdom: KingdomScreen,
@@ -37,4 +40,7 @@ export const SCREENS: Record<Exclude<ScreenId, 'map'>, ComponentType> = {
   council: CouncilScreen,
   capital: CapitalScreen,
   operations: OperationsScreen,
+  throne: ThroneScreen,
+  warroom: WarRoomScreen,
+  chronicle: ChronicleScreen,
 };

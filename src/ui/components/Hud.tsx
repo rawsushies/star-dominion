@@ -27,11 +27,11 @@ import { SCREENS } from '../screens';
 
 const GROUPS: ScreenId[][] = [
   ['map'],
-  ['kingdom', 'council', 'capital', 'planets', 'system'],
-  ['fleets', 'military', 'heroes'],
+  ['throne', 'kingdom', 'council', 'capital', 'planets', 'system'],
+  ['fleets', 'military', 'warroom', 'heroes'],
   ['economy', 'industry', 'operations', 'construction', 'trade'],
   ['research', 'techtree'],
-  ['diplomacy', 'intel', 'journal'],
+  ['diplomacy', 'intel', 'journal', 'chronicle'],
 ];
 
 export function Neocom() {

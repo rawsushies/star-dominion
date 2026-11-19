@@ -9,6 +9,7 @@ import { AccountPanel } from './Account';
 
 export const NAV: { id: ScreenId; label: string; key?: string }[] = [
   { id: 'map', label: 'Galaxy', key: 'F1' },
+  { id: 'throne', label: 'Throne room' },
   { id: 'kingdom', label: 'Kingdom' },
   { id: 'council', label: 'Council' },
   { id: 'capital', label: 'Capital' },
@@ -17,6 +18,7 @@ export const NAV: { id: ScreenId; label: string; key?: string }[] = [
   { id: 'fleets', label: 'Fleets' },
   { id: 'heroes', label: 'Hall of Heroes' },
   { id: 'military', label: 'Military' },
+  { id: 'warroom', label: 'War room' },
   { id: 'economy', label: 'Economy' },
   { id: 'industry', label: 'Industry' },
   { id: 'operations', label: 'Operations' },
@@ -27,6 +29,7 @@ export const NAV: { id: ScreenId; label: string; key?: string }[] = [
   { id: 'diplomacy', label: 'Diplomacy' },
   { id: 'intel', label: 'Intelligence' },
   { id: 'journal', label: 'Journal' },
+  { id: 'chronicle', label: 'Chronicle' },
 ];
 
 export function jumpTo(ev: { systemId?: number; planetId?: number; battleId?: number; kind: string }) {
