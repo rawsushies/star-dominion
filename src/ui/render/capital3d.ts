@@ -10,6 +10,7 @@ import { openPlots, plotOccupant } from '../../sim/capital';
 import type { Empire } from '../../sim/types';
 import { BUILDING_TIERS, DECOR, tierFor, type AssetId } from './assets/catalog';
 import { instance, normalised, preload } from './assets/loader';
+import { releaseView } from './assets/release';
 
 /** Every sourced model the capital can use. */
 export const CAPITAL_ASSETS: AssetId[] = [...new Set([...Object.values(BUILDING_TIERS).flatMap((ts) => ts.flatMap((t) => t.parts.map((p) => p.asset))), ...Object.values(DECOR)])];
@@ -521,7 +522,6 @@ export class CapitalView3D {
     this.disposed = true;
     cancelAnimationFrame(this.raf);
     for (const el of this.labels.values()) el.remove();
-    this.scene.traverse((o) => { const m = o as THREE.Mesh; m.geometry?.dispose(); });
-    this.renderer.dispose();
+    releaseView(this.scene, this.renderer);
   }
 }

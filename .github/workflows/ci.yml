@@ -1,0 +1,67 @@
+name: CI
+
+# Checks every push and pull request: types, simulation tests, the production build,
+# a multi-seed integrity run and the browser interaction tests. A nightly run repeats the
+# integrity check over 30 years on more seeds.
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Type check
+        run: npx tsc --noEmit -p .
+      - name: Simulation and unit tests (includes the 30-year soak)
+        run: npx vitest run
+      - name: Production build
+        run: npm run build
+      - name: Multi-seed integrity (10 years, 3 seeds)
+        if: github.event_name != 'schedule'
+        run: npm run soak:seeds -- 10 101 202 303
+      - name: Multi-seed integrity (30 years, 5 seeds)
+        if: github.event_name == 'schedule'
+        run: npm run soak:seeds -- 30 101 202 303 404 505
+
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Browser interaction tests
+        run: npm run test:e2e
+        env:
+          CI: '1'
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report
+          retention-days: 7

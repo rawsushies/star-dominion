@@ -49,6 +49,7 @@ export function buildFleetFormation(f: Fleet, color: string, scale = 0.85, maxSh
 import { hash2 } from '../../sim/rng';
 import type { GameState, Planet, StarSystem } from '../../sim/types';
 import { buildPlanet, hexA, NOISE_GLSL, type PlanetBuild } from './planet3d';
+import { releaseView } from './assets/release';
 
 export interface SysHit { kind: 'planet' | 'fleet' | 'starbase'; id: number; x: number; y: number; r: number }
 
@@ -427,7 +428,7 @@ export class SystemView3D {
     return hits;
   }
 
-  dispose() { this.clear(); this.renderer.dispose(); }
+  dispose() { this.clear(); releaseView(this.scene, this.renderer); }
 }
 
 function bracket(ctx: CanvasRenderingContext2D, x: number, y: number, k: number) {

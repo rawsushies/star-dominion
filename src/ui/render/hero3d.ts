@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import type { Character } from '../../sim/types';
 import { CHARACTER_MODELS, type AssetId } from './assets/catalog';
 import { loadAsset, instance, normalised } from './assets/loader';
+import { releaseView } from './assets/release';
 
 function hash(n: number): number {
   const x = Math.sin(n * 91.7 + 17.3) * 43758.5453;
@@ -132,7 +133,7 @@ export class HeroView3D {
       const idle = gltf.animations.find((a) => /^idle$/i.test(a.name)) ?? gltf.animations.find((a) => /idle/i.test(a.name));
       if (idle) this.mixer.clipAction(idle).play();
       this.model = id;
-    }).catch(() => { /* keep the placeholder */ });
+    }).catch(() => { /* failure is logged and announced by the loader; the UI names the missing model */ });
   }
 
   /** Procedural stand-in shown while the model loads, or if it cannot load. */
@@ -234,6 +235,6 @@ export class HeroView3D {
   dispose() {
     this.disposed = true;
     cancelAnimationFrame(this.raf);
-    this.renderer.dispose();
+    releaseView(this.scene, this.renderer);
   }
 }

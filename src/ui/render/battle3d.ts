@@ -9,6 +9,7 @@ import { SHIPS, SIZE_WEIGHT } from '../../sim/data/ships';
 import type { BattleReport, BattleShipSnap, GameState } from '../../sim/types';
 import { SHIP_MODELS, type AssetId } from './assets/catalog';
 import { instance, normalised, preload } from './assets/loader';
+import { releaseView } from './assets/release';
 
 const STRUCT_ASSETS: AssetId[] = ['truss', 'dish_l', 'turret2', 'pad'];
 export const BATTLE_ASSETS: AssetId[] = [...new Set([...Object.values(SHIP_MODELS).map((m) => m.asset), ...STRUCT_ASSETS])];
@@ -309,6 +310,6 @@ export class BattleView3D {
   dispose() {
     this.disposed = true;
     cancelAnimationFrame(this.raf);
-    this.renderer.dispose();
+    releaseView(this.scene, this.renderer);
   }
 }

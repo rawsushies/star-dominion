@@ -9,9 +9,14 @@ npm test           # simulation tests + 30-year soak
 npm run build      # type-check + production build into dist/
 npm run soak       # soak test only, with yearly reports
 npm run soak:seeds -- 12 101 303   # multi-seed invariant check: years, then seeds
+npm run test:e2e   # Playwright browser tests (starts its own dev server; needs Chromium:
+                   #   npx playwright install chromium)
+npm run candidates:fetch    # download CC0 candidate asset packs into dev-assets/ (gitignored)
+npm run candidates:capture  # re-render docs/asset-previews/m11 (dev server on :5173 must be running)
 ```
 
 - `/lab.html` on the dev server shows every planet type rendered live, which is useful when tuning the planet shader.
+- `/compare.html` on the dev server is the asset comparison gallery: candidate sets for the capital, ships, heroes and villains, rendered side by side with the production set, plus external sets shown with their creators' previews. Run `npm run candidates:fetch` first.
 - `/assets.html` on the dev server is the 3D asset viewer: every ship class, character body, antagonist, capital building tier and a full capital arrangement, each labelled with creator and licence.
 - Debug hook: `window.__sd` is the zustand UI store. `__sd.getState().game` is the live `GameState`. For example, `__sd.getState().setSpeed(3)`.
 
@@ -100,10 +105,4 @@ This log is updated at each milestone, so work can resume after any interruption
 | 8 | Sovereign interfaces | Done | Throne room (ruler figure, standing, matters awaiting a decision, links to the ministries), War room (wars and war score, fronts with threat against defence, hostile fleets sighted, our fleets and commanders, battle replays), Chronicle (yearly record in `src/sim/chronicle.ts`, a history chart of each realm, headlines per year). These join the existing council, capital, Hall of Heroes, diplomacy and kingdom screens. `tests/chronicle.test.ts` (2): yearly records, no repeated headlines, save determinism, old saves. Playwright on a game simulated for 4 years: all three screens render, a matter opens its screen, no console errors |
 | 9 | Public deployment | Done | `.github/workflows/deploy.yml` builds on every push to `main` and publishes `dist/` to the `gh-pages` branch. Live at https://rawsushies.github.io/star-dominion/ (HTTP 200). Vite uses a relative `base` (`./`), so the build works under any sub-path |
 | 10 | Integrity: migrations, long simulations, docs | Done | `tests/migration.test.ts` loads the pre-3D v1 fixture, and every milestone test checks old-save defaults and save/load fingerprints. `scripts/soak-seeds.ts` runs several seeds and checks invariants: finite stocks, Kardashev in range, Citadel ≤ 30, valid ownership and assignments, logistics within capacity, and save round-trip equality. The soak found AI realms overstretching freighters (41/28). Fixed in `sim/ai.ts`: no new stations without spare capacity, and halted sites restart only when they fit. It also found that rebel states born mid-game lacked governance fields, so a save round-trip changed them (seed 202, year 20). Fixed in `blankEmpire`, with a regression test in `tests/integrity.test.ts`. Seeds 101, 202 and 303 over 30 years now pass every invariant |
-
-**Benchmarks (10,000-system Milky Way, 5 kingdoms and 12 independent realms):**
-
-- Galaxy generation: about 1.2–1.4 s.
-- Simulation: 6.6 ms per day when profiled alone, about 10 ms per day under parallel test load.
-- Save after 2 years: 3.7 MB.
-- Renderer: about 4.4 ms of JavaScript per frame (0.5 ms dynamic buffers, 3.2 ms draw submission, 0.7 ms overlay). Headless SwiftShader reaches only 4–14 fps because it rasterises on the CPU; real GPUs are not fill-limited at this load.
+| 11 | Visual identity: asset research and comparison | **At the approval gate** | Researched OpenGameArt, itch.io, Sketchfab (API), Fab (API), Poly Haven, ambientCG and CGTrader; TurboSquid, Kenney.nl and Poly Pizza are blocked by the proxy. 13 CC0 packs fetched reproducibly (`scripts/candidate-sources.json`) and rendered in the dev-only `/compare.html` gallery with per-model triangle, texture and animation counts; external sets are shown with creator previews. Findings, renders and three directions are in `docs/ASSET_WISHLIST.md`. **No production asset was replaced.** Engineering: the loader records and announces failures, and the HUD names missing models (`tests/e2e/assets.spec.ts`); every 3D view frees its GPU resources through `releaseView` (`tests/render-resources.test.ts`). Quality: Playwright tests are in the repo (`tests/e2e`, `npm run test:e2e`), and CI (`.github/workflows/ci.yml`) runs tsc, vitest, the build, a 3-seed integrity run and the browser tests, with a nightly 30-year 5-seed run. ARCHITECTURE.md and GAME_DESIGN.md are brought up to date |

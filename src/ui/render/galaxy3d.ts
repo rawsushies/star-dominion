@@ -20,6 +20,7 @@ import type { Fleet, GameState } from '../../sim/types';
 import type { MapMode } from '../store';
 import { bakeGalaxyNebula } from './nebula';
 import { hexA } from './planet3d';
+import { releaseView } from './assets/release';
 
 export interface GalaxyCam { tx: number; ty: number; tz: number; dist: number; yaw: number; pitch: number }
 /** Shared camera state (sim-space target), so other UI can focus systems. */
@@ -608,7 +609,7 @@ export class GalaxyView3D {
 
   dispose() {
     for (const d of this.disposables) d.dispose();
-    this.renderer.dispose();
+    releaseView(this.scene, this.renderer);
   }
 }
 

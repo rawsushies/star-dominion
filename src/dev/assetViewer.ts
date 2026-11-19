@@ -6,7 +6,8 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 import { ASSETS, PACKS, SHIP_MODELS, CHARACTER_MODELS, ANTAGONIST_MODELS, BUILDING_TIERS, type AssetId } from '../ui/render/assets/catalog';
-import { loadAsset, instance, normalised, preload } from '../ui/render/assets/loader';
+import { loadAsset, instance, normalised, preload, sharedAssetResources } from '../ui/render/assets/loader';
+import { disposeObject } from '../ui/render/assets/resources';
 import { buildCapitalPart } from '../ui/render/capital3d';
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -50,8 +51,7 @@ function credit(id: AssetId): string { const p = PACKS[ASSETS[id].pack]; return 
 
 async function show(section: string) {
   document.querySelectorAll('#bar button').forEach((b) => b.classList.toggle('on', (b as HTMLElement).dataset.s === section));
-  root.clear(); mixers.length = 0;
-  root.traverse(() => {});
+  disposeObject(root, sharedAssetResources()); root.clear(); mixers.length = 0;
   for (const el of Array.from(labels.domElement.children)) el.remove();
   status.textContent = 'Loading…';
   const t0 = performance.now();

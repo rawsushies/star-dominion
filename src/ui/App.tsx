@@ -1,7 +1,7 @@
 import { useUI } from './store';
 import { MainMenu } from './components/MainMenu';
 import { MapView } from './components/MapView';
-import { Toasts, GameMenu, useHotkeys } from './components/Chrome';
+import { Toasts, AssetNotice, GameMenu, useHotkeys } from './components/Chrome';
 import { Neocom, LocationHud, ResourceStrip, ThroneDial, Dispatches, Overview, WindowLayer } from './components/Hud';
 import { ContextPanel } from './components/ContextPanel';
 import { GameOver } from './screens/GameOver';
@@ -28,6 +28,7 @@ export function App() {
       <WindowLayer />
       <Neocom />
       <Toasts />
+      <AssetNotice />
       <EraDawn />
       <GameOver />
       {menuOpen && <GameMenu />}
