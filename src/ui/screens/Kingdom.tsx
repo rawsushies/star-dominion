@@ -1,3 +1,5 @@
+import { modLabel, INTEGER_MODS, NEGATIVE_GOOD } from '../modLabels';
+import { Term } from '../components/Guidance';
 import { EraLadder, typeLabel } from '../components/Evolution';
 import { kardashev } from '../../sim/eras';
 import { useUI, useGame } from '../store';
@@ -46,7 +48,7 @@ export function KingdomScreen() {
         <Stat k="War exhaustion" v={Math.round(e.warExhaustion)} s="rises with losses and long wars" tone={e.warExhaustion > 50 ? 'neg' : ''} />
       </div>
 
-      <Section title="Political eras" aside={typeLabel(kardashev(g, e))}>
+      <Section guide="kingdom-eras" title={<Term entry="mech.eras">Political eras</Term>} aside={<Term entry="mech.kardashev">{typeLabel(kardashev(g, e))}</Term>}>
         <EraLadder />
       </Section>
 
@@ -119,23 +121,6 @@ export function KingdomScreen() {
       </div>
     </Sheet>
   );
-}
-
-const INTEGER_MODS = new Set(['stability', 'admin', 'navalCap', 'diploOpinion', 'acceptance', 'intel', 'sensor']);
-const NEGATIVE_GOOD = new Set(['buildCost', 'shipCost', 'upkeepShips', 'upkeepBuildings', 'claimCost', 'colonyCost', 'marketFee', 'supplyDrain', 'foodUpkeep', 'warExhaustion']);
-
-export function modLabel(k: string): string {
-  const map: Record<string, string> = {
-    stability: 'Stability', admin: 'Admin capacity', navalCap: 'Naval capacity', tax: 'Taxes', tradeValue: 'Trade value', growth: 'Population growth',
-    buildSpeed: 'Construction speed', buildCost: 'Construction cost', shipBuildSpeed: 'Shipbuilding speed', shipCost: 'Ship cost', shipDamage: 'Weapon damage',
-    shipHull: 'Ship hull', shipArmor: 'Ship armour', shipShields: 'Ship shields', shipSpeed: 'Fleet speed', tracking: 'Weapon tracking', evasion: 'Evasion',
-    strikeDamage: 'Strike craft damage', upkeepShips: 'Fleet upkeep', upkeepBuildings: 'Building upkeep', garrison: 'Garrisons', defensePlatform: 'Defence batteries',
-    starbase: 'Starbases', habitability: 'Habitability', claimCost: 'Outpost cost', colonyCost: 'Colony ship cost', colonizeSpeed: 'Colonisation speed',
-    marketFee: 'Market fees', supplyDrain: 'Supply drain', repair: 'Repair rate', sensor: 'Sensor range', intel: 'Intelligence', diploOpinion: 'Opinion abroad',
-    acceptance: 'Diplomatic acceptance', foodUpkeep: 'Food consumption', warExhaustion: 'War exhaustion gain', resistanceDecay: 'Pacification speed', storage: 'Storage',
-  };
-  if (k.startsWith('output.')) return `${k.slice(7)[0].toUpperCase()}${k.slice(8)} output`;
-  return map[k] ?? k;
 }
 
 function PolicyTip({ o, colonies }: { o: PolicyOption; colonies: number }) {

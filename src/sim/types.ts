@@ -452,6 +452,28 @@ export interface GameState {
   disruptedRoutes: Record<string, number>; // colony planet id -> tick disrupted (for event dedupe)
   playerId: number;
   gameOver: null | { won: boolean; reason: string };
-  /** guided first-reign progress (UI only; null when the tutorial is off) */
+  /** @deprecated legacy guided first-reign progress; migrated to `guidance` on load */
   tutorial?: { step: number; base: { explored: number; buildings: number; ships: number } } | null;
+  /** tutorial lessons, first-visit cards and hint snoozes (UI only, never read by the simulation) */
+  guidance?: GuidanceState;
+}
+
+/** Player guidance progress, saved with the game (src/guidance). */
+export interface GuidanceState {
+  /** lesson (chapter) in progress, or null */
+  active: string | null;
+  step: number;
+  /** the lesson panel is collapsed to a pill */
+  paused: boolean;
+  /** lessons finished, and lessons the player skipped */
+  done: string[];
+  skipped: string[];
+  /** lessons offered to the player as the next recommended one (shown once) */
+  offered: string[];
+  /** first-visit cards already shown (screen ids, mechanic ids) */
+  seen: string[];
+  /** hint id -> tick until which it stays quiet */
+  snoozed: Record<string, number>;
+  /** counters captured when the current step began (objectives compare against them) */
+  base: Record<string, number>;
 }

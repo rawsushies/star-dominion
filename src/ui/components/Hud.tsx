@@ -22,6 +22,11 @@ import { EraBadge } from './Evolution';
 import { NAV, jumpTo } from './Chrome';
 import { focusSystem, focusSector } from './MapView';
 import { SCREENS } from '../screens';
+import { InfoButton, ScreenInfoPanel, FirstVisit } from './Guidance';
+import { MuteButton } from './AudioSettings';
+import { usePrefs } from './Guidance';
+import { resourceHelp } from '../../guidance/codex';
+import { SCREEN_INFO } from '../../guidance/screens';
 
 // ---------------------------------------------------------------- neocom
 
@@ -32,6 +37,7 @@ const GROUPS: ScreenId[][] = [
   ['economy', 'industry', 'operations', 'construction', 'trade'],
   ['research', 'techtree'],
   ['diplomacy', 'intel', 'journal', 'chronicle'],
+  ['codex'],
 ];
 
 export function Neocom() {
@@ -44,6 +50,7 @@ export function Neocom() {
   const inbox = g.proposals.filter((p) => p.to === g.playerId).length;
   const idleResearch = !e.research.current && !e.research.queue.length;
   const label = (id: ScreenId) => NAV.find((n) => n.id === id)?.label ?? id;
+  const prefs = usePrefs();
   return (
     <nav className="neocom" aria-label="Screens">
       <button className="neo-crest" onClick={() => open('kingdom')} aria-label="Kingdom overview" title={e.name}>
@@ -57,7 +64,7 @@ export function Neocom() {
             return (
               <button key={id} className={cls('neo-btn', isOpen && 'open', screen === id && 'on')} onClick={() => (id === 'map' ? set({ view: 'galaxy' }) : open(id))} aria-label={label(id)}>
                 <ScreenIcon id={id} size={20} />
-                <span className="neo-flyout">{label(id)}</span>
+                <span className="neo-flyout">{label(id)}{prefs.tooltips && SCREEN_INFO[id] && <small>{SCREEN_INFO[id]!.purpose}</small>}</span>
                 {badge && <span className="neo-badge">{badge}</span>}
               </button>
             );
@@ -65,6 +72,7 @@ export function Neocom() {
         </div>
       ))}
       <div className="grow" />
+      <MuteButton />
       <button className="neo-btn" onClick={() => set({ menuOpen: true, speed: 0 })} aria-label="Chancery: save, load and options">
         <svg width="20" height="20" viewBox="0 0 20 20"><path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" strokeWidth="1.5" /></svg>
         <span className="neo-flyout">Chancery</span>
@@ -159,6 +167,8 @@ export function ResourceStrip() {
   const e = g.empires[g.playerId];
   const L = getLedger(g, e);
   const keys: LedgerKey[] = [...RESOURCES, 'research'];
+  const prefs = usePrefs();
+  const ui = useUI();
   return (
     <div className="res-strip">
       {keys.map((k) => {
@@ -171,15 +181,17 @@ export function ResourceStrip() {
           <Tip key={k} content={
             <div>
               <h4>{RES_META[k].label}</h4>
+              {prefs.tooltips && resourceHelp(k) && <div style={{ marginBottom: 4 }}>{resourceHelp(k)}</div>}
               {k === 'research' ? <div className="muted">Research points per month toward the current project.</div> : <div className="muted">Stored {fmt(stock!)} of {fmt(capV)} capacity.</div>}
               <div className="kv">
                 {lines.slice(0, 14).map((l) => [<span key={l.label + 'a'}>{l.label}</span>, <span key={l.label + 'b'} className={l.amount >= 0 ? 'pos' : 'neg'}>{signed(l.amount)}</span>])}
                 <span style={{ color: 'var(--text)' }}>Net per month</span><span className={net >= 0 ? 'pos' : 'neg'}>{signed(net)}</span>
               </div>
               {short && <div className="neg" style={{ marginTop: 6 }}>Shortage: dependent production is crippled.</div>}
+              {prefs.tooltips && <div className="hint" style={{ marginTop: 6 }}>Click for storage, shortages and the market in the Codex.</div>}
             </div>
           }>
-            <div className={cls('chip', short && 'short')}>
+            <div className={cls('chip', short && 'short')} onClick={() => prefs.tooltips && ui.openCodex(short ? 'mech.shortage' : 'mech.resources')} style={{ cursor: prefs.tooltips ? 'pointer' : undefined }}>
               <ResGlyph r={k} size={13} />
               <span className="chip-v num">{k === 'research' ? fmt(net) : fmt(stock!)}</span>
               {k !== 'research' && <span className={cls('chip-d num', net >= 0 ? 'pos' : 'neg')}>{signed(net, Math.abs(net) < 10 ? 1 : 0)}</span>}
@@ -404,6 +416,7 @@ function WindowFrame({ win }: { win: Win }) {
   const Screen = SCREENS[win.id];
   const ref = useRef<HTMLDivElement>(null);
   const focused = ui.screen === win.id;
+  const [info, setInfo] = useState(false);
   const label = NAV.find((n) => n.id === win.id)?.label ?? win.id;
   const startDrag = (e: React.PointerEvent, mode: 'move' | 'size') => {
     if (e.button !== 0) return;
@@ -426,9 +439,12 @@ function WindowFrame({ win }: { win: Win }) {
         <ScreenIcon id={win.id} size={16} />
         <span className="wtitle">{label}</span>
         <span className="grow" />
+        {win.id !== 'codex' && <InfoButton open={info} onToggle={() => { setInfo(!info); if (win.min) ui.patchWin(win.id, { min: false }); }} />}
         <button className="wbtn" onPointerDown={(e) => e.stopPropagation()} onClick={() => ui.patchWin(win.id, { min: !win.min })} aria-label="Minimise">–</button>
         <button className="wbtn" onPointerDown={(e) => e.stopPropagation()} onClick={() => ui.closeWin(win.id)} aria-label="Close">×</button>
       </header>
+      {!win.min && info && <ScreenInfoPanel id={win.id} onClose={() => setInfo(false)} />}
+      {!win.min && !info && <FirstVisit id={win.id} onMore={() => setInfo(true)} />}
       {!win.min && <div className="wbody"><Screen /></div>}
       {!win.min && <div className="wsize" onPointerDown={(e) => startDrag(e, 'size')} aria-hidden />}
     </section>

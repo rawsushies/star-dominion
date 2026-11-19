@@ -290,6 +290,20 @@
       "page": "https://opengameart.org/content/futeristic-skyscraper",
       "creator": "OpenGameArt contributor",
       "license": "CC0 1.0"
+    },
+    {
+      "id": "k-sci-fi-sounds",
+      "url": "https://opengameart.org/sites/default/files/sci-fi_sounds.zip",
+      "page": "https://opengameart.org/content/sci-fi-sounds",
+      "creator": "Kenney",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "k-interface-sounds",
+      "url": "https://opengameart.org/sites/default/files/kenney_interfaceSounds.zip",
+      "page": "https://opengameart.org/content/interface-sounds",
+      "creator": "Kenney",
+      "license": "CC0 1.0"
     }
   ]
 }

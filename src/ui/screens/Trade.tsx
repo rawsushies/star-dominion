@@ -1,4 +1,5 @@
 import { useUI, useGame } from '../store';
+import { Term } from '../components/Guidance';
 import { getLedger } from '../../sim/engine';
 import { formatDate } from '../../sim/util';
 import { Sheet, Section, Stat, Swatch, fmt, signed, cls, ResGlyph } from '../components/common';
@@ -28,7 +29,7 @@ export function TradeScreen() {
         <Stat k="Trade agreements" v={agreements.length} s={`${signed(agreementIncome)} credits per month`} />
       </div>
       <div className="cols c2" style={{ marginTop: 6 }}>
-        <Section title="Routes to the capital">
+        <Section title={<Term entry="mech.trade">Routes to the capital</Term>}>
           <table className="t">
             <thead><tr><th>Origin</th><th className="n">Value</th><th className="n">Collected</th><th className="n">Jumps</th><th>Status</th></tr></thead>
             <tbody>

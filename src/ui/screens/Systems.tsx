@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Term } from '../components/Guidance';
 import { StationButtons } from '../components/OpControls';
 import { useUI, useGame } from '../store';
 import { STAR_TYPES, PLANET_TYPES } from '../../sim/data/planets';
@@ -59,7 +60,7 @@ export function SystemsScreen() {
             </div>
             {sel.features.length > 0 && <div className="row wrap" style={{ marginTop: 8, gap: 6 }}>{sel.features.map((f) => <Tip key={f} content={FEATURE_INFO[f][1]}><span className={cls('tag', f === 'guardian' ? 'bad' : 'gold')}>{FEATURE_INFO[f][0]}</span></Tip>)}</div>}
             {sel.owner === g.playerId && (
-              <Section title="Starbase" aside={sel.starbase ? STARBASE[sel.starbase]!.label : 'None'}>
+              <Section title={<Term entry="mech.outpost">Starbase</Term>} aside={sel.starbase ? STARBASE[sel.starbase]!.label : 'None'}>
                 <div className="row wrap" style={{ gap: 18 }}>
                   <div className="kv" style={{ minWidth: 260 }}>
                     <span>Hull</span><span>{sel.starbase ? fmt(STARBASE[sel.starbase]!.hull + STARBASE[sel.starbase]!.armor) : '—'}</span>

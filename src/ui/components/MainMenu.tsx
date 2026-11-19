@@ -9,8 +9,10 @@ import type { GameState } from '../../sim/types';
 import { listSaves, type SaveMeta } from '../../persistence/idb';
 import { formatDate } from '../../sim/util';
 import { cls } from './common';
-import { beginTutorial } from './Tutorial';
+import { beginGuidedReign } from './Guidance';
+import { guidancePrefs } from '../../guidance/state';
 import { AccountPanel } from './Account';
+import { MuteButton } from './AudioSettings';
 import type { Climate, GameSettings, GovernmentId } from '../../sim/types';
 
 const CLIMATES: { id: Climate; label: string; note: string }[] = [
@@ -23,7 +25,7 @@ export function MainMenu() {
   const start = useUI((s) => s.start);
   const [s, setS] = useState<GameSettings>({ ...DEFAULT_SETTINGS, seed: Math.floor(Math.random() * 1e6) });
   const [saves, setSaves] = useState<SaveMeta[]>([]);
-  const [guided, setGuided] = useState(true);
+  const [guided, setGuided] = useState(() => guidancePrefs().lessons);
   const [err, setErr] = useState('');
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => { listSaves().then(setSaves).catch(() => {}); }, []);
@@ -56,11 +58,12 @@ export function MainMenu() {
   return (
     <div className="title-screen">
       <canvas ref={ref} aria-hidden />
+      <div className="title-audio"><MuteButton className="btn small" /></div>
       <div className="title-mark">
         <h1>Star<br />Dominion</h1>
         <p>A young crown, one world, and a galaxy that will not wait.</p>
       </div>
-      <form className="setup frame" style={{ padding: '20px 22px', overflowY: 'auto' }} onSubmit={(e) => { e.preventDefault(); start({ ...s, playerName: s.playerName.trim() || 'Aurelian Throne' }); const g = useUI.getState().game; if (g && guided) { beginTutorial(g); useUI.getState().bump(); } }}>
+      <form className="setup frame" style={{ padding: '20px 22px', overflowY: 'auto' }} onSubmit={(e) => { e.preventDefault(); start({ ...s, playerName: s.playerName.trim() || 'Aurelian Throne' }); if (guided) beginGuidedReign(); }}>
         <div className="section" style={{ marginTop: 0, marginBottom: 14 }}>
           <h3><span>Your account</span></h3>
           <AccountPanel compact />
@@ -99,7 +102,7 @@ export function MainMenu() {
           <label htmlFor="seed">Galaxy seed</label>
           <div className="row"><input id="seed" className="grow num" value={s.seed} onChange={(e) => up({ seed: Math.abs(parseInt(e.target.value) || 0) })} /><button type="button" className="btn" onClick={() => up({ seed: Math.floor(Math.random() * 1e6) })}>New galaxy</button></div>
         </div>
-        <label className="row guided"><input type="checkbox" checked={guided} onChange={(e) => setGuided(e.target.checked)} /> <span><b>Guided first reign</b><span className="hint" style={{ display: 'block' }}>A royal advisor walks you through exploring, building, expanding and diplomacy.</span></span></label>
+        <label className="row guided"><input type="checkbox" checked={guided} onChange={(e) => setGuided(e.target.checked)} /> <span><b>Guided first reign</b><span className="hint" style={{ display: 'block' }}>Ten short lessons teach the game as you play: the galaxy, your capital, the economy, expansion, war, research, diplomacy, your people and great works. Pause, skip or replay them any time from the Codex.</span></span></label>
         <button className="btn primary" type="submit" style={{ padding: '10px 14px', fontSize: 17, marginTop: 4 }}>Begin the reign</button>
         {saves.length > 0 && (
           <div className="section">

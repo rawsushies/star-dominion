@@ -1,4 +1,5 @@
 import { useUI, useGame } from '../store';
+import { Term } from '../components/Guidance';
 import { hasContact, intelLevel, fuzz, opinion } from '../../sim/diplomacy';
 import { visibleSystems, bordering, warBetween, armed } from '../../sim/territory';
 import { fleetPower } from '../../sim/fleets';
@@ -98,7 +99,7 @@ function CovertPanel({ known }: { known: Empire[] }) {
   const err = !t ? 'No rival realm is known' : !a ? 'No idle spymaster: recruit one in the Hall of Heroes' : validateOp(g, me, t.id, kind, a.id, COVERT[kind].needsPlanet ? world?.id ?? null : null);
   const odds = t && a ? successChance(g, me, t, kind, a.id) : 0;
   return (
-    <Section title="Covert operations" aside={`${ops.length} under way · our counter-intelligence ${Math.round(counterIntel(g, me) * 100)}%`}>
+    <Section guide="intel-covert" title={<Term entry="mech.espionage">Covert operations</Term>} aside={`${ops.length} under way · our counter-intelligence ${Math.round(counterIntel(g, me) * 100)}%`}>
       <div className="list" data-testid="covert-ops">
         {ops.map((o) => (
           <div key={o.id} className="li">

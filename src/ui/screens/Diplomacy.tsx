@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Term } from '../components/Guidance';
 import { HeroView3D } from '../render/hero3d';
 import type { Character } from '../../sim/types';
 import { useUI, useGame } from '../store';
@@ -138,16 +139,16 @@ function EmpirePanel({ id }: { id: number }) {
       </div>
       <div className="cols c2" style={{ marginTop: 6 }}>
         <div>
-          <Section title="Why they feel this way">
+          <Section title={<Term entry="mech.diplomacy">Why they feel this way</Term>}>
             <div className="kv">{breakdown.map(([k, v], i) => [<span key={k + i}>{k}</span>, <span key={k + i + 'v'} className={v >= 0 ? 'pos' : 'neg'}>{signed(v, 0)}</span>])}</div>
           </Section>
-          <Section title="Treaties">
+          <Section title="Treaties" guide="diplomacy-treaties">
             {TREATIES.map((t) => {
               const has = hasTreaty(g, id, g.playerId, t);
               const ev = !has && !war ? preview([{ kind: 'treaty', treaty: t }], []) : null;
               return (
                 <div key={t} className="row between" style={{ padding: '4px 0', borderBottom: '1px solid rgba(34,50,74,0.5)' }}>
-                  <span>{TREATY_LABEL[t]}</span>
+                  <span><Term entry="mech.treaties">{TREATY_LABEL[t]}</Term></span>
                   {has ? <button className="btn small danger" onClick={() => { if (confirm(`End the ${TREATY_LABEL[t]}? Breaking pacts damages your reputation.`)) ui.cmd({ type: 'breakTreaty', target: id, treaty: t }); }}>Dissolve</button>
                     : <span className="row" style={{ gap: 8 }}>{ev && <span className={cls('hint', ev.accept ? 'pos' : 'neg')}>{ev.accept ? 'Likely' : 'Unlikely'}</span>}<button className="btn small" disabled={!!war} onClick={() => send([{ kind: 'treaty', treaty: t }], [])}>Propose</button></span>}
                 </div>
@@ -161,7 +162,7 @@ function EmpirePanel({ id }: { id: number }) {
             ) : null}
             {vassalOf && vassalOf.b === g.playerId && <button className="btn small danger" style={{ marginTop: 6 }} onClick={() => ui.cmd({ type: 'breakTreaty', target: id, treaty: 'vassal' })}>Declare independence (war)</button>}
           </Section>
-          <Section title="War and peace">
+          <Section title={<Term entry="mech.war">War and peace</Term>}>
             {war ? (
               <div className="hint">You are at war. Offer terms from the Military screen.<div style={{ marginTop: 6 }}><button className="btn small" onClick={() => ui.set({ screen: 'military' })}>Open military operations</button></div></div>
             ) : (

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Term } from '../components/Guidance';
 import { useUI, useGame } from '../store';
 import { getLedger } from '../../sim/engine';
 import { marketQuote, marketFee, MARKET_BASE } from '../../sim/commands';
@@ -44,7 +45,7 @@ export function EconomyScreen() {
           </Section>
         </div>
         <div>
-          <Section title="Galactic market" aside={`Broker fee ${Math.round(marketFee(g, g.playerId) * 100)}%`}>
+          <Section guide="economy-market" title={<Term entry="mech.market">Galactic market</Term>} aside={`Broker fee ${Math.round(marketFee(g, g.playerId) * 100)}%`}>
             <p className="hint" style={{ marginTop: 0 }}>Prices move with every trade and drift back toward their base value each month. Large orders cost more.</p>
             <table className="t">
               <thead><tr><th>Good</th><th className="n">Price</th><th className="n">Stored</th><th>Buy</th><th>Sell</th></tr></thead>
@@ -69,7 +70,7 @@ export function EconomyScreen() {
               </tbody>
             </table>
           </Section>
-          <Section title="Storage">
+          <Section title={<Term entry="mech.storage">Storage</Term>} guide="economy-storage">
             {RESOURCES.filter((r) => r !== 'credits' && r !== 'influence').map((r) => (
               <div key={r} className="row" style={{ marginBottom: 5 }}>
                 <span style={{ width: 120 }} className="row"><ResGlyph r={r} />&nbsp;{RES_META[r].label}</span>

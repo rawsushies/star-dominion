@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { Term } from '../components/Guidance';
 import { useUI, useGame, type ScreenId } from '../store';
 import { getLedger } from '../../sim/engine';
 import { GOVERNMENTS } from '../../sim/data/governments';
@@ -75,7 +76,7 @@ function Succession() {
   const people = charactersOf(g, e.id).filter((c) => c.status === 'active');
   const reign = Math.floor((g.tick - (e.reignStart ?? 0)) / 360);
   return (
-    <Section title="Succession" aside={`${e.ruler}, aged ${rulerAge(g, e)} · reigning ${reign} ${reign === 1 ? 'year' : 'years'}`}>
+    <Section guide="throne-succession" title={<Term entry="mech.succession">Succession</Term>} aside={`${e.ruler}, aged ${rulerAge(g, e)} · reigning ${reign} ${reign === 1 ? 'year' : 'years'}`}>
       <div className="row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'center' }} data-testid="succession">
         <span>{heir ? <>Heir: <b>{heir.name}</b> <span className="hint">({ROLES[heir.role].label}, level {heir.level})</span></> : <span className="warn">No heir is named. If the throne falls empty, the great houses will fight over it.</span>}</span>
         <select className="grow" aria-label="Name an heir" value={heir?.id ?? ''} onChange={(ev) => ui.cmd({ type: 'designateHeir', charId: ev.target.value === '' ? null : Number(ev.target.value) })} style={{ maxWidth: 260 }}>

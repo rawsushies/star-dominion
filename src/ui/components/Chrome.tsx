@@ -6,6 +6,8 @@ import { listSaves, deleteSave, type SaveMeta } from '../../persistence/idb';
 import { cls } from './common';
 import { focusSystem } from './MapView';
 import { AccountPanel } from './Account';
+import { AudioSettings } from './AudioSettings';
+import { audio } from '../../audio/manager';
 import { assetFailures, onAssetFailure, type AssetFailure } from '../render/assets/loader';
 
 export const NAV: { id: ScreenId; label: string; key?: string }[] = [
@@ -31,6 +33,7 @@ export const NAV: { id: ScreenId; label: string; key?: string }[] = [
   { id: 'intel', label: 'Intelligence' },
   { id: 'journal', label: 'Journal' },
   { id: 'chronicle', label: 'Chronicle' },
+  { id: 'codex', label: 'Imperial Codex', key: 'F2' },
 ];
 
 export function jumpTo(ev: { systemId?: number; planetId?: number; battleId?: number; kind: string }) {
@@ -97,6 +100,8 @@ export function useHotkeys() {
         else if (ui.view === 'system') ui.set({ view: 'galaxy' });
         else ui.set({ systemId: null, fleetId: null, planetId: null });
       } else if (e.key === 'F1') { e.preventDefault(); ui.set({ screen: 'map' }); }
+      else if (e.key === 'F2') { e.preventDefault(); ui.openCodex(); }
+      else if ((e.key === 'm' || e.key === 'M') && !e.ctrlKey && !e.metaKey && !e.altKey) { audio.unlock(); audio.set({ muted: !audio.settings.muted }); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -160,8 +165,13 @@ export function GameMenu() {
             </div>
           </div>
           <div className="section">
+            <h3><span>Sound</span></h3>
+            <AudioSettings compact />
+          </div>
+          <div className="section">
             <h3><span>Options</span></h3>
             <label className="row"><input type="checkbox" checked={ui.pauseOnEvents} onChange={(e) => ui.set({ pauseOnEvents: e.target.checked })} /> Pause automatically on war, invasion and rebellion</label>
+            <div className="row" style={{ marginTop: 8 }}><button className="btn small" onClick={() => { ui.set({ menuOpen: false }); ui.openCodex(null, 'settings'); }}>Guidance settings and lessons</button></div>
           </div>
           {msg && <div className="hint" style={{ marginTop: 10, color: 'var(--brass)' }}>{msg}</div>}
           <div className="row between" style={{ marginTop: 18 }}>
