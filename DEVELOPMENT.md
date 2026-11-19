@@ -14,6 +14,15 @@ npm run soak       # soak test only, with yearly reports
 - `/assets.html` on the dev server is the 3D asset viewer: every ship class, character body, antagonist, capital building tier and a full capital arrangement, each labelled with creator and licence.
 - Debug hook: `window.__sd` is the zustand UI store. `__sd.getState().game` is the live `GameState`. For example, `__sd.getState().setSpeed(3)`.
 
+## Deployment
+
+The game is a static site and is deployed to **GitHub Pages** at https://rawsushies.github.io/star-dominion/.
+
+- `.github/workflows/deploy.yml` runs on every push to `main`. It type-checks, runs the tests, builds, adds a `404.html` fallback and `.nojekyll`, and publishes `dist/` to the `gh-pages` branch.
+- Pages serves `gh-pages` from the root. If Pages is ever switched off, turn it back on in **Settings → Pages → Build and deployment → Deploy from a branch → `gh-pages` / root**.
+- The build uses relative paths (`base: './'`), so it works under the `/star-dominion/` subpath. The game has no client-side routes, and the 404 fallback still serves the app.
+- Saves stay in the browser (IndexedDB), so play needs no server. For Google cloud saves, set the four `VITE_FIREBASE_*` values as repository **variables** (not secrets; they are public web identifiers), then follow the steps below. Never commit `.env.local`.
+
 ## Enabling Google cloud saves (optional)
 
 The game works fully offline. To let players keep their reign in their Google account:
