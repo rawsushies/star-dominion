@@ -8,6 +8,32 @@ import * as THREE from 'three';
 import { CAPITAL_BY_ID, PLOT_COLS, PLOT_ROWS, type CapitalBuildingDef } from '../../sim/data/capital';
 import { openPlots, plotOccupant } from '../../sim/capital';
 import type { Empire } from '../../sim/types';
+import { BUILDING_TIERS, DECOR, tierFor, type AssetId } from './assets/catalog';
+import { instance, normalised, preload } from './assets/loader';
+
+/** Every sourced model the capital can use. */
+export const CAPITAL_ASSETS: AssetId[] = [...new Set([...Object.values(BUILDING_TIERS).flatMap((ts) => ts.flatMap((t) => t.parts.map((p) => p.asset))), ...Object.values(DECOR)])];
+
+/**
+ * A capital building assembled from sourced models for its level tier, sized to a plot
+ * of width `tile`. Returns null until every part has loaded.
+ */
+export function buildCapitalPart(id: string, level: number, tile: number): THREE.Group | null {
+  const tier = tierFor(id, level);
+  if (!tier) return null;
+  const g = new THREE.Group();
+  // within a tier, buildings still grow a little with every level
+  const grow = 1 + Math.min(0.35, (level - tier.from) * 0.03);
+  for (const p of tier.parts) {
+    const o = instance(p.asset);
+    if (!o) return null;
+    const n = normalised(o, { height: p.h * tile * grow, maxFoot: (p.foot ?? (p.x || p.z ? 0.42 : 0.82)) * tile });
+    n.position.set((p.x ?? 0) * tile, (p.y ?? 0) * tile, (p.z ?? 0) * tile);
+    n.rotation.y = p.ry ?? 0;
+    g.add(n);
+  }
+  return g;
+}
 
 const TILE = 4.2;
 const ROAD = 1.4;
@@ -192,7 +218,7 @@ export class CapitalView3D {
   renderer: THREE.WebGLRenderer;
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(38, 1, 0.5, 600);
-  cam = { yaw: 0.35, pitch: 0.62, dist: 58 };
+  cam = { yaw: 0.35, pitch: 0.66, dist: 44 };
   private tops = new Map<number, number>();
   private city = new THREE.Group();
   private tiles: THREE.Mesh[] = [];
@@ -201,6 +227,8 @@ export class CapitalView3D {
   private clouds: THREE.Object3D[] = [];
   private mats: Mats;
   private sig = '';
+  assetsReady = false;
+  private last: [Empire, CapitalLabel[], number | null] | null = null;
   private labels = new Map<number, HTMLDivElement>();
   private labelData: CapitalLabel[] = [];
   private selMesh: THREE.Mesh;
@@ -224,6 +252,7 @@ export class CapitalView3D {
     this.selMesh.visible = false;
     this.scene.add(this.selMesh);
     this.bindInput();
+    preload(CAPITAL_ASSETS).then(() => { this.sig = ''; this.assetsReady = true; if (this.last && !this.disposed) this.sync(...this.last); });
     const loop = (t: number) => { if (this.disposed) return; this.frame(t); this.raf = requestAnimationFrame(loop); };
     this.raf = requestAnimationFrame(loop);
   }
@@ -351,6 +380,7 @@ export class CapitalView3D {
 
   /** Rebuild the city from an empire's capital state when it changes. */
   sync(e: Empire, labels: CapitalLabel[], sel: number | null) {
+    this.last = [e, labels, sel];
     const cap = e.capital;
     this.labelData = labels;
     if (!cap) return;
@@ -379,7 +409,7 @@ export class CapitalView3D {
         const def = CAPITAL_BY_ID[id];
         const lvl = cap.buildings[id]?.level ?? 0;
         const job = cap.queue.find((j) => j.building === id);
-        const model = buildingModel(def, lvl || 1, this.mats);
+        const model = buildCapitalPart(def.id, lvl || 1, TILE) ?? buildingModel(def, lvl || 1, this.mats);
         model.position.set(c.x, 0.32, c.z);
         model.traverse((o) => { o.userData.plot = p; if (o.userData.spin) this.spinners.push(o); });
         if (!lvl) {
@@ -477,7 +507,7 @@ export class CapitalView3D {
         this.overlay.appendChild(el);
         this.labels.set(l.plot, el);
       }
-      const brief = this.cam.dist > 50 && l.plot !== this.selected && !l.building;
+      const brief = this.cam.dist > 36 && l.plot !== this.selected && !l.building;
       const html = `<span class="lv">${l.level || '–'}</span>${brief ? '' : `<span class="nm">${l.name}</span>`}${l.building ? `<div class="bar"><i style="width:${Math.round(l.progress * 100)}%"></i></div><div class="tm">${l.days} days</div>` : ''}`;
       if (el.dataset.html !== html) { el.innerHTML = html; el.dataset.html = html; }
       const s = this.plotScreen(l.plot, (this.tops.get(l.plot) ?? 3) + 0.6);

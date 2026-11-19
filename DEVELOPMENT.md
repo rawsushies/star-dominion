@@ -11,6 +11,7 @@ npm run soak       # soak test only, with yearly reports
 ```
 
 - `/lab.html` on the dev server shows every planet type rendered live, which is useful when tuning the planet shader.
+- `/assets.html` on the dev server is the 3D asset viewer: every ship class, character body, antagonist, capital building tier and a full capital arrangement, each labelled with creator and licence.
 - Debug hook: `window.__sd` is the zustand UI store. `__sd.getState().game` is the live `GameState`. For example, `__sd.getState().setSpeed(3)`.
 
 ## Enabling Google cloud saves (optional)
@@ -51,6 +52,7 @@ These Firebase web keys identify the project and are not secrets. Access is cont
 - **Era:** edit `src/sim/data/eras.ts`. Requirements are declarative and are evaluated by `src/sim/eras.ts`.
 - **Building, ship or megastructure:** add it to the matching file in `src/sim/data/`. Construction and the AI pick it up from the data.
 - **Command:** extend the `Command` union and the `execute()` switch in `src/sim/commands.ts`. Validate there, never in the UI.
+- **3D assets:** register a model in `src/ui/render/assets/catalog.ts` (file, pack, licence) and map it to a ship class, role or building tier there. Put GLBs in `public/assets/models/`, with textures embedded and at most 1024 px. Record the source in `docs/ASSET_CATALOG.md`. Only CC0 or other licences that allow redistribution are accepted.
 - **Capital content:** buildings, costs, timers, prerequisites and effects live in `src/sim/data/capital.ts`; rules in `src/sim/capital.ts`; the 3D city in `src/ui/render/capital3d.ts`.
 - **Governance content:** decrees, house ambitions and council petitions live in `src/sim/data/governance.ts`; rules in `src/sim/governance.ts`.
 - **Character content:** roles, traits, skills, ambitions and items live in `src/sim/data/characters.ts`; council seats in `src/sim/data/council.ts`. Effects are named keys (`dmg`, `output`, `stability`…) read by `src/sim/characters.ts`.
@@ -81,6 +83,7 @@ This log is updated at each milestone, so work can resume after any interruption
 | 3 | Characters and Hall of Heroes | Done | `tests/characters.test.ts` (8): founding court, v1 legacy-admiral migration, validated recruit/assign/learn/dismiss, roster limit, council and leader modifiers, salaries, capture with pardon/ransom/recruit and peace-time exchange, AI keeps posts filled over 3 years; Playwright: recruit and assign in the Hall of Heroes |
 | 4 | Governance: council, decrees, houses, provinces | Done | `tests/governance.test.ts` (8): houses founded, decree validation/cost/strength/cap/lapse/cooldown, levy angers low-tax houses, house loyalty → stability, revolt, suppress and grant, petitions arise/answer/lapse to a free default, governors add admin capacity, AI governs for 4 years with save/load determinism, v1 save gains governance fields; Playwright: issue a decree, houses and provinces tabs |
 | 5 | Imperial capital builder | Done | `tests/capital.test.ts` (7): Citadel on its plot, plot/prerequisite/Citadel-cap/cost/queue validation, Citadel requirements open plots, a full city reaches Citadel 30 and its effects reach the realm, 75% refund, sacking on conquest, AI builds over 4 years with save determinism, v1 saves gain a capital; Playwright: 3D city renders, Build queues work, clicking a plot in 3D selects the right building. Visual references in `docs/references/` |
+| 5b | Sourced 3D assets (CC0): ships, capital architecture, characters | Done | `tests/assets.test.ts` (4): files exist as valid self-contained GLBs from CC0 packs, animated models have idle clips and opaque materials, every ship class, role and building is mapped, and heavier classes are larger. Playwright: viewer sections, the capital built from sourced parts, fleet formations in the system view, an animated hero in the Hall of Heroes. See `docs/ASSET_CATALOG.md` and `docs/ASSET_WISHLIST.md` |
 | 6 | Resource operations and logistics | Pending | |
 | 7 | 3D ships and combat presentation | Pending | |
 | 8 | Sovereign interfaces | Pending | |

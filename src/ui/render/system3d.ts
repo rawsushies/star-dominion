@@ -8,6 +8,44 @@ import { STAR_TYPES } from '../../sim/data/planets';
 import { SHIPS } from '../../sim/data/ships';
 import { visibleSystems } from '../../sim/territory';
 import { fleetPower } from '../../sim/fleets';
+import { SHIP_MODELS } from './assets/catalog';
+import { instance, normalised, preload } from './assets/loader';
+import type { Fleet, ShipClass } from '../../sim/types';
+
+const SHIP_ASSETS = [...new Set(Object.values(SHIP_MODELS).map((m) => m.asset))];
+const SIZE_ORDER: ShipClass[] = ['dreadnought', 'carrier', 'battleship', 'battlecruiser', 'cruiser', 'logistics', 'transport', 'destroyer', 'colony', 'frigate', 'constructor', 'corvette', 'scout'];
+
+/** A fleet as a wedge of its real hulls: the biggest ship leads, the rest fall in behind. */
+export function buildFleetFormation(f: Fleet, color: string, scale = 0.85, maxShown = 14): THREE.Group | null {
+  const g = new THREE.Group();
+  const ships = f.ships.slice().sort((a, b) => SIZE_ORDER.indexOf(a.cls) - SIZE_ORDER.indexOf(b.cls)).slice(0, maxShown);
+  let row = 0, inRow = 0, perRow = 1, z = 0, maxLen = 0;
+  for (const sh of ships) {
+    const m = SHIP_MODELS[sh.cls];
+    const o = instance(m.asset);
+    if (!o) return null;
+    const n = normalised(o, { length: m.length * scale });
+    // centre vertically
+    n.position.y = -0.05 * m.length * scale;
+    const len = m.length * scale;
+    maxLen = Math.max(maxLen, len);
+    const x = (inRow - (perRow - 1) / 2) * maxLen * 0.95;
+    n.position.x = x; n.position.z = z;
+    g.add(n);
+    inRow++;
+    if (inRow >= perRow) { row++; inRow = 0; perRow = Math.min(5, perRow + 1); z += maxLen * 0.9; }
+  }
+  // a faint ring in the owner's colour marks whose fleet it is
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.96, 1, 48), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.3, side: THREE.DoubleSide, depthWrite: false }));
+  ring.rotation.x = -Math.PI / 2;
+  const box = new THREE.Box3().setFromObject(g);
+  const size = box.getSize(new THREE.Vector3()), ctr = box.getCenter(new THREE.Vector3());
+  ring.scale.setScalar(Math.max(size.x, size.z) * 0.62 + 0.2);
+  ring.position.set(ctr.x, 0, ctr.z);
+  g.add(ring);
+  void row;
+  return g;
+}
 import { hash2 } from '../../sim/rng';
 import type { GameState, Planet, StarSystem } from '../../sim/types';
 import { buildPlanet, hexA, NOISE_GLSL, type PlanetBuild } from './planet3d';
@@ -84,10 +122,38 @@ export class SystemView3D {
   private glowTex = glowTexture();
   private disposables: { dispose(): void }[] = [];
   private maxR = 20;
+  private fleetGroup = new THREE.Group();
+  private fleetSig = '';
+  private fleetPos = new Map<number, THREE.Vector3>();
+  private shipsReady = false;
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     this.renderer.setClearColor(0x05070b, 1);
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    preload(SHIP_ASSETS).then(() => { this.shipsReady = true; this.fleetSig = ''; });
+  }
+
+  /** Fleets present in the system, shown as formations of their actual hulls. */
+  private syncFleets(state: GameState, sys: StarSystem, visible: boolean) {
+    const fleets = visible ? Object.values(state.fleets).filter((f) => f.systemId === sys.id && f.progress === 0 && f.ships.length) : [];
+    const sig = (this.shipsReady ? 'r' : 'w') + fleets.map((f) => `${f.id}:${f.ships.length}:${f.ownerId}`).join(',');
+    if (sig === this.fleetSig) return;
+    this.fleetSig = sig;
+    this.fleetGroup.clear();
+    this.fleetPos.clear();
+    if (!this.shipsReady) return;
+    fleets.forEach((f, i) => {
+      const g = buildFleetFormation(f, state.empires[f.ownerId].color);
+      if (!g) return;
+      // hold station on a ring between the star and the first planets
+      const a = (f.id * 2.399) % (Math.PI * 2);
+      const r = this.starRadius * 3.2 + 2.5 + (i % 3) * 2.2;
+      g.position.set(Math.cos(a) * r, 0.6 + (i % 2) * 0.5, Math.sin(a) * r);
+      g.rotation.y = -a; // nose along the orbit
+      this.fleetGroup.add(g);
+      this.fleetPos.set(f.id, g.position.clone());
+    });
   }
 
   private clear() {
@@ -100,6 +166,19 @@ export class SystemView3D {
   }
 
   private build(state: GameState, sys: StarSystem) {
+    this.buildScene(state, sys);
+    // lights for the ship models (planets and the star light themselves in their shaders)
+    this.scene.add(new THREE.AmbientLight(0x9fb0d0, 0.9));
+    const sunLight = new THREE.PointLight(0xfff0dc, 3.2, 0, 0);
+    this.scene.add(sunLight);
+    const fill = new THREE.DirectionalLight(0x6f8fff, 0.6);
+    fill.position.set(-20, 30, 10);
+    this.scene.add(fill);
+    this.scene.add(this.fleetGroup);
+    this.fleetSig = '';
+  }
+
+  private buildScene(state: GameState, sys: StarSystem) {
     this.clear();
     const st = STAR_TYPES[sys.star];
     const rng = (k: number) => hash2(sys.id, k, 991);
@@ -274,6 +353,8 @@ export class SystemView3D {
       b.build.setLight(tmp.copy(b.pos).multiplyScalar(-1));
       b.build.setTime(time);
     }
+    this.syncFleets(state, sys, visibleSystems(state, state.playerId).has(sys.id));
+    for (const [i, g] of this.fleetGroup.children.entries()) g.position.y += Math.sin(time / 1300 + i) * 0.0008;
     this.renderer.render(this.scene, this.camera);
 
     // ---------- overlay: labels, ownership, selection, fleets ----------
@@ -332,6 +413,15 @@ export class SystemView3D {
         ov.fillStyle = hexA(e.color, 0.95); ov.textAlign = 'left'; ov.textBaseline = 'middle';
         ov.fillText(civ ? f.name : `${f.name}  ${fleetPower(state, f)}`, x + 16, y);
         hits.push({ kind: 'fleet', id: f.id, x, y, r: 14 });
+        const p3 = this.fleetPos.get(f.id);
+        if (p3) {
+          const sp = proj(p3);
+          hits.push({ kind: 'fleet', id: f.id, x: sp.x, y: sp.y, r: 18 });
+          if (selFleet === f.id) bracket(ov, sp.x, sp.y, 18);
+          ov.font = "500 11px 'Saira Semi Condensed', sans-serif";
+          ov.fillStyle = hexA(e.color, 0.95); ov.textAlign = 'center'; ov.textBaseline = 'top';
+          ov.fillText(f.name, sp.x, sp.y + 20);
+        }
       });
     }
     return hits;

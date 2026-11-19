@@ -5,6 +5,8 @@
 
 import * as THREE from 'three';
 import type { Character } from '../../sim/types';
+import { CHARACTER_MODELS, type AssetId } from './assets/catalog';
+import { loadAsset, instance, normalised } from './assets/loader';
 
 function hash(n: number): number {
   const x = Math.sin(n * 91.7 + 17.3) * 43758.5453;
@@ -38,6 +40,10 @@ export class HeroView3D {
   private raf = 0;
   private disposed = false;
   private key = '';
+  private mixer: THREE.AnimationMixer | null = null;
+  private clock = new THREE.Clock();
+  /** which sourced model is on stage (null while the placeholder figure shows) */
+  model: AssetId | null = null;
 
   constructor(private canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
@@ -94,9 +100,44 @@ export class HeroView3D {
 
   /** Dress the figure for a character (rebuilt only when their look changes). */
   show(c: Character, realmColor: string) {
-    const key = `${c.id}|${c.role}|${c.level}|${Object.values(c.equipment).join()}|${realmColor}`;
+    const key = `${c.id}|${c.role}|${realmColor}`;
     if (key === this.key) return;
+    const id = CHARACTER_MODELS[c.role][c.id % CHARACTER_MODELS[c.role].length];
+    this.showPlaceholder(c, realmColor);
     this.key = key;
+    this.model = null;
+    loadAsset(id).then((gltf) => {
+      if (this.disposed || this.key !== key) return;
+      const o = instance(id);
+      if (!o) return;
+      // the pack draws skin as a dark silhouette; give each person a human skin tone
+      const tone = new THREE.Color(SKIN[c.id % SKIN.length]);
+      o.traverse((n) => {
+        const m = n as THREE.Mesh;
+        if (!m.isMesh) return;
+        const mats = Array.isArray(m.material) ? m.material : [m.material];
+        m.material = mats.map((mt) => {
+          const c2 = (mt as THREE.MeshStandardMaterial).clone();
+          if (/skin/i.test(mt.name)) c2.color.copy(tone);
+          return c2;
+        }) as unknown as THREE.Material;
+        if (mats.length === 1) m.material = (m.material as unknown as THREE.Material[])[0];
+        m.castShadow = true;
+      });
+      const fig = normalised(o, { height: 1.55 });
+      // the realm's colour as a sash of light at the feet
+      this.figure.clear();
+      this.figure.add(fig);
+      this.mixer = new THREE.AnimationMixer(o);
+      const idle = gltf.animations.find((a) => /^idle$/i.test(a.name)) ?? gltf.animations.find((a) => /idle/i.test(a.name));
+      if (idle) this.mixer.clipAction(idle).play();
+      this.model = id;
+    }).catch(() => { /* keep the placeholder */ });
+  }
+
+  /** Procedural stand-in shown while the model loads, or if it cannot load. */
+  showPlaceholder(c: Character, realmColor: string) {
+    this.mixer = null;
     this.figure.clear();
     const d = DRESS[c.role];
     const h = (k: number) => hash(c.id * 13 + k);
@@ -180,12 +221,13 @@ export class HeroView3D {
     if (!w || !hgt) return;
     const sz = this.renderer.getSize(new THREE.Vector2());
     if (sz.x !== w || sz.y !== hgt) { this.renderer.setSize(w, hgt, false); this.camera.aspect = w / hgt; this.camera.updateProjectionMatrix(); }
+    this.mixer?.update(this.clock.getDelta());
     this.figure.rotation.y = this.yaw + (this.dragging ? 0 : Math.sin(t / 3000) * 0.45);
     this.figure.position.y = Math.sin(t / 1400) * 0.005;
     this.figure.traverse((o) => { if (o.userData.float) { o.position.y = 0.3 + Math.sin(t / 500) * 0.05; o.rotation.y = t / 900; } });
     this.sparks.rotation.y = t / 6000;
-    this.camera.position.set(0, 1.2, 4.3);
-    this.camera.lookAt(0, 0.92, 0);
+    this.camera.position.set(0, 1.15, 4.9);
+    this.camera.lookAt(0, 0.85, 0);
     this.renderer.render(this.scene, this.camera);
   }
 
