@@ -166,13 +166,15 @@ function economy(state: GameState, e: Empire) {
   // Megastructures for wealthy, advanced AIs
   // (a civilisation chasing the next era wants them sooner)
   // (one great work at a time; start when three months of instalments are in the treasury)
-  const building = state.galaxy.systems.some((s) => s.megastructures.some((m) => m.ownerId === e.id && m.building));
-  if (!building && e.kind === 'major') {
-    for (const id of ['continuum_engine', 'sector_array', 'dyson_swarm', 'stellar_collector', 'grand_archive', 'lattice', 'orbital_ring', 'hypergate', 'bastion']) {
+  if (e.kind === 'major') {
+    const mine = ownedSystems(state, e.id);
+    const building = mine.some((sid) => state.galaxy.systems[sid].megastructures.some((m) => m.ownerId === e.id && m.building));
+    for (const id of building ? [] : ['continuum_engine', 'sector_array', 'dyson_swarm', 'stellar_collector', 'grand_archive', 'lattice', 'orbital_ring', 'hypergate', 'bastion']) {
       const def = MEGA_BY_ID[id];
+      if (!hasTech(e, def.tech)) continue;
       const quarter = Object.fromEntries(Object.entries(megaInstalment(def)).map(([k, v]) => [k, v * 90]));
       if (!canAfford(e, quarter as never)) continue;
-      for (const sid of ownedSystems(state, e.id)) {
+      for (const sid of mine) {
         if (execute(state, e.id, { type: 'startMegastructure', systemId: sid, mega: id }).ok) return;
       }
     }
