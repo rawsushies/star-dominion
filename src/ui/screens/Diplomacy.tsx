@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { HeroView3D } from '../render/hero3d';
+import type { Character } from '../../sim/types';
 import { useUI, useGame } from '../store';
 import { opinionBreakdown, opinion, hasContact, intelLevel, canDeclareWar, TREATY_LABEL, PEACE_LABEL, evaluateProposal, systemValue, type Evaluation } from '../../sim/diplomacy';
 import { hasTreaty, warBetween, bordering } from '../../sim/territory';
@@ -71,6 +73,21 @@ function ProposalRow({ p }: { p: Proposal }) {
   );
 }
 
+/** The rival realm's ruler: villain's dress when at war with us. */
+function RivalFigure({ id }: { id: number }) {
+  const g = useGame();
+  const ref = useRef<HTMLCanvasElement>(null);
+  const e = g.empires[id];
+  const war = !!warBetween(g, id, g.playerId);
+  useEffect(() => {
+    const v = new HeroView3D(ref.current!);
+    const stand = { id: e.id * 11 + e.emblem, role: 'governor', level: 10, equipment: {}, traits: [], name: e.ruler } as unknown as Character;
+    v.showArchetype(war ? 'villain' : 'rival', e.id * 11 + e.emblem + (e.rulerBorn ?? 0), e.color, stand);
+    return () => v.dispose();
+  }, [e.id, e.color, e.emblem, e.rulerBorn, war]);
+  return <canvas ref={ref} className="hero-figure rival-figure" style={{ width: 120, height: 170, flex: 'none' }} aria-label={`Portrait of ${e.ruler || e.name}`} />;
+}
+
 function EmpirePanel({ id }: { id: number }) {
   const g = useGame();
   const ui = useUI();
@@ -101,6 +118,7 @@ function EmpirePanel({ id }: { id: number }) {
   return (
     <div style={{ minWidth: 0 }}>
       <div className="row" style={{ gap: 14, alignItems: 'center' }}>
+        <RivalFigure id={id} />
         <Emblem empire={e} size={52} />
         <div className="grow">
           <h1 className="serif" style={{ margin: 0, fontSize: 32, fontWeight: 600, lineHeight: 1 }}>{e.name}</h1>

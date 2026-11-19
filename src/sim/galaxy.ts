@@ -414,13 +414,16 @@ export function laneLength(g: Galaxy, a: number, b: number): number {
 }
 
 /** Jump distances from a set of source systems (BFS). */
-export function jumpDistances(g: Galaxy, sources: number[], passable?: (id: number) => boolean): number[] {
+/** Jumps from the nearest source to every system (Infinity where unreachable, or beyond `maxJumps`
+ * when given: callers that only look a few jumps out stop the search there). */
+export function jumpDistances(g: Galaxy, sources: number[], passable?: (id: number) => boolean, maxJumps = Infinity): Float64Array {
   const adj = adjacency(g);
-  const dist = new Array(g.systems.length).fill(Infinity);
+  const dist = new Float64Array(g.systems.length).fill(Infinity);
   const q: number[] = [];
   for (const s of sources) { dist[s] = 0; q.push(s); }
   for (let h = 0; h < q.length; h++) {
     const u = q[h];
+    if (dist[u] >= maxJumps) continue;
     for (const v of adj[u]) {
       if (dist[v] !== Infinity) continue;
       if (passable && !passable(v)) continue;
@@ -429,6 +432,23 @@ export function jumpDistances(g: Galaxy, sources: number[], passable?: (id: numb
     }
   }
   return dist;
+}
+
+/** The nearest system (by jumps) satisfying `want`, the lowest id among equally near ones; null if none is reachable. */
+export function nearestWhere(g: Galaxy, source: number, want: (id: number) => boolean): number | null {
+  const adj = adjacency(g);
+  const seen = new Uint8Array(g.systems.length);
+  seen[source] = 1;
+  let frontier = [source];
+  while (frontier.length) {
+    let best = -1;
+    for (const u of frontier) if (want(u) && (best < 0 || u < best)) best = u;
+    if (best >= 0) return best;
+    const next: number[] = [];
+    for (const u of frontier) for (const v of adj[u]) if (!seen[v]) { seen[v] = 1; next.push(v); }
+    frontier = next;
+  }
+  return null;
 }
 
 /** Jump distances from sources, stopping after `maxJumps` (cheap local BFS). */

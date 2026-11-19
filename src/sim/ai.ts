@@ -14,7 +14,7 @@ import { evaluateProposal, opinion, hasContact, canDeclareWar, makePeace, applyD
 import { bordering, claimCost, hasTreaty, isHostile, ownedSystems, warBetween, armed, isExplored } from './territory';
 import { empireMods, hasTech } from './modifiers';
 import { planetHab } from './economy';
-import { adjacency, jumpDistances, findPath } from './galaxy';
+import { adjacency, jumpDistances, findPath, nearestWhere } from './galaxy';
 import { canAfford, log, nextId } from './util';
 import { charactersOf, captivesHeldBy, canLearn, rosterLimit, recruitCost, recruitChance, ransomPrice, provinceGovernor, effectiveAttrs } from './characters';
 import { SKILLS, ROLES } from './data/characters';
@@ -376,7 +376,7 @@ function expansion(state: GameState, e: Empire) {
   const hostileFleetAt = (sid: number) => Object.values(state.fleets).some((f) => f.systemId === sid && isHostile(state, e.id, f.ownerId) && armed(f));
 
   // Outpost targets
-  const dist = jumpDistances(state.galaxy, owned.length ? owned : [e.capitalSystemId ?? 0]);
+  const dist = jumpDistances(state.galaxy, owned.length ? owned : [e.capitalSystemId ?? 0], undefined, 2);
   const pending = new Set(myFleets.filter((f) => f.order.type === 'outpost').map((f) => (f.order as any).systemId));
   const outpostTargets = state.galaxy.systems
     .filter((s) => s.owner == null && !s.outpostProject && explored.has(s.id) && dist[s.id] <= 2 && !s.features.includes('guardian') && !pending.has(s.id) && !hostileFleetAt(s.id))
@@ -430,11 +430,12 @@ function scouting(state: GameState, e: Empire) {
   const claimed = new Set<number>();
   for (const f of scouts) {
     if (f.path.length) { claimed.add(f.path[f.path.length - 1]); continue; }
-    const d = jumpDistances(state.galaxy, [f.systemId]);
-    const t = unexplored.filter((s) => !claimed.has(s.id) && Number.isFinite(d[s.id])).sort((a, b) => d[a.id] - d[b.id])[0];
-    if (!t) continue;
-    claimed.add(t.id);
-    execute(state, e.id, { type: 'moveFleet', fleetId: f.id, target: t.id });
+    // the nearest unexplored system (lowest id among equally near ones), searching outwards only
+    // as far as needed
+    const t = nearestWhere(state.galaxy, f.systemId, (id) => !explored.has(id) && !claimed.has(id) && !state.galaxy.systems[id].features.includes('guardian'));
+    if (t == null) continue;
+    claimed.add(t);
+    execute(state, e.id, { type: 'moveFleet', fleetId: f.id, target: t });
   }
 }
 
@@ -481,7 +482,7 @@ function operations(state: GameState, e: Empire) {
     const enemies = new Set<number>();
     for (const w of wars) (w.attackers.includes(e.id) ? w.defenders : w.attackers).forEach((x) => enemies.add(x));
     // 2) Attack: nearest enemy colony system we can overpower
-    const d = jumpDistances(state.galaxy, [main.systemId]);
+    const d = jumpDistances(state.galaxy, [main.systemId], undefined, 8);
     const targets = state.planets
       .filter((p) => p.colony && enemies.has(p.colony.ownerId))
       .map((p) => ({ p, d: d[p.systemId], s: enemyStrengthAt(state, e, p.systemId) }))
@@ -620,7 +621,7 @@ export function runRaiders(state: GameState) {
     const f = state.fleets[id];
     if (f.ownerId !== raiders.id || f.path.length) continue;
     // Raid the nearest poorly defended colonised system within 3 jumps; otherwise lurk.
-    const d = jumpDistances(state.galaxy, [f.systemId]);
+    const d = jumpDistances(state.galaxy, [f.systemId], undefined, 3);
     const myP = fleetPower(state, f);
     const targets = state.galaxy.systems
       .filter((s) => s.owner != null && d[s.id] <= 3 && d[s.id] > 0 && state.empires[s.owner].kind !== 'guardian')

@@ -20,11 +20,13 @@ export const PACKS = {
   kIndustrial: { name: 'City Kit (Industrial) 2.0', creator: 'Kenney', url: 'https://opengameart.org/content/city-kit-industrial', license: 'CC0 1.0' },
   // assembled (not modelled) by scripts/blender/assemble_megastructures.py from Quaternius Ultimate Space Kit,
   // Kenney Space Kit, KayKit Space Base Bits (all CC0) and NASA 3D Resources hardware (public domain)
+  qSciFi: { name: 'Sci-Fi Essentials Kit', creator: 'Quaternius', url: 'https://opengameart.org/content/sci-fi-essentials-kit', license: 'CC0 1.0' },
+  qHumans: { name: 'Universal Base Characters, Modular Character Outfits - Fantasy, Universal Animation Library 1 and 2 (Standard)', creator: 'Quaternius', url: 'https://quaternius.com/packs/universalbasecharacters.html', license: 'CC0 1.0' },
   sdMega: { name: 'Megastructures assembled from Quaternius, Kenney, KayKit and NASA parts', creator: 'Quaternius, Kenney, Kay Lousberg, NASA; assembled by the Star Dominion project', url: 'scripts/blender/assemble_megastructures.py', license: 'CC0 1.0 + public domain (NASA)' },
 } satisfies Record<string, PackInfo>;
 export type PackId = keyof typeof PACKS;
 
-export interface AssetDef { file: string; pack: PackId; animated?: boolean }
+export interface AssetDef { file: string; pack: PackId; animated?: boolean; /** holds only animation clips (no meshes) */ clipsOnly?: boolean; /** takes its clips from another asset */ clipsFrom?: string }
 
 const BASE = (import.meta as unknown as { env?: { BASE_URL?: string } }).env?.BASE_URL ?? './';
 export function assetUrl(a: AssetDef): string { return `${BASE}assets/models/${a.file}`; }
@@ -33,6 +35,7 @@ const ships = (n: string): AssetDef => ({ file: `ships/${n}.glb`, pack: 'qShips'
 const city = (n: string, pack: PackId): AssetDef => ({ file: `city/${n}.glb`, pack });
 const space = (n: string, pack: PackId): AssetDef => ({ file: `space/${n}.glb`, pack });
 const mega = (n: string): AssetDef => ({ file: `mega/${n}.glb`, pack: 'sdMega' });
+const human = (n: string): AssetDef => ({ file: `chars2/${n}.glb`, pack: 'qHumans', animated: true, ...(n === 'anims' ? { clipsOnly: true } : { clipsFrom: 'human_anims' }) });
 const char = (n: string): AssetDef => ({ file: `chars/${n}.glb`, pack: 'qChars', animated: true });
 
 export const ASSETS = {
@@ -41,7 +44,8 @@ export const ASSETS = {
   ship_dispatcher: ships('Dispatcher'), ship_spitfire: ships('Spitfire'), ship_imperial: ships('Imperial'), ship_pancake: ships('Pancake'),
   ship_insurgent: ships('Insurgent'), ship_zenith: ships('Zenith'), ship_executioner: ships('Executioner'),
   ship_colony: { file: 'ships/colony_pod.glb', pack: 'qSpace' }, ship_constructor: { file: 'ships/constructor_tug.glb', pack: 'qSpace' },
-  // characters
+  // characters: the modular human kit (scripts/blender/build_characters.py)
+  human_male: human('male'), human_female: human('female'), human_anims: human('anims'), human_props: { file: 'chars2/props.glb', pack: 'qSciFi' },
   char_suit_m: char('Suit_Male'), char_suit_f: char('Suit_Female'), char_soldier_m: char('Soldier_Male'), char_soldier_f: char('Soldier_Female'),
   char_navy_m: char('BlueSoldier_Male'), char_navy_f: char('BlueSoldier_Female'), char_doctor_m: char('Doctor_Male_Young'), char_doctor_f: char('Doctor_Female_Young'),
   char_worker_m: char('Worker_Male'), char_worker_f: char('Worker_Female'), char_noble_m: char('OldClassy_Male'), char_noble_f: char('OldClassy_Female'),
