@@ -21,10 +21,11 @@ import { SKILLS, ROLES } from './data/characters';
 import { COUNCIL_SEATS } from './data/council';
 import { canIssueDecree, canActOnHouse, inRevolt, maxDecrees } from './governance';
 import { PETITION_BY_ID } from './data/governance';
+import { opsOf, OP_MAX_LEVEL } from './operations';
 import { canQueueCapital, openPlots, plotOccupant, capitalCost, plannedLevel } from './capital';
 import { CAPITAL_BUILDINGS } from './data/capital';
 import { next, chance } from './rng';
-import type { BuildingId, Empire, Fleet, GameState, PeaceTerm, Planet, ShipClass, TreatyType } from './types';
+import type { BuildingId, Empire, Fleet, GameState, PeaceTerm, Planet, ShipClass, TreatyType , OpMode } from './types';
 import type { TechCategory } from './data/techs';
 
 export function runAI(state: GameState, e: Empire) {
@@ -78,11 +79,12 @@ function economy(state: GameState, e: Empire) {
         if (p.colony || p.station || p.colonizing) continue;
         const habitable = planetHab(state, p, e, empireMods(state, e)) >= 0.5;
         if (habitable) continue; // reserve for colonisation
-        const kind = p.deposits.research >= 3 ? 'research' : p.type === 'gas_giant' || p.deposits.energy > p.deposits.minerals ? 'energy' : 'mining';
+        const kind = p.deposits.research >= 3 ? 'research' : p.type === 'gas_giant' ? 'gas' : p.deposits.energy > p.deposits.minerals ? 'energy' : 'mining';
         if (execute(state, e.id, { type: 'buildStation', planetId: pid, kind }).ok) return;
       }
     }
   }
+  operationsAI(state, e);
   // Starbase upgrades on the capital and colonised border systems
   if (e.stock.alloys > 400 && e.stock.credits > 300 && e.capitalSystemId != null) {
     const cap = state.galaxy.systems[e.capitalSystemId];
@@ -714,4 +716,36 @@ function capitalCity(state: GameState, e: Empire) {
     if (sc > bestScore) { bestScore = sc; best = def.id; }
   }
   if (best) execute(state, e.id, { type: 'capitalBuild', building: best, plot: cap.buildings[best] ? undefined : free });
+}
+
+// ---------------------------------------------------------------- resource operations
+
+/** Run operations: surge what the realm is short of, rest depleted sites, keep within freighter capacity, upgrade the best. */
+function operationsAI(state: GameState, e: Empire) {
+  const ops = opsOf(state, e.id);
+  if (!ops.length) return;
+  const L = getLedger(state, e);
+  const short = new Set(L.shortages);
+  const prod: Record<string, string[]> = { mining: ['minerals', 'rare'], energy: ['energy'], research: [], gas: ['energy', 'rare'] };
+  for (const p of ops) {
+    const op = p.op!;
+    let want: OpMode = 'standard';
+    if (op.reserve < 0.25) want = 'sustain';
+    else if (prod[p.station!].some((r) => short.has(r as never) || (e.stock as Record<string, number>)[r] < 50) && op.reserve > 0.5) want = 'surge';
+    else if (op.mode === 'sustain' && op.reserve < 0.8) want = 'sustain';
+    if (want !== op.mode) execute(state, e.id, { type: 'setOperationMode', planetId: p.id, mode: want });
+  }
+  // over freighter capacity: rest the weakest operations
+  let over = L.logisticsUsed - L.logisticsCap;
+  for (const p of ops.slice().sort((a, b) => a.op!.reserve - b.op!.reserve)) {
+    if (over <= 0) break;
+    if (p.op!.mode === 'halted') continue;
+    over -= p.op!.level;
+    execute(state, e.id, { type: 'setOperationMode', planetId: p.id, mode: 'halted' });
+  }
+  // upgrade one operation when there is spare capacity and money
+  if (L.logisticsUsed < L.logisticsCap && e.stock.minerals > 400 && e.stock.credits > 250) {
+    const best = ops.filter((p) => p.op!.level < OP_MAX_LEVEL && p.op!.mode !== 'halted').sort((a, b) => b.op!.reserve - a.op!.reserve)[0];
+    if (best) execute(state, e.id, { type: 'upgradeOperation', planetId: best.id });
+  }
 }

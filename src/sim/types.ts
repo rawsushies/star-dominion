@@ -35,7 +35,10 @@ export type ShipClass =
 
 export type GovernmentId = 'monarchy' | 'republic' | 'junta' | 'technocracy' | 'corporate' | 'feudal';
 
-export type StationKind = 'mining' | 'energy' | 'research';
+export type StationKind = 'mining' | 'energy' | 'research' | 'gas';
+export type OpMode = 'standard' | 'surge' | 'sustain' | 'halted';
+/** A controllable resource operation on an uncolonised body (sim/operations.ts). */
+export interface ResourceOp { level: number; mode: OpMode; reserve: number; founded: number }
 
 export interface Deposits { minerals: number; energy: number; food: number; rare: number; research: number }
 
@@ -78,6 +81,8 @@ export interface Planet {
   deposits: Deposits;
   colony: Colony | null;
   station: StationKind | null; // orbital extractor on an uncolonised body
+  /** level, mode and reserve of the station's operation */
+  op?: ResourceOp;
   colonizing: { empireId: number; progress: number; total: number } | null;
 }
 

@@ -3,6 +3,7 @@
 // economy/population/research per empire -> monthly systems -> AI.
 
 import { eraMonthly } from './eras';
+import { operationsMonthly } from './operations';
 import { ensureCapital, progressCapitals } from './capital';
 import { governanceMonthly, ensureHouses } from './governance';
 import { createCharacter, assign, charactersMonthly, refreshCandidates } from './characters';
@@ -371,6 +372,7 @@ function monthly(state: GameState) {
   eliminationCheck(state);
   charactersMonthly(state, (a, b, v, label) => addMemory(state, a, b, 'envoy', v, 0.5, label));
   governanceMonthly(state);
+  operationsMonthly(state);
   if (state.tick % 360 === 0) refreshCandidates(state);
   updateStats(state);
   eraMonthly(state);

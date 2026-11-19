@@ -234,7 +234,8 @@ export function planetIndustrialist(state: GameState, planetId: number): Charact
 
 export function industrialistBonus(state: GameState, planetId: number): { output: number; build: number } {
   const c = planetIndustrialist(state, planetId);
-  if (!c || state.planets[planetId].colony?.ownerId !== c.ownerId) return { output: 0, build: 0 };
+  const pl = state.planets[planetId];
+  if (!c || (pl.colony?.ownerId !== c.ownerId && !(pl.station && state.galaxy.systems[pl.systemId].owner === c.ownerId))) return { output: 0, build: 0 };
   const a = effectiveAttrs(c), k = effectiveness(c);
   return { output: (a.stewardship * 0.01 + charEffect(c, 'output')) * k, build: (a.science * 0.01 + charEffect(c, 'build')) * k };
 }
@@ -284,7 +285,8 @@ export function canAssign(state: GameState, c: Character, a: CharAssignment | nu
     if (!state.galaxy.systems.some((s) => s.sector === a.sectorId && s.owner === c.ownerId)) return 'You hold no systems in that province';
   } else if (a.kind === 'planet') {
     if (c.role !== 'industrialist') return 'Only industrialists direct a world\'s industry';
-    if (state.planets[a.planetId]?.colony?.ownerId !== c.ownerId) return 'Not your colony';
+    const pl = state.planets[a.planetId];
+    if (pl?.colony?.ownerId !== c.ownerId && !(pl?.station && state.galaxy.systems[pl.systemId].owner === c.ownerId)) return 'Not your colony or operation';
   } else if (a.kind === 'envoy') {
     if (c.role !== 'diplomat') return 'Only diplomats serve as envoys';
     const t = state.empires[a.empireId];
@@ -456,7 +458,7 @@ export function charactersMonthly(state: GameState, addOpinion: (a: number, b: n
       if (!e?.alive) { c.status = 'retired'; c.assignment = null; continue; }
       // posts that vanished
       if (c.assignment?.kind === 'fleet' && !state.fleets[c.assignment.fleetId]) c.assignment = null;
-      if (c.assignment?.kind === 'planet' && state.planets[c.assignment.planetId]?.colony?.ownerId !== c.ownerId) c.assignment = null;
+      if (c.assignment?.kind === 'planet') { const pl = state.planets[c.assignment.planetId]; if (pl?.colony?.ownerId !== c.ownerId && !(pl?.station && state.galaxy.systems[pl.systemId].owner === c.ownerId)) c.assignment = null; }
       if (c.assignment?.kind === 'province' && !state.galaxy.systems.some((s) => s.sector === (c.assignment as { sectorId: number }).sectorId && s.owner === c.ownerId)) c.assignment = null;
       if (c.assignment?.kind === 'envoy' && !state.empires[c.assignment.empireId]?.alive) c.assignment = null;
       if (c.assignment) { c.record.monthsServed++; grantXp(state, c, 9); } else grantXp(state, c, 2);

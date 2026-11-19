@@ -11,6 +11,7 @@ import { empireMods, hasFlag, mod, type Mods } from './modifiers';
 import { findPath } from './galaxy';
 import { RESOURCES, type BuildingId, type Colony, type Empire, type GameState, type Planet, type ResId } from './types';
 import { governorBonus, industrialistBonus, charactersOf, salary } from './characters';
+import { opReport, OP_KINDS, logisticsCapacity, logisticsUsed } from './operations';
 import { supplyNetwork, hostileArmedPresence, isHostile, adminCapacity, ownedSystems } from './territory';
 
 export type LedgerKey = ResId | 'research';
@@ -54,6 +55,8 @@ export interface Ledger {
   navalUsed: number;
   tradeTotal: number;
   tradeLost: number;
+  logisticsCap: number;
+  logisticsUsed: number;
 }
 
 const DISTRICTS = ['residential', 'agri', 'mining', 'power'] as const;
@@ -123,6 +126,9 @@ export function computeLedger(state: GameState, e: Empire): Ledger {
   const planets: Record<number, PlanetReport> = {};
   const network = supplyNetwork(state, e.id);
   const owned = ownedSystems(state, e.id);
+  const logisticsCap = logisticsCapacity(state, e, mods);
+  const logisticsUse = logisticsUsed(state, e.id);
+  const logisticsEff = logisticsUse > logisticsCap ? logisticsCap / logisticsUse : 1;
   const adminCap = adminCapacity(state, e, mods);
   const adminUsed = owned.length;
   const overcap = Math.max(0, adminUsed - adminCap);
@@ -162,15 +168,10 @@ export function computeLedger(state: GameState, e: Empire): Ledger {
     for (const pid of sys.planetIds) {
       const pl = state.planets[pid];
       if (!pl.station || pl.colony) continue;
-      if (pl.station === 'mining') {
-        add('minerals', 'Orbital extractors', (pl.deposits.minerals + 1) * (1 + mod(mods, 'output.minerals')));
-        if (pl.deposits.rare) add('rare', 'Orbital extractors', pl.deposits.rare * 0.6 * (1 + mod(mods, 'output.rare')));
-      } else if (pl.station === 'energy') {
-        add('energy', 'Orbital collectors', (pl.deposits.energy + 1) * STAR_TYPES[sys.star].energy * (1 + mod(mods, 'output.energy')));
-      } else if (pl.station === 'research') {
-        add('research', 'Research outposts', (pl.deposits.research * 1.5 + 1) * (1 + mod(mods, 'output.research')));
-      }
-      add('energy', 'Station upkeep', -0.3);
+      const r = opReport(state, e, pl, mods, { network, logisticsEff });
+      const label = OP_KINDS[pl.station].label + 's';
+      for (const [k, v] of r.output) add(k, label, v);
+      for (const [k, v] of r.upkeep) add(k, 'Operation upkeep', v);
     }
     for (const m of sys.megastructures) {
       if (m.ownerId !== e.id || m.stage <= 0) continue;
@@ -260,7 +261,7 @@ export function computeLedger(state: GameState, e: Empire): Ledger {
   const shortages = RESOURCES.filter((r) => r !== 'influence' && shortageOf(e, r) && net[r] < 0);
   return {
     lines, net, income, expense, cap: storageCap(state, e, mods), planets, shortages,
-    adminCap, adminUsed, navalCap: Math.round(navalCap), navalUsed, tradeTotal, tradeLost,
+    adminCap, adminUsed, navalCap: Math.round(navalCap), navalUsed, tradeTotal, tradeLost, logisticsCap, logisticsUsed: logisticsUse,
   };
 }
 

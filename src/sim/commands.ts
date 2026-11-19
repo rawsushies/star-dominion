@@ -1,4 +1,5 @@
 import { TECH_BY_ID } from './data/techs';
+import { canBuildStationOn, defaultOp, OP_MAX_LEVEL, OP_MODES, opUpgradeCost } from './operations';
 import { canQueueCapital, queueCapital, cancelCapital } from './capital';
 import { canIssueDecree, issueDecree, revokeDecree, canResolvePetition, resolvePetition, houseById, canActOnHouse, actOnHouse } from './governance';
 import { ERAS } from './data/eras';
@@ -24,7 +25,7 @@ import { canAfford, log, nextId, pay, refund } from './util';
 import { next } from './rng';
 import { charById, charactersOf, createCharacter, rosterLimit, recruitCost, canAssign, assign, unassign, describeAssignment, canLearn, equip, unequip, releaseCaptive, recruitChance, ransomPrice } from './characters';
 import { ITEM_BY_ID, type EquipSlot } from './data/characters';
-import type { CharAssignment, Cost, BuildingId, DealItem, Fleet, FleetOrder, GameState, GovernmentId, PeaceTerm, ResId, ShipClass, StationKind, TreatyType } from './types';
+import type { CharAssignment, Cost, BuildingId, DealItem, Fleet, FleetOrder, GameState, GovernmentId, PeaceTerm, ResId, ShipClass, StationKind, TreatyType , OpMode } from './types';
 
 export type Command =
   | { type: 'queueBuilding'; planetId: number; building: BuildingId }
@@ -32,6 +33,9 @@ export type Command =
   | { type: 'cancelQueue'; planetId: number; index: number; ships?: boolean }
   | { type: 'queueShip'; planetId: number; cls: ShipClass; fleetId?: number | null }
   | { type: 'buildStation'; planetId: number; kind: StationKind }
+  | { type: 'upgradeOperation'; planetId: number }
+  | { type: 'setOperationMode'; planetId: number; mode: OpMode }
+  | { type: 'dismantleOperation'; planetId: number }
   | { type: 'upgradeStarbase'; systemId: number }
   | { type: 'moveFleet'; fleetId: number; target: number }
   | { type: 'fleetOrder'; fleetId: number; order: FleetOrder }
@@ -146,11 +150,35 @@ export function execute(state: GameState, empireId: number, cmd: Command): Comma
       if (!p) return fail('No such planet');
       const sys = state.galaxy.systems[p.systemId];
       if (sys.owner !== empireId) return fail('System not owned');
-      if (p.colony) return fail('Colonised worlds cannot host extractors');
-      if (p.station) return fail('A station already exists');
-      if (cmd.kind === 'research' && p.deposits.research <= 0) return fail('No research anomaly here');
+      const why = canBuildStationOn(p, cmd.kind);
+      if (why) return fail(why);
       if (!pay(e, STATION_COST)) return fail('Insufficient resources');
       p.station = cmd.kind;
+      p.op = defaultOp(state.tick);
+      return OK;
+    }
+    case 'upgradeOperation': {
+      const p = state.planets[cmd.planetId];
+      if (!p?.station || !p.op || state.galaxy.systems[p.systemId].owner !== empireId) return fail('Not one of your operations');
+      if (p.op.level >= OP_MAX_LEVEL) return fail('Already at its highest level');
+      const cost = opUpgradeCost(p.op.level + 1);
+      if (!pay(e, cost as Cost)) return fail('Insufficient resources');
+      p.op.level++;
+      return OK;
+    }
+    case 'setOperationMode': {
+      const p = state.planets[cmd.planetId];
+      if (!p?.station || !p.op || state.galaxy.systems[p.systemId].owner !== empireId) return fail('Not one of your operations');
+      if (!OP_MODES[cmd.mode]) return fail('Unknown mode');
+      p.op.mode = cmd.mode;
+      return OK;
+    }
+    case 'dismantleOperation': {
+      const p = state.planets[cmd.planetId];
+      if (!p?.station || state.galaxy.systems[p.systemId].owner !== empireId) return fail('Not one of your operations');
+      e.stock.minerals += Math.floor(STATION_COST.minerals * 0.25 * (p.op?.level ?? 1));
+      p.station = null;
+      delete p.op;
       return OK;
     }
     case 'upgradeStarbase': {

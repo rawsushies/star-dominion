@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { StationButtons } from '../components/OpControls';
 import { useUI, useGame } from '../store';
 import { STAR_TYPES, PLANET_TYPES } from '../../sim/data/planets';
 import { STARBASE } from '../../sim/data/ships';
@@ -95,16 +96,10 @@ export function SystemsScreen() {
                         <td className="n">{p.size}</td>
                         <td className={cls('n', hab >= 0.6 ? 'pos' : hab > 0 ? 'warn' : 'faint')}>{hab > 0 ? `${Math.round(hab * 100)}%` : '—'}</td>
                         <td className="n">{p.deposits.minerals}/{p.deposits.energy}/{p.deposits.rare}</td>
-                        <td>{p.colony ? <span className="row" style={{ gap: 6 }}><Swatch color={g.empires[p.colony.ownerId].color} />Colony{p.colony.ownerId === g.playerId ? `, ${fmt(p.colony.pops, 1)} pops` : ''}</span> : p.colonizing ? 'Being settled' : p.station ? `${p.station[0].toUpperCase()}${p.station.slice(1)} station` : <span className="faint">Untouched</span>}</td>
+                        <td>{p.colony ? <span className="row" style={{ gap: 6 }}><Swatch color={g.empires[p.colony.ownerId].color} />Colony{p.colony.ownerId === g.playerId ? `, ${fmt(p.colony.pops, 1)} pops` : ''}</span> : p.colonizing ? 'Being settled' : p.station ? `${p.station[0].toUpperCase()}${p.station.slice(1)} operation, level ${p.op?.level ?? 1}` : <span className="faint">Untouched</span>}</td>
                         <td style={{ whiteSpace: 'nowrap' }}>
                           {p.colony?.ownerId === g.playerId && <button className="btn small" onClick={() => ui.set({ screen: 'planets', planetId: p.id })}>Manage</button>}
-                          {sel.owner === g.playerId && !p.colony && !p.station && (
-                            <>
-                              <button className="btn small" onClick={() => ui.cmd({ type: 'buildStation', planetId: p.id, kind: 'mining' })}>Mine</button>{' '}
-                              <button className="btn small" onClick={() => ui.cmd({ type: 'buildStation', planetId: p.id, kind: 'energy' })}>Energy</button>
-                              {p.deposits.research > 0 && <> <button className="btn small" onClick={() => ui.cmd({ type: 'buildStation', planetId: p.id, kind: 'research' })}>Research</button></>}
-                            </>
-                          )}
+                          {sel.owner === g.playerId && !p.colony && !p.station && <StationButtons p={p} small />}
                           {!p.colony && hab > 0 && !p.colonizing && (sel.owner == null || sel.owner === g.playerId) && <> <button className="btn small" onClick={() => { ui.selectPlanet(p.id); ui.set({ screen: 'map' }); }}>Colonise…</button></>}
                         </td>
                       </tr>

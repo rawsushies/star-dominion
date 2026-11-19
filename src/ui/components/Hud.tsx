@@ -29,7 +29,7 @@ const GROUPS: ScreenId[][] = [
   ['map'],
   ['kingdom', 'council', 'capital', 'planets', 'system'],
   ['fleets', 'military', 'heroes'],
-  ['economy', 'industry', 'construction', 'trade'],
+  ['economy', 'industry', 'operations', 'construction', 'trade'],
   ['research', 'techtree'],
   ['diplomacy', 'intel', 'journal'],
 ];

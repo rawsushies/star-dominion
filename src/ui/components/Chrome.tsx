@@ -19,6 +19,7 @@ export const NAV: { id: ScreenId; label: string; key?: string }[] = [
   { id: 'military', label: 'Military' },
   { id: 'economy', label: 'Economy' },
   { id: 'industry', label: 'Industry' },
+  { id: 'operations', label: 'Operations' },
   { id: 'construction', label: 'Construction' },
   { id: 'trade', label: 'Trade' },
   { id: 'research', label: 'Research' },
