@@ -220,6 +220,90 @@
       "page": "https://quaternius.com/packs/modularcharacteroutfitsfantasy.html",
       "creator": "Quaternius",
       "license": "CC0 1.0"
+    },
+    {
+      "id": "pennomi-alien-buildings",
+      "url": "https://opengameart.org/sites/default/files/alien-buildings-set.zip",
+      "page": "https://opengameart.org/content/alien-buildingbase-set",
+      "creator": "pennomi (rubberduck)",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "alien-buildings-ext",
+      "url": "https://opengameart.org/sites/default/files/alien_objects_extended.zip",
+      "page": "https://opengameart.org/content/alien-builings-extension-pack",
+      "creator": "rubberduck",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "farcodev-industrial",
+      "url": "https://opengameart.org/sites/default/files/OGA_industrial.zip",
+      "page": "https://opengameart.org/content/high-quality-industrial-asset-pack",
+      "creator": "farcodev",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "industrial-chimneys",
+      "url": "https://opengameart.org/sites/default/files/Pack_chimneys.zip",
+      "page": "https://opengameart.org/content/industrial-extension-pack-3-factory-chimneys",
+      "creator": "OpenGameArt contributor",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "industrial-tanks",
+      "url": "https://opengameart.org/sites/default/files/Industrial_pack_1_tanks.zip",
+      "page": "https://opengameart.org/content/industrial-extension-pack-1-tanks",
+      "creator": "Snabisch",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "k-city-roads",
+      "url": "https://opengameart.org/sites/default/files/kenney_city-kit-roads_2.2.zip",
+      "page": "https://opengameart.org/content/city-kit-roads",
+      "creator": "Kenney",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "terraform-buildings",
+      "url": "https://opengameart.org/sites/default/files/Terraform%20Pack%20blend%20fbx.zip",
+      "page": "https://opengameart.org/content/terraforming-building-pack",
+      "creator": "dragonkiri",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "neon-town",
+      "url": "https://opengameart.org/sites/default/files/NeonTown.zip",
+      "page": "https://opengameart.org/content/neon-town",
+      "creator": "Darkvinter",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "abstract-city",
+      "url": "https://opengameart.org/sites/default/files/city_0.zip",
+      "page": "https://opengameart.org/content/abstract-city",
+      "creator": "Mumu",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "cool-skyscraper",
+      "url": "https://opengameart.org/sites/default/files/cool-skyscraper.blend",
+      "page": "https://opengameart.org/content/futeristic-skyscraper",
+      "creator": "OpenGameArt contributor",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "k-sci-fi-sounds",
+      "url": "https://opengameart.org/sites/default/files/sci-fi_sounds.zip",
+      "page": "https://opengameart.org/content/sci-fi-sounds",
+      "creator": "Kenney",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "k-interface-sounds",
+      "url": "https://opengameart.org/sites/default/files/kenney_interfaceSounds.zip",
+      "page": "https://opengameart.org/content/interface-sounds",
+      "creator": "Kenney",
+      "license": "CC0 1.0"
     }
   ]
 }

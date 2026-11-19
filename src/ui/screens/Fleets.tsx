@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Term } from '../components/Guidance';
 import { useUI, useGame } from '../store';
 import { SHIPS, SHIP_ORDER } from '../../sim/data/ships';
 import { fleetPower, shipStats, fleetSpeed, fleetCommand } from '../../sim/fleets';
@@ -106,9 +107,9 @@ function FleetDetail({ f }: { f: Fleet }) {
         </div>
         <div>
           <Section title="Composition">
-            <div className="kv">{SHIP_ORDER.filter((c) => counts[c]).map((c) => [<span key={c}>{SHIPS[c].label} <span className="faint">({SHIPS[c].role})</span></span>, <span key={c + 'n'}>{counts[c]}</span>])}</div>
+            <div className="kv">{SHIP_ORDER.filter((c) => counts[c]).map((c) => [<span key={c}><Term entry={`ship.${c}`}>{SHIPS[c].label}</Term> <span className="faint">({SHIPS[c].role})</span></span>, <span key={c + 'n'}>{counts[c]}</span>])}</div>
           </Section>
-          <Section title="Command">
+          <Section title={<Term entry="mech.naval">Command</Term>} guide="fleet-command">
             <div className="field">
               <label htmlFor="adm">Commander</label>
               <select id="adm" value={f.admiralId ?? ''} onChange={(ev) => ui.cmd({ type: 'assignAdmiral', fleetId: f.id, admiralId: ev.target.value === '' ? null : +ev.target.value })}>

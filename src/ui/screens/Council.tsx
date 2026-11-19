@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Term } from '../components/Guidance';
 import { useUI, useGame } from '../store';
 import { COUNCIL_SEATS } from '../../sim/data/council';
 import { DECREES, HOUSE_AMBITIONS } from '../../sim/data/governance';
@@ -34,7 +35,7 @@ export function CouncilScreen() {
   const pending = me.petitions?.length ?? 0;
   return (
     <Sheet title="Royal council" lede="Your ministers advise, the great houses scheme, and the provinces wait on your decrees."
-      actions={<div className="seg">
+      actions={<div className="seg" data-guide="council-tabs">
         <button className={cls(tab === 'council' && 'on')} onClick={() => setTab('council')}>Council{pending ? ` (${pending})` : ''}</button>
         <button className={cls(tab === 'decrees' && 'on')} onClick={() => setTab('decrees')}>Decrees</button>
         <button className={cls(tab === 'houses' && 'on')} onClick={() => setTab('houses')}>Great houses</button>
@@ -66,7 +67,7 @@ function CouncilTab() {
               <div key={seat.id} className="row" style={{ gap: 10, padding: '8px 0', borderBottom: '1px solid var(--rule)', alignItems: 'flex-start' }} data-testid={`seat-${seat.id}`}>
                 {holder ? <Crest c={holder} g={g} size={44} /> : <div style={{ width: 44, height: 44, border: '1px dashed var(--rule)', flex: 'none' }} />}
                 <div className="grow" style={{ minWidth: 0 }}>
-                  <div className="serif" style={{ fontSize: 16, fontWeight: 600 }}>{seat.label}</div>
+                  <div className="serif" style={{ fontSize: 16, fontWeight: 600 }}><Term entry="mech.council">{seat.label}</Term></div>
                   <div className="hint">{seat.description}</div>
                   {holder && a && <div className="hint">{seat.perAttr.map((p) => modText(p.key, a[p.attr] * p.per * effectiveness(holder))).join(', ')} <span className="faint">({seat.perAttr.map((p) => `${ATTR_LABEL[p.attr]} ${a[p.attr]}`).join(', ')}, loyalty {Math.round(holder.loyalty)})</span></div>}
                   <select aria-label={`Appoint ${seat.label}`} style={{ marginTop: 4 }} value={holder?.id ?? ''} onChange={(ev) => ev.target.value && ui.cmd({ type: 'assignCharacter', charId: +ev.target.value, assignment: { kind: 'council', seat: seat.id } })}>
@@ -82,7 +83,7 @@ function CouncilTab() {
         </Section>
       </div>
       <div>
-        <Section title="Matters before the council" aside={`${me.petitions?.length ?? 0} waiting`}>
+        <Section title={<Term entry="mech.decrees">Matters before the council</Term>} aside={`${me.petitions?.length ?? 0} waiting`}>
           {!(me.petitions?.length) && <div className="empty">No matters await your decision. Ministers and houses bring new ones every few months.</div>}
           {(me.petitions ?? []).map((p) => {
             const d = describePetition(g, me, p);
@@ -140,7 +141,7 @@ function DecreesTab() {
             const holder = charById(g, me.council?.[d.seat]);
             return (
               <tr key={d.id} className={cls(act && 'sel')} data-testid={`decree-${d.id}`}>
-                <td><div className="serif" style={{ fontWeight: 600 }}>{d.label}</div><div className="hint">{d.description}{d.war ? ' Wartime only.' : ''}</div></td>
+                <td><div className="serif" style={{ fontWeight: 600 }}><Term entry={`decree.${d.id}`}>{d.label}</Term></div><div className="hint">{d.description}{d.war ? ' Wartime only.' : ''}</div></td>
                 <td className="hint">{Object.entries(d.mods).map(([k, v]) => modText(k, v < 0 && k === 'stability' ? v : v * str)).join(', ')}<br />{Math.round(d.days / 30)} months</td>
                 <td className="hint">{seat.label}: {holder?.status === 'active' ? `${holder.name} (${Math.round(str * 100)}%)` : 'vacant (80%)'}</td>
                 <td><CostView cost={d.cost} empire={me} /></td>

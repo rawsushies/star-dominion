@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Term } from '../components/Guidance';
 import { useUI, useGame } from '../store';
 import { getLedger } from '../../sim/engine';
 import { BUILDINGS, BUILDABLE, type Yield } from '../../sim/data/buildings';
@@ -99,7 +100,7 @@ function PlanetDetail({ p }: { p: Planet }) {
 
       <div className="cols side-r" style={{ marginTop: 16 }}>
         <div style={{ minWidth: 0 }}>
-          <Section title="Districts and buildings" aside={`${rep.buildingsUsed}/${rep.buildingSlots} building slots · more slots every 5 pops`}>
+          <Section guide="planet-build" title="Districts and buildings" aside={`${rep.buildingsUsed}/${rep.buildingSlots} building slots · more slots every 5 pops`}>
             <div className="row wrap" style={{ marginBottom: 8, gap: 6 }}>
               {(['residential', 'agri', 'mining', 'power'] as const).map((d) => {
                 const have = (c.buildings[d] ?? 0) + c.queue.filter((q) => q.id === d && !q.demolish).length;
@@ -156,7 +157,7 @@ function PlanetDetail({ p }: { p: Planet }) {
               ])}
             </div>
           </Section>
-          <Section title="Stability factors">
+          <Section title={<Term entry="mech.stability">Stability factors</Term>}>
             <div className="kv">
               {rep.stabilityFactors.map(([k, v]) => [<span key={k}>{k}</span>, <span key={k + 'v'} className={v >= 0 ? 'pos' : 'neg'}>{signed(v, 0)}</span>])}
             </div>
@@ -212,7 +213,7 @@ function DesignationPanel({ p }: { p: Planet }) {
   const wait = Math.max(0, (c.designationTick ?? -99999) + DESIGNATION_COOLDOWN - g.tick);
   const gov = governorBonus(g, me.id, g.galaxy.systems[p.systemId].sector);
   return (
-    <Section title="Province role" aside={gov.name ? `Governor ${gov.name} strengthens it` : 'No governor in this province'}>
+    <Section guide="planet-province" title={<Term entry="mech.designation">Province role</Term>} aside={gov.name ? `Governor ${gov.name} strengthens it` : 'No governor in this province'}>
       <div className="list" data-testid="designations">
         {DESIGNATION_IDS.map((id) => {
           const d = DESIGNATIONS[id];

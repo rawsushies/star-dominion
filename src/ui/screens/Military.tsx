@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Term } from '../components/Guidance';
 import { useUI, useGame } from '../store';
 import { fleetPower } from '../../sim/fleets';
 import { getLedger } from '../../sim/engine';
@@ -75,7 +76,7 @@ export function MilitaryScreen() {
           </Section>
         </div>
         <div>
-          <Section title="Battle reports" aside={`${myBattles.length} recorded`}>
+          <Section title={<Term entry="mech.combat">Battle reports</Term>} aside={`${myBattles.length} recorded`}>
             {!myBattles.length && <div className="empty">No battles fought yet.</div>}
             <div className="list" style={{ maxHeight: 180, overflowY: 'auto' }}>
               {myBattles.map((b) => (

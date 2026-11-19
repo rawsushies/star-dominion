@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Term } from '../components/Guidance';
 import { useUI, useGame } from '../store';
 import { CAPITAL_BUILDINGS, CAPITAL_BY_ID, CITADEL_MAX, PLOT_COLS, PLOT_ROWS, plotsUnlocked } from '../../sim/data/capital';
 import { CapitalView3D, type CapitalLabel } from '../render/capital3d';
@@ -37,7 +38,7 @@ export function CityCanvas({ sel, onPick, height = 420 }: { sel: number | null; 
     view.current.sync(me, labels, sel);
   });
   return (
-    <div style={{ position: 'relative', height, overflow: 'hidden' }}>
+    <div data-guide="capital-plots" style={{ position: 'relative', height, overflow: 'hidden' }}>
       <canvas ref={canvas} data-testid="city" style={{ width: '100%', height: '100%', display: 'block', cursor: onPick ? 'pointer' : 'grab', touchAction: 'none' }} />
       <div ref={overlay} className="cap-overlay" />
       <div className="cap-help">Drag to turn the city, scroll to zoom, select a plot to build.</div>
@@ -80,12 +81,12 @@ export function CapitalScreen() {
               </div>
             ))}
           </Section>
-          <Section title="What the city gives the realm">
+          <Section title={<Term entry="mech.capital">What the city gives the realm</Term>}>
             <div className="row wrap" style={{ gap: '4px 14px' }}>{Object.entries(mods).filter(([, v]) => v).map(([k, v]) => <span key={k} className={v > 0 === (k !== 'shipCost') ? 'pos' : 'neg'}>{modText(k, v)}</span>)}</div>
           </Section>
         </div>
         <div>
-          <Section title="Raise or extend">
+          <Section title="Raise or extend" guide="capital-build">
             <div className="hint" style={{ marginBottom: 6 }}>Citadel {cit + 1} needs {next.otherLevels} levels of other buildings and a level {next.throneHall} throne hall.</div>
             <table className="t">
               <thead><tr><th>Building</th><th className="n">Level</th><th>Next level</th><th></th></tr></thead>
@@ -96,7 +97,7 @@ export function CapitalScreen() {
                   const why = canQueueCapital(g, me, d.id, usePlot);
                   return (
                     <tr key={d.id} className={cls(occupant === d.id && 'sel')} data-testid={`cap-${d.id}`}>
-                      <td><div style={{ fontWeight: 600 }}>{d.label}</div><div className="hint">{Object.entries(d.perLevel).map(([k, v]) => modText(k, v)).join(', ')}{d.notes ? ` ${d.notes}` : ''} per level</div></td>
+                      <td><div style={{ fontWeight: 600 }}><Term entry={`cap.${d.id}`}>{d.label}</Term></div><div className="hint">{Object.entries(d.perLevel).map(([k, v]) => modText(k, v)).join(', ')}{d.notes ? ` ${d.notes}` : ''} per level</div></td>
                       <td className="n">{capLevel(me, d.id)}/{d.maxLevel}</td>
                       <td>{nl <= d.maxLevel ? <><CostView cost={capitalCost(d, nl)} empire={me} /><div className="hint">{capitalDays(g, me, d, nl)} days</div></> : <span className="hint">Complete</span>}</td>
                       <td><button className="btn small" disabled={!!why} title={why ?? (nl === 1 ? 'Build on the selected or nearest free plot' : `Raise to level ${nl}`)} onClick={() => ui.cmd({ type: 'capitalBuild', building: d.id, plot: usePlot })}>{nl === 1 ? 'Build' : 'Upgrade'}</button></td>

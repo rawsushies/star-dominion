@@ -190,3 +190,7 @@ NASA media are not copyrighted. The NASA usage guidelines still apply: the model
 4. **Everything:** glTF-Transform `resize` (1024 px), `webp`, `dedup` and `prune`, plus `resample` for animations.
 
 The original downloads are not committed. Only the optimised GLBs are.
+
+## Audio
+
+Sound effects are Kenney's CC0 Interface Sounds and Sci-fi Sounds, processed by `scripts/build_audio.py`. Music and synthesised ambience are original and generated at runtime. `docs/AUDIO.md` lists every sound with its source file and licence, and `src/audio/manifest.json` is the machine-readable manifest.

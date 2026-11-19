@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Term } from '../components/Guidance';
 import { HeroView3D } from '../render/hero3d';
 import { useUI, useGame } from '../store';
 import {
@@ -70,7 +71,7 @@ export function HeroesScreen() {
   const limit = rosterLimit(g, me);
   return (
     <Sheet title="Hall of Heroes" lede={`${service.length} of ${limit} places filled. The people of the realm lead its fleets, govern its provinces and sit on its council.`}
-      actions={<div className="seg">
+      actions={<div className="seg" data-guide="heroes-roster">
         <button className={cls(tab === 'service' && 'on')} onClick={() => setTab('service')}>In service ({service.length})</button>
         <button className={cls(tab === 'candidates' && 'on')} onClick={() => setTab('candidates')}>Candidates ({candidates.length})</button>
         <button className={cls(tab === 'prisoners' && 'on')} onClick={() => setTab('prisoners')}>Prisoners ({held.length + ours.length})</button>
@@ -145,7 +146,7 @@ function HeroDetail({ c }: { c: Character }) {
             <Crest c={c} g={g} size={48} />
             <div className="grow">
               <h2 className="serif" style={{ margin: 0 }}>{c.name}</h2>
-              <div className="muted">{ROLES[c.role].label}, level {c.level} of {MAX_LEVEL}. {ROLES[c.role].serves}.</div>
+              <div className="muted"><Term entry={`role.${c.role}`}>{ROLES[c.role].label}</Term>, level {c.level} of {MAX_LEVEL}. {ROLES[c.role].serves}.</div>
             </div>
           </div>
           <div className="hint" style={{ marginTop: 4 }}>{ROLES[c.role].description}{c.houseId != null && g.empires[c.ownerId]?.houses?.find((h) => h.id === c.houseId) ? ` Of House ${g.empires[c.ownerId].houses!.find((h) => h.id === c.houseId)!.name}.` : ''}</div>

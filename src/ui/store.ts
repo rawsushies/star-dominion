@@ -12,7 +12,7 @@ import type { GameEvent, GameSettings, GameState } from '../sim/types';
 
 export type ScreenId =
   | 'map' | 'kingdom' | 'planets' | 'system' | 'fleets' | 'military' | 'economy' | 'industry'
-  | 'research' | 'diplomacy' | 'intel' | 'construction' | 'trade' | 'journal' | 'techtree' | 'heroes' | 'council' | 'capital' | 'operations' | 'throne' | 'warroom' | 'chronicle';
+  | 'research' | 'diplomacy' | 'intel' | 'construction' | 'trade' | 'journal' | 'techtree' | 'heroes' | 'council' | 'capital' | 'operations' | 'throne' | 'warroom' | 'chronicle' | 'codex';
 
 export type MapMode = 'political' | 'resources' | 'military' | 'trade' | 'supply';
 
@@ -26,7 +26,7 @@ export interface Win { id: Exclude<ScreenId, 'map'>; x: number; y: number; w: nu
 const WIN_SIZE: Partial<Record<ScreenId, [number, number]>> = {
   kingdom: [1040, 720], planets: [1120, 740], system: [980, 680], fleets: [980, 660], military: [1040, 700],
   economy: [1060, 700], industry: [1060, 720], research: [900, 660], techtree: [1180, 760], diplomacy: [1080, 720],
-  intel: [940, 680], construction: [980, 660], trade: [940, 640], journal: [720, 640], heroes: [1120, 760], council: [1180, 780], capital: [1200, 820], operations: [1100, 720], throne: [1180, 800], warroom: [1160, 760], chronicle: [980, 760],
+  intel: [940, 680], construction: [980, 660], trade: [940, 640], journal: [720, 640], heroes: [1120, 760], council: [1180, 780], capital: [1200, 820], operations: [1100, 720], throne: [1180, 800], warroom: [1160, 760], chronicle: [980, 760], codex: [1080, 760],
 };
 
 function placeWindow(id: Win['id'], wins: Win[], z: number): Win {
@@ -61,6 +61,10 @@ interface UI {
   windows: Win[];
   eraSeen: number;
   zTop: number;
+  /** Imperial Codex navigation */
+  codexTab: 'lessons' | 'encyclopedia' | 'settings';
+  codexEntry: string | null;
+  openCodex: (entry?: string | null, tab?: UI['codexTab']) => void;
   focusWin: (id: Win['id']) => void;
   closeWin: (id: Win['id']) => void;
   patchWin: (id: Win['id'], p: Partial<Win>) => void;
@@ -100,6 +104,13 @@ export const useUI = create<UI>((set, get) => ({
   windows: [],
   eraSeen: 0,
   zTop: 10,
+  codexTab: 'encyclopedia',
+  codexEntry: null,
+  openCodex: (entry, tab) => {
+    set({ codexTab: tab ?? (entry ? 'encyclopedia' : get().codexTab), ...(entry !== undefined ? { codexEntry: entry } : {}) });
+    if (get().windows.some((x) => x.id === 'codex')) get().focusWin('codex');
+    else set({ screen: 'codex' });
+  },
   focusWin: (id) => {
     const z = get().zTop + 1;
     set({ zTop: z, screen: id, windows: get().windows.map((w) => (w.id === id ? { ...w, z, min: false } : w)) });
@@ -128,6 +139,7 @@ export const useUI = create<UI>((set, get) => ({
     if (!g) return { ok: false, message: 'No game' };
     const r = execute(g, g.playerId, c);
     if (!r.ok && r.message) get().notify(r.message);
+    for (const l of commandListeners) { try { l(c, r); } catch { /* a listener must never break a command */ } }
     set({ rev: get().rev + 1 });
     return r;
   },
@@ -169,6 +181,22 @@ useUI.subscribe((st, prev) => {
 });
 
 let flashTimer = 0;
+
+type CommandListener = (c: Command, r: CommandResult) => void;
+const commandListeners = new Set<CommandListener>();
+/** Observe every player command and its result (guidance objectives, sound effects). */
+export function onCommand(l: CommandListener): () => void {
+  commandListeners.add(l);
+  return () => { commandListeners.delete(l); };
+}
+
+type EventListener = (events: GameEvent[]) => void;
+const eventListeners = new Set<EventListener>();
+/** Observe the events the player is told about, as they surface. */
+export function onPlayerEvents(l: EventListener): () => void {
+  eventListeners.add(l);
+  return () => { eventListeners.delete(l); };
+}
 let lastEventId = 0;
 
 const TOAST_KINDS = new Set(['era', 'war', 'peace', 'invasion', 'colony', 'research', 'rebellion', 'battle', 'fall', 'treaty', 'shortage', 'outpost', 'megastructure', 'raiders', 'diplomacy', 'victory', 'gameover', 'unrest', 'capture', 'discovery', 'trade']);
@@ -214,6 +242,7 @@ function surfaceEvents(g: GameState) {
   const fresh = g.events.filter((e) => e.id >= lastEventId && (e.empires.length === 0 || e.empires.includes(g.playerId)));
   if (!fresh.length) return;
   lastEventId = g.nextId;
+  for (const l of eventListeners) { try { l(fresh); } catch { /* never break the loop */ } }
   const toasts = ui.toasts.slice();
   let pause = false;
   for (const ev of fresh) {

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Term } from '../components/Guidance';
 import { useUI, useGame } from '../store';
 import { getLedger } from '../../sim/engine';
 import type { LedgerKey } from '../../sim/economy';
@@ -42,7 +43,7 @@ export function IndustryScreen() {
   const line = (x1: number, y1: number, x2: number, y2: number) => <path d={`M${x1} ${y1} C${(x1 + x2) / 2} ${y1}, ${(x1 + x2) / 2} ${y2}, ${x2} ${y2}`} fill="none" stroke="#2e4262" strokeWidth="1.4" />;
   return (
     <Sheet title="Industry" lede="Raw extraction feeds refining, refining feeds manufacturing, and manufacturing feeds your shipyards, laboratories and megastructures.">
-      <Section title="Production chains" aside="Live monthly figures">
+      <Section title={<Term entry="mech.chains">Production chains</Term>} aside="Live monthly figures">
         <svg viewBox="0 0 1000 300" style={{ width: '100%', maxHeight: 320 }} role="img" aria-label="Production chain diagram">
           {line(130, 60, 290, 60)}{line(130, 60, 290, 160)}{line(130, 250, 290, 160)}
           {line(418, 60, 560, 60)}{line(418, 160, 560, 160)}

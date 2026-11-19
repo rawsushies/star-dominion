@@ -6,7 +6,7 @@ import { Neocom, LocationHud, ResourceStrip, ThroneDial, Dispatches, Overview, W
 import { ContextPanel } from './components/ContextPanel';
 import { GameOver } from './screens/GameOver';
 import { EraDawn } from './components/Evolution';
-import { TutorialPanel } from './components/Tutorial';
+import { GuidanceStack } from './components/Guidance';
 
 export function App() {
   const game = useUI((s) => s.game);
@@ -19,7 +19,7 @@ export function App() {
       <LocationHud />
       <ResourceStrip />
       <Dispatches />
-      <TutorialPanel />
+      <GuidanceStack />
       <ThroneDial />
       <div className="right-col">
         <ContextPanel />

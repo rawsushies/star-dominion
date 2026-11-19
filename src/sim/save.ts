@@ -29,6 +29,11 @@ export function deserialize(json: string): GameState {
   migrateAdmirals(s as GameState & { admirals?: never[] });
   for (const e of s.empires) { e.council ??= {}; e.armory ??= []; ensureHouses(s, e); ensureCapital(e); ensureRuler(s, e); }
   if (s.empires.some((e) => e.alive && e.kind === 'major' && e.stats?.powerW == null)) updateStats(s);
+  // the old ten-step advisor becomes the first guided lesson
+  if (s.tutorial) {
+    s.guidance ??= { active: 'welcome', step: 0, paused: false, done: [], skipped: [], offered: [], seen: [], snoozed: {}, base: {} };
+  }
+  if ('tutorial' in s) delete s.tutorial;
   return s;
 }
 

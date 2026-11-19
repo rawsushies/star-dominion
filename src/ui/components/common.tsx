@@ -99,9 +99,9 @@ export function Sheet({ title, lede, actions, children }: { title: string; lede?
   );
 }
 
-export function Section({ title, aside, children, style }: { title: ReactNode; aside?: ReactNode; children: ReactNode; style?: CSSProperties }) {
+export function Section({ title, aside, children, style, guide }: { title: ReactNode; aside?: ReactNode; children: ReactNode; style?: CSSProperties; /** anchor for lesson highlights */ guide?: string }) {
   return (
-    <div className="section" style={style}>
+    <div className="section" style={style} data-guide={guide}>
       <h3><span>{title}</span>{aside != null && <span className="aside">{aside}</span>}</h3>
       {children}
     </div>

@@ -24,6 +24,7 @@ const ICONS: Record<ScreenId, JSX.Element> = {
   throne: <g {...P}><path d="M7 21 V10 L5 6 L8 7.5 L12 3 L16 7.5 L19 6 L17 10 V21" /><path d="M7 15 H17 M5 21 H19" /></g>,
   warroom: <g {...P}><rect x="3" y="5" width="18" height="13" /><path d="M7 14 L10 10 L13 12 L17 8" /><path d="M9 21 H15" /></g>,
   chronicle: <g {...P}><path d="M5 4 H16 A3 3 0 0 1 16 10 H8 A3 3 0 0 0 8 16 H19" /><path d="M5 4 V20 H17" /></g>,
+  codex: <g {...P}><path d="M4 4 H10 A2 2 0 0 1 12 6 V20 A2 2 0 0 0 10 18 H4 Z" /><path d="M20 4 H14 A2 2 0 0 0 12 6 V20 A2 2 0 0 1 14 18 H20 Z" /><path d="M15 8 H18 M15 11 H18" /></g>,
   techtree: <g {...P}><circle cx="5" cy="12" r="2" /><circle cx="19" cy="6" r="2" /><circle cx="19" cy="18" r="2" /><circle cx="12" cy="12" r="2" /><path d="M7 12 H10 M14 12 L17 7 M14 12 L17 17" /></g>,
 };
 

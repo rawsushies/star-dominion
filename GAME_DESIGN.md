@@ -201,11 +201,41 @@ Eras are political ages. Some list a minimum Kardashev index among their require
 - **Precursor Sentinels** guard their lairs.
 - **Random events (9 types):** windfalls, plagues, discoveries, unrest and more.
 
-## Onboarding
+## Onboarding and guidance
 
-- The **guided first reign** (on by default) is a royal advisor with ten objectives. It covers time controls, research, exploration, building, outposts, ships, diplomacy and eras.
-- Each objective completes itself when you actually do it, and the relevant control is highlighted.
-- Tooltips explain every resource line, gauge and stat.
+Players learn by playing, and guidance never takes control. Details are in `docs/GUIDANCE.md`.
+
+- **Ten lessons.** Welcome, Galaxy, Capital, Economy, Expansion, Fleets and warfare, Research and civilisation, Diplomacy and houses, Characters, Megastructures.
+  - Each step names one objective. The objective ticks itself from real game state or a recorded player command, and the control involved is highlighted.
+  - Lesson 1 starts with a guided reign. Later lessons unlock progressively and are offered once, never forced.
+  - Lessons can be paused, skipped, left, replayed and reset. Progress is saved with the game.
+- **Imperial Codex** (F2, or the book icon). A searchable encyclopedia in 15 categories.
+  - Mechanic entries are written against the simulation code.
+  - Catalogue entries (buildings, ships, technologies, eras, megastructures, capital buildings, roles, traits, items, decrees, governments, policies, planets, stars) are generated from the data tables, so their numbers are always the game's own.
+  - Speculative content is labelled as such.
+- **Every window explains itself.** A ? drawer shows the window's purpose, its controls, advanced notes, Codex links and the matching lesson. A first-visit card appears the first time a window opens.
+- **Advisor hints.** Hints are shown only when the condition is real:
+  - shortages and stockpiles running out, full storage and idle research;
+  - an idle construction ship or scout, idle builders on a planet or in the capital;
+  - unassigned characters, unspent skill points, waiting petitions and envoys, and no heir in old age;
+  - naval capacity exceeded, restless worlds, and threatened or exposed worlds at war.
+
+  One hint shows at a time; dismissing one hides it for six months. During a lesson only urgent hints appear.
+- **Tooltips** on resources, ministries, section titles, technologies, ships, roles, decrees and capital buildings are backed by the Codex.
+- Experienced players can turn lessons, hints and tooltips off, together or separately. The preference is stored per browser.
+
+## Audio
+
+A central audio manager drives music, sound effects and ambience. Details are in `docs/AUDIO.md`.
+
+- **Music** is original and generated live in eight contexts:
+  - empire entry, galaxy exploration, empire management, capital development;
+  - political tension, war, megastructure construction, late-game civilisation.
+
+  Contexts crossfade over several seconds. Stingers mark eras, war, victory, defeat and finished megastructures.
+- **Sound effects** are Kenney CC0. They cover interface actions, notifications, trade, construction, research, recruitment, fleet orders, combat, diplomacy, characters and megastructure stages.
+- **Ambience** follows the view: space, orbit, the capital's industry, or ship engines.
+- **Settings:** master, music, effects and ambience volumes, and mute (M key or the speaker button). Settings are stored per browser.
 
 ## Known limitations
 
@@ -213,6 +243,5 @@ Eras are political ages. Some list a minimum Kardashev index among their require
 
 - Era 2 and beyond are late-game goals. In 30-year test runs, AI kingdoms reliably reach Type I but rarely Type II. Megastructure appetite is still being tuned.
 - There is no ground-combat screen: invasions resolve automatically.
-- There is no espionage beyond intel accuracy.
 - Diplomacy uses buttons and a deal builder. There is no free-text negotiation.
 - Single-player only. The command layer is designed for a server-authoritative multiplayer layer, which does not exist yet.

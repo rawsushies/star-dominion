@@ -1,4 +1,5 @@
 import { useUI, useGame } from '../store';
+import { Term } from '../components/Guidance';
 import { getLedger } from '../../sim/engine';
 import { TECHS, TECH_BY_ID, TECH_CATEGORIES, techCost } from '../../sim/data/techs';
 import { availableTechs } from '../../sim/research';
@@ -19,7 +20,7 @@ export function ResearchScreen() {
       actions={<button className="btn" onClick={() => ui.set({ screen: 'techtree' })}>Open technology tree</button>}>
       <div className="cols side-r">
         <div>
-          <Section title="Available projects" aside="Click to research now; queue to follow on">
+          <Section guide="research-list" title="Available projects" aside="Click to research now; queue to follow on">
             {TECH_CATEGORIES.map((c) => {
               const list = avail.filter((t) => TECH_BY_ID[t].category === c.id);
               if (!list.length) return null;
@@ -33,7 +34,7 @@ export function ResearchScreen() {
                       return (
                         <div key={id} className={cls('li', r.current === id && 'sel')} style={{ cursor: 'default', alignItems: 'flex-start' }}>
                           <div className="grow">
-                            <div className="row between"><span>{t.name} <span className="faint">· tier {t.tier}</span></span><span className="num faint">{techCost(id)} · ~{months(id)} mo</span></div>
+                            <div className="row between"><span><Term entry={`tech.${id}`}>{t.name}</Term> <span className="faint">· tier {t.tier}</span></span><span className="num faint">{techCost(id)} · ~{months(id)} mo</span></div>
                             <div className="hint">{t.description}</div>
                           </div>
                           <div className="row" style={{ gap: 4 }}>

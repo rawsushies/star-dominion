@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Term } from '../components/Guidance';
 import { useUI, useGame } from '../store';
 import { BUILDINGS } from '../../sim/data/buildings';
 import { SHIPS, STARBASE } from '../../sim/data/ships';
@@ -64,7 +65,7 @@ export function ConstructionScreen() {
           </Section>
         </div>
         <div>
-          <Section title="Megastructures" aside="Generational projects">
+          <Section guide="construction-mega" title={<Term entry="mech.mega">Megastructures</Term>} aside="Generational projects">
             {megas.map(({ s, m }) => {
               const d = MEGA_BY_ID[m.id];
               return (
