@@ -40,6 +40,9 @@ PARTS = {
     'pillar': (KR, 'bridge-pillar-wide.glb'), 'lamp': (KR, 'light-square-double.glb'),
 }
 
+# heavy parts reduced (face ratio kept); the truss columns are 6,480 faces each
+DECIMATE = {'col_pipes': 0.3}
+
 GOLD = np.array([0.86, 0.64, 0.25])
 
 def find(pack, name):
@@ -159,9 +162,13 @@ def lib(key):
             b = m.node_tree.nodes.get('Principled BSDF') or next((n for n in m.node_tree.nodes if n.type == 'BSDF_PRINCIPLED'), None)
             if not b: continue
             for l in list(b.inputs['Base Color'].links): m.node_tree.links.remove(l)
-            b.inputs['Base Color'].default_value = (0.34, 0.33, 0.31, 1) if key == 'chimney' else (0.3, 0.31, 0.33, 1)
-            b.inputs['Metallic'].default_value = 0.2 if key == 'chimney' else 0.6
+            b.inputs['Base Color'].default_value = (0.2, 0.19, 0.18, 1) if key == 'chimney' else (0.16, 0.17, 0.19, 1)
+            b.inputs['Metallic'].default_value = 0.05 if key == 'chimney' else 0.2
             b.inputs['Roughness'].default_value = 0.7 if key == 'chimney' else 0.45
+    if key in DECIMATE:
+        bpy.ops.object.select_all(action='DESELECT'); o.select_set(True); bpy.context.view_layer.objects.active = o
+        mod = o.modifiers.new('dec', 'DECIMATE'); mod.ratio = DECIMATE[key]
+        bpy.ops.object.modifier_apply(modifier='dec')
     size = normalise_part(o)
     o.name = f'lib_{key}'; o.data.name = key
     o['size'] = tuple(size)
@@ -311,11 +318,16 @@ def citadel(tier):
         put(m, 'antenna', (0, 0, crown_z + dims('tower_dome').z * (5 + tier) / max(dims('tower_dome').x, dims('tower_dome').y)), fit=4)
     return m
 
-def highway(name, key):
-    """An elevated highway section: one Kenney road tile (10 units) on a pillar."""
+def transit(name, junction=False):
+    """An elevated transit section, 10 units long on X: a sealed corridor tube (or a junction
+    hub) carried on a pylon. The city's highways are built from these."""
     m = model(name)
-    put(m, key, (0, 0, 6), fit=10)
-    put(m, 'pillar', (0, 0, 0), h=6.05, stretch=(1, 1, 1))
+    if junction:
+        _, d = put(m, 'corridor_end', (0, 0, 5.2), fit=6.5)
+    else:
+        o, d = put(m, 'corridor', (0, 0, 5.6), fit=10)
+        o.scale = (o.scale.x, o.scale.y * 0.55, o.scale.z * 0.55)
+    put(m, 'pylon', (0, 0, 0), h=6.0, stretch=(0.7, 0.7, 1))
     return m
 
 def simple(name, key, **kw):
@@ -334,7 +346,7 @@ def build():
     stack('res_c', [('hall_b', 9, 0), ('block_d', 6.5, 0)])
     block('hall_a', 'hall_a'); block('hall_b', 'block_d', 'antenna'); block('vault', 'vault', 'module')
     works('works_a'); refinery('refinery_a'); power_plant('power_a'); yard('yard_a'); bastion('bastion_a')
-    highway('hwy_straight', 'road'); highway('hwy_cross', 'road_x'); highway('hwy_t', 'road_t')
+    transit('hwy_straight'); transit('hwy_cross', junction=True); transit('hwy_t', junction=True)
     simple('skybridge', 'corridor', fit=10)
     simple('lamp', 'lamp', h=3)
     simple('wall', 'wall_long', fit=10)

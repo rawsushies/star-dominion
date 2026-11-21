@@ -142,11 +142,11 @@ export class MegacityCapitalView3D {
     this.pipeline = new RenderPipeline(this.renderer, this.scene, this.camera, opts.quality, { elevation: 24, azimuth: -58, intensity: 3.1 }, opts.passes);
     this.scene.fog = new THREE.Fog(0x9fb4c9, 420, 1500);
     this.mats = {
-      deck: new THREE.MeshStandardMaterial({ color: 0x2a2f37, roughness: 0.82, metalness: 0.25 }),
-      avenue: new THREE.MeshStandardMaterial({ color: 0x1c2027, roughness: 0.9 }),
-      plaza: new THREE.MeshStandardMaterial({ color: 0x3b414b, roughness: 0.7, metalness: 0.35 }),
-      lot: new THREE.MeshStandardMaterial({ color: 0x323843, roughness: 0.75, metalness: 0.3 }),
-      sealed: new THREE.MeshStandardMaterial({ color: 0x242830, roughness: 0.9 }),
+      deck: new THREE.MeshStandardMaterial({ color: 0x59606b, roughness: 0.8, metalness: 0.25 }),
+      avenue: new THREE.MeshStandardMaterial({ color: 0x3d434c, roughness: 0.88, metalness: 0.15 }),
+      plaza: new THREE.MeshStandardMaterial({ color: 0x8a8f96, roughness: 0.6, metalness: 0.35 }),
+      lot: new THREE.MeshStandardMaterial({ color: 0x6b717a, roughness: 0.7, metalness: 0.3 }),
+      sealed: new THREE.MeshStandardMaterial({ color: 0x4a4f57, roughness: 0.9 }),
       trim: new THREE.MeshStandardMaterial({ color: new THREE.Color(color).lerp(new THREE.Color(0xd9b45a), 0.5), roughness: 0.35, metalness: 0.75 }),
       holo: new THREE.MeshStandardMaterial({ color: 0xffd27a, emissive: 0xffb43a, emissiveIntensity: 1.6, transparent: true, opacity: 0.6 }),
       ghost: new THREE.MeshStandardMaterial({ color: 0xd9c9a0, transparent: true, opacity: 0.32, depthWrite: false }),
@@ -213,7 +213,7 @@ export class MegacityCapitalView3D {
     // the city deck, avenues and the ground beyond the walls
     const deck = new THREE.Mesh(new THREE.BoxGeometry(half * 2, 1, half * 2), this.mats.avenue);
     deck.position.y = -0.5; deck.receiveShadow = true; g.add(deck);
-    const plain = new THREE.Mesh(new THREE.CircleGeometry(1400, 64), new THREE.MeshStandardMaterial({ color: 0x4d5a52, roughness: 1 }));
+    const plain = new THREE.Mesh(new THREE.CircleGeometry(1400, 64), new THREE.MeshStandardMaterial({ color: 0x6f7a6a, roughness: 1 }));
     plain.rotation.x = -Math.PI / 2; plain.position.y = -1.2; plain.receiveShadow = true; g.add(plain);
     // the Citadel plaza: the central 2 x 2 block
     const plaza = new THREE.Mesh(new THREE.BoxGeometry(2 * CELL - 4, 0.3, 2 * CELL - 4), this.mats.plaza);
@@ -337,10 +337,14 @@ export class MegacityCapitalView3D {
         const ry = isCitadel ? 0 : Math.round(Math.atan2(-s.x, -s.z) / (Math.PI / 2)) * (Math.PI / 2);
         const model = this.place(pick.model, s.x, s.z, { scale, ry, y: 0.3 });
         if (!model) continue;
-        model.traverse((o) => { o.userData.plot = s.plot; });
         if (!lvl) model.traverse((o) => { if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).material = this.mats.ghost; });
-        this.city.add(model);
-        const box = new THREE.Box3().setFromObject(model);
+        // one building, merged by material into a few meshes that keep the plot id for picking
+        const merged = new THREE.Group();
+        merged.add(model);
+        mergeByMaterial(merged);
+        merged.traverse((o) => { o.userData.plot = s.plot; if ((o as THREE.Mesh).isMesh && !lvl) (o as THREE.Mesh).castShadow = false; });
+        this.city.add(merged);
+        const box = new THREE.Box3().setFromObject(merged);
         this.tops.set(s.plot, box.max.y);
         if (lvl) towers.push({ plot: s.plot, x: s.x, z: s.z, top: box.max.y });
         const beacon = new THREE.Mesh(new THREE.SphereGeometry(isCitadel ? 0.9 : 0.4, 12, 8), this.mats.beacon);
@@ -423,7 +427,7 @@ export class MegacityCapitalView3D {
     if (this.traffic) {
       // each light runs round one of the two highway loops
       const m = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(1, 1, 1), p = new THREE.Vector3();
-      const deck = 6 * HIGHWAY_SCALE + 0.35;
+      const deck = 7.4 * HIGHWAY_SCALE; // through the transit tubes' glazing band
       for (let i = 0; i < this.traffic.count; i++) {
         const L = i % 2 ? CELL : 3 * CELL, lane = (i % 4 < 2 ? -1 : 1) * 1.1;
         const perim = 8 * L;
