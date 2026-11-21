@@ -44,6 +44,8 @@ export class CapitalLife {
   traffic: Traffic | null = null;
   crowd: Crowd | null = null;
   squares: SquareCrowd | null = null;
+  /** more people to draw with the crowd (metro passengers on the platforms) */
+  extraWalkers: () => Walker[] = () => [];
   ready: Promise<void>;
   private models = new Map<string, GLTF>();
   private vehicleMeshes = new Map<VehicleKind, THREE.InstancedMesh[]>();
@@ -230,7 +232,7 @@ export class CapitalLife {
     this.squares = new SquareCrowd(squares, P.squareCrowd, PEOPLE.length, 17);
     // pedestrians
     this.crowd = new Crowd(net, P.walkers, PEOPLE.length, 9);
-    this.crowdMeshes = PEOPLE.map((slug) => this.bakeWalk(slug, P.walkers + P.squareCrowd * squares.length));
+    this.crowdMeshes = PEOPLE.map((slug) => this.bakeWalk(slug, P.walkers + P.squareCrowd * squares.length + 48));
     for (let i = 0; i < P.nearPeople; i++) {
       const variant = i % PEOPLE.length;
       const g = this.models.get(`${PEOPLE[variant]}:near`);
@@ -365,7 +367,7 @@ export class CapitalLife {
       this.signalLamps.mesh.instanceColor!.needsUpdate = true;
     }
     // pedestrians: the nearest ones as skinned meshes, the rest as baked instanced poses
-    const ws: Walker[] = this.squares ? [...this.crowd.walkers, ...this.squares.walkers] : this.crowd.walkers;
+    const ws: Walker[] = [...this.crowd.walkers, ...(this.squares?.walkers ?? []), ...this.extraWalkers().filter((w) => !w.hidden)];
     const nearIds = new Set<number>();
     if (this.near.length) {
       const order = ws.map((w, i) => ({ i, d: (w.x - focus.x) ** 2 + (w.z - focus.z) ** 2 })).filter((o) => o.d < 45 * 45).sort((a, b) => a.d - b.d);
@@ -376,7 +378,7 @@ export class CapitalLife {
         taken.add(pick.i); nearIds.add(pick.i);
         const w = ws[pick.i];
         n.walker = pick.i; n.root.visible = true;
-        n.root.position.set(w.x, ROAD_Y, w.z); n.root.rotation.y = w.ry;
+        n.root.position.set(w.x, w.y ?? ROAD_Y, w.z); n.root.rotation.y = w.ry;
         n.walk.weight = w.walking ? 1 : 0; n.idle.weight = w.walking ? 0 : 1;
         n.mixer.update(step * (w.speed / (1.3 * M)));
       }
@@ -389,7 +391,8 @@ export class CapitalLife {
       if (!frames?.length) continue;
       const f = w.walking ? Math.floor(((time * w.speed) / (1.3 * M) / 1.05 + w.id * 0.37) * WALK_FRAMES) % WALK_FRAMES : WALK_FRAMES;
       const k = counts[w.variant][f]++;
-      this.m4.compose(this.v3.set(w.x, ROAD_Y, w.z), this.q.setFromAxisAngle(this.up, w.ry), this.s3.setScalar(1));
+      if (k >= (frames[f][0]?.instanceMatrix.count ?? 0)) continue;
+      this.m4.compose(this.v3.set(w.x, w.y ?? ROAD_Y, w.z), this.q.setFromAxisAngle(this.up, w.ry), this.s3.setScalar(1));
       for (const m of frames[f]) m.setMatrixAt(k, this.m4);
     }
     this.crowdMeshes.forEach((frames, vi) => frames.forEach((meshes, fi) => { for (const m of meshes) { m.count = counts[vi][fi]; m.instanceMatrix.needsUpdate = true; } }));

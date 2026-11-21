@@ -55,5 +55,7 @@
   "noodle-kiosk": [1, [2]],
   "newsstand-kiosk": [1, [2]],
   "plaza-bistro-set": [1, [2]],
-  "metro-platform-bench": [1, [2]]
+  "metro-platform-bench": [1, [2]],
+  "metro-platform-column": [1, [2]],
+  "elevated-railway-span-shops": [1, [2]]
 }

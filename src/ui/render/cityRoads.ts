@@ -358,6 +358,10 @@ export interface Walker {
   from: { x: number; z: number }; to: { x: number; z: number }; t: number; len: number;
   at: Corner; next: Corner | null; crossing: Axis | null; // street being crossed (its axis)
   wait: number; speed: number; x: number; z: number; ry: number; walking: boolean;
+  /** height above the street (metro platforms); street level when absent */
+  y?: number;
+  /** not drawn (boarded a train, gone inside) */
+  hidden?: boolean;
 }
 
 /** Corners reachable from a corner: along a sidewalk to the next node, or across a street here. */

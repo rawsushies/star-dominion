@@ -12,6 +12,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { mergeByMaterial, instancedFrom } from './instancing';
 import { CapitalLife } from './capitalLife';
+import { CapitalMetro } from './capitalMetro';
 import { CAPITAL_BY_ID, CITADEL_PLOT } from '../../sim/data/capital';
 import { capLevel, openPlots, plotOccupant } from '../../sim/capital';
 import type { Empire } from '../../sim/types';
@@ -115,6 +116,8 @@ export class MegacityCapitalView3D {
   private textures: THREE.Texture[] = [];
   /** streets, signals, traffic and pedestrians (capitalLife.ts) */
   life: CapitalLife | null = null;
+  /** the elevated metro (capitalMetro.ts) */
+  metro: CapitalMetro | null = null;
   private lastFrame = 0;
   private raf = 0;
   private disposed = false;
@@ -170,13 +173,17 @@ export class MegacityCapitalView3D {
     this.bindInput();
     this.life = new CapitalLife(this.renderer, { quality: opts.quality, still: opts.still, assetBase: opts.assetBase }, { slots: this.layout.slots, districts: this.layout.districts, occupied: this.occupied });
     this.scene.add(this.life.group);
+    this.metro = new CapitalMetro(this.renderer, opts.quality);
+    this.scene.add(this.metro.group);
+    this.life.extraWalkers = () => this.metro?.passengers ?? [];
     // street life is not essential to the city: a failure there is reported, the city still builds
-    const lifeReady = this.life.ready.catch((e) => console.warn(`[megacity] street life failed: ${(e as Error).message ?? e}`));
+    const lifeReady = Promise.all([this.life.ready, this.metro.ready]).catch((e) => console.warn(`[megacity] street life failed: ${(e as Error).message ?? e}`));
     this.ready = Promise.all([this.loadKit(), this.loadShuttle(), texReady, lifeReady]).then(() => {
       if (this.disposed) return;
       this.buildInfrastructure();
       this.buildTraffic();
       this.pipeline.setEnvironmentIntensity(this.life!.group, 0.75);
+      this.pipeline.setEnvironmentIntensity(this.metro!.group, 0.75);
       this.sig = ''; this.districtLevel = -1;
       if (this.last) this.sync(...this.last);
     });
@@ -613,6 +620,7 @@ export class MegacityCapitalView3D {
     this.placeCamera(w, h);
     const time = this.opts.still ? 0 : t / 1000;
     const dt = this.lastFrame ? (t - this.lastFrame) / 1000 : 0; this.lastFrame = t;
+    this.metro?.update(dt, time, !!this.opts.still);
     this.life?.update(dt, time, this.camTarget);
     if (this.shuttles.length) {
       // shuttles circle the Citadel on three air lanes, alternating direction
@@ -637,7 +645,8 @@ export class MegacityCapitalView3D {
     const fps = f.length > 1 ? ((f.length - 1) * 1000) / (f[f.length - 1] - f[0]) : 0;
     const skyline = this.skyline.length ? new Set(this.skyline.flatMap((s) => s.towers.slice(0, s.mesh.count).map((t) => `${t.x},${t.z}`))).size : 0;
     const life = this.life?.stats();
-    return { fps, tier: this.opts.quality, ...this.pipeline.info(), kitModels: this.kit.size, skyline, cars: life?.vehicles ?? 0, walkers: life?.walkers ?? 0, nearPeople: life?.nearPeople ?? 0, shuttles: this.shuttles[0]?.count ?? 0 };
+    const metro = this.metro?.stats();
+    return { fps, tier: this.opts.quality, ...this.pipeline.info(), kitModels: this.kit.size, skyline, trains: metro?.trains ?? 0, trainsStopped: metro?.stopped ?? 0, cars: life?.vehicles ?? 0, walkers: life?.walkers ?? 0, nearPeople: life?.nearPeople ?? 0, shuttles: this.shuttles[0]?.count ?? 0 };
   }
 
   private updateLabels() {
@@ -671,6 +680,7 @@ export class MegacityCapitalView3D {
     if (this.shuttleSrc) disposeObject(this.shuttleSrc);
     for (const m of this.agedMats.values()) m.dispose();
     this.life?.dispose();
+    this.metro?.dispose();
     for (const t of this.textures) t.dispose();
     this.scene.clear();
     this.renderer.renderLists.dispose();

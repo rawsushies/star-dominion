@@ -1637,6 +1637,50 @@
           "sha256": "2ec3a1eb2410cc8f6483655711fac3823f8229df4b8a0f180a470dc2078e0aa6"
         }
       ]
+    },
+    {
+      "slug": "metro-platform-column",
+      "name": "Metro Platform Column",
+      "version": 1,
+      "page": "https://tevy.dev/models/metro-platform-column",
+      "dimensions": {
+        "x": 0.6,
+        "y": 4.611,
+        "z": 0.6
+      },
+      "parts": [],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/metro-platform-column.lod2.glb",
+          "bytes": 18660,
+          "triangles": 40,
+          "sha256": "aaab7f67b1b9baa6d729f0fb806ddf475306efc912cd3793e5bd1082b86f00c6"
+        }
+      ]
+    },
+    {
+      "slug": "elevated-railway-span-shops",
+      "name": "Elevated Railway Span with Shops",
+      "version": 1,
+      "page": "https://tevy.dev/models/elevated-railway-span-shops",
+      "dimensions": {
+        "x": 20.2,
+        "y": 14.245,
+        "z": 11.74
+      },
+      "parts": [],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/elevated-railway-span-shops.lod2.glb",
+          "bytes": 192656,
+          "triangles": 2640,
+          "sha256": "2179b6e991f50e3d99c7bfc1bc88417a21b7d82002f5482120b23dfe91846621"
+        }
+      ]
     }
   ]
 }
