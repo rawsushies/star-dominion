@@ -22,7 +22,7 @@ import { COUNCIL_SEATS } from './data/council';
 import { canIssueDecree, canActOnHouse, inRevolt, maxDecrees } from './governance';
 import { PETITION_BY_ID, DECREE_BY_ID } from './data/governance';
 import { opsOf, OP_MAX_LEVEL } from './operations';
-import { canQueueCapital, openPlots, plotOccupant, capitalCost, plannedLevel, maxQueue } from './capital';
+import { canQueueCapital, openPlots, plotOccupant, capitalCost, plannedLevel } from './capital';
 import { CAPITAL_BUILDINGS } from './data/capital';
 import { next, chance } from './rng';
 import type { BuildingId, Empire, Fleet, GameState, PeaceTerm, Planet, ShipClass, TreatyType , OpMode } from './types';
@@ -795,8 +795,7 @@ function governance(state: GameState, e: Empire) {
 /** Raise the capital: the Citadel when it can rise, otherwise the building the realm's temperament favours. */
 function capitalCity(state: GameState, e: Empire) {
   const cap = e.capital;
-  // one project at a time, or the whole builders' queue when the treasury can carry it
-  if (!cap || cap.queue.length >= (e.stock.credits > 1500 ? maxQueue(e) : 1)) return;
+  if (!cap || cap.queue.length >= 1) return;
   const pers = e.personality;
   const weight: Record<string, number> = {
     citadel: 3, throne_hall: 1.6, treasury: 1.5 + pers.mercantile, hall_of_heroes: 0.8, research_institute: 1 + pers.science * 1.5,
