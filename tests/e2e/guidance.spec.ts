@@ -3,7 +3,7 @@ import { watchErrors, startReign, openScreen } from './helpers';
 
 type G = { guidance?: { active: string | null; step: number; done: string[]; paused: boolean; seen: string[] } };
 const guidance = (page: Page) => page.evaluate(() => (window as unknown as { __sd: { getState(): { game: G } } }).__sd.getState().game.guidance ?? null);
-const lesson = (page: Page) => page.getByRole('complementary', { name: 'Lesson' });
+const lesson = (page: Page) => page.getByRole('complementary', { name: 'Lesson', exact: true });
 
 test('a new player completes the first lesson by doing what it asks, and progress survives save and reload', async ({ page }) => {
   const errors = watchErrors(page);
@@ -59,10 +59,12 @@ test('every lesson can be started, paused, resumed, left and replayed from the C
     await rows.nth(i).getByRole('button', { name: /Start|Restart|Replay/ }).click();
     await expect(lesson(page)).toContainText(`Lesson ${i + 1}: ${titles[i]}`);
     // walk to the end with Continue / Skip step
-    for (let k = 0; k < 8; k++) {
-      const fin = lesson(page).getByRole('button', { name: 'Finish lesson' });
-      if (await fin.isVisible()) { await fin.click(); break; }
-      await lesson(page).getByRole('button', { name: /Continue|Skip step/ }).click();
+    // walk to the end; a step can also complete itself (its window is already open), and the
+    // lesson closes once finished, so stop as soon as the panel is gone
+    for (let k = 0; k < 12 && (await lesson(page).count()); k++) {
+      const btn = lesson(page).getByRole('button', { name: /Finish lesson|Continue|Skip step/ });
+      await btn.first().click({ timeout: 5000 }).catch(() => {});
+      await page.waitForTimeout(350);
     }
     await expect(rows.nth(i)).toContainText('Completed');
   }

@@ -150,3 +150,36 @@ PERF_TIMES
 1. Approve **C** (diorama) for production, approve **B** (new lighting on the current layout), or request changes. Examples: the camera (perspective or orthographic), the terrace heights, vegetation density, the bridge style, the Citadel treatment.
 2. Choose the default quality tier per device class, after trying the live lab on your phone.
 3. Choose how to get the Direction A character models, as described above.
+
+## Variant D · Megacity (milestone 15, at the approval gate)
+
+`capitallab.html?variant=d` renders the same sample capital as an imperial megacity. It is built only from the CC0 megacity kit (`docs/ASSET_CATALOG.md` → *Capital megacity kit*).
+
+| Wide | Close | Phone |
+|---|---|---|
+| ![D wide](asset-previews/m15/d-wide.jpg) | ![D close](asset-previews/m15/d-close.jpg) | ![D phone](asset-previews/m15/d-phone.jpg) |
+
+- **Layout** (`src/ui/render/megacityLayout.ts`):
+  - The Imperial Citadel stands on a central 2 × 2 block.
+  - The 23 other plots fill ring 1, then ring 2, in the game's unlock order (`PLOT_ORDER`).
+  - Every other block of rings 2 and 3 is a residential, industrial, energy or civic district. Districts are built as the Citadel rises; until then a block is an empty lot.
+  - Elevated transit tubes on pylons form two loops and four radials, with arched junction hubs and moving lights.
+  - A perimeter wall has a gate on each axis.
+- **Buildings:**
+  - Each capital building maps to a kit model per level tier (`MEGA_TIERS`) and grows 3% per level within a tier.
+  - The Citadel passes through four stages (levels 1, 6, 12 and 20).
+  - Sky-bridges link neighbouring towers that both rise above 24 units.
+- **Gameplay is preserved.**
+  - The interface matches the other capital views: `sync`, `pick`, `plotScreen`, `stats` and `dispose`.
+  - Labels, selection, scaffolding over work in progress and ghosts for first levels under construction all behave as in the other views.
+  - Plot ids are unchanged, no simulation code changed and saves are unaffected.
+  - `tests/megacity-layout.test.ts` checks plots, unlock order, overlaps, highways and every building's models.
+- **Performance** (SwiftShader, so these are not device frame rates):
+  - About 600 draw calls and 1.65 M triangles per frame, counting the shadow and AO passes.
+  - Buildings, districts and infrastructure are merged by material.
+  - The desktop tier (16-sample GTAO, 4096 shadow map) does not settle within 90 s on SwiftShader. It has not been measured on a GPU.
+- **Known gaps:**
+  - Ground surfaces (deck, lots, plaza) are plain shaded slabs, not sourced assets.
+  - The far background is a flat plain.
+  - Street-level traffic and people are not modelled.
+  - **Production is unchanged.**

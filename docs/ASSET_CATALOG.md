@@ -194,3 +194,15 @@ The original downloads are not committed. Only the optimised GLBs are.
 ## Audio
 
 Sound effects are Kenney's CC0 Interface Sounds and Sci-fi Sounds, processed by `scripts/build_audio.py`. Music and synthesised ambience are original and generated at runtime. `docs/AUDIO.md` lists every sound with its source file and licence, and `src/audio/manifest.json` is the machine-readable manifest.
+
+## Capital megacity kit (laboratory variant D, awaiting approval)
+
+`public/assets/models/megacity/kit.glb` (2.1 MB) holds 28 models assembled by `scripts/blender/assemble_megacity.py`. Nothing in it is modelled from scratch: the script appends or imports parts, places them and groups them.
+
+| Source | Creator | Licence | Used for |
+|---|---|---|---|
+| [Alien building/base set](https://opengameart.org/content/alien-buildingbase-set) and [extension pack](https://opengameart.org/content/alien-builings-extension-pack) | rubberduck | CC0 1.0 | Citadel fortress, drums, blocks, halls, towers, pylons, generator, pipes, walls, gate, corridors (sky-bridges and transit tubes), landing pad. Lime accents recoloured to imperial gold |
+| [Industrial extension pack 1: tanks](https://opengameart.org/content/industrial-extension-pack-1-tanks) | rubberduck | CC0 1.0 | Storage tanks (painted textures are not included in the pack, so they are given a steel finish) |
+| [Industrial extension pack 3: chimneys](https://opengameart.org/content/industrial-extension-pack-3-factory-chimneys) | rubberduck | CC0 1.0 | Chimneys (concrete finish) |
+| Modular Sci-Fi MegaKit (Standard) | Quaternius | CC0 1.0 | Hollow structural cores, truss columns (reduced to 30% of their faces), round floor slabs |
+| City Kit Roads | Kenney | CC0 1.0 | Street lamps |

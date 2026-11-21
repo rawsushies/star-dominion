@@ -133,8 +133,8 @@ input, select { font: inherit; color: inherit; }
   background: rgba(6, 9, 13, 0.9); border-right: 1px solid var(--edge);
 }
 .neo-crest { height: 46px; display: grid; place-items: center; background: none; border: 0; border-bottom: 1px solid var(--edge); cursor: pointer; }
-.neo-group { display: flex; flex-direction: column; padding: 4px 0; border-bottom: 1px solid var(--edge); }
-.neo-btn { position: relative; height: 38px; display: grid; place-items: center; background: none; border: 0; color: var(--text-3); cursor: pointer; }
+.neo-group { display: flex; flex-direction: column; padding: clamp(1px, 0.4vh, 4px) 0; border-bottom: 1px solid var(--edge); }
+.neo-btn { position: relative; height: clamp(24px, calc((100vh - 150px) / 26), 38px); display: grid; place-items: center; background: none; border: 0; color: var(--text-3); cursor: pointer; }
 .neo-btn:hover { color: var(--text); background: rgba(255, 255, 255, 0.05); }
 .neo-btn.open { color: var(--text-2); }
 .neo-btn.open::before { content: ''; position: absolute; left: 0; top: 9px; bottom: 9px; width: 2px; background: var(--text-3); }

@@ -40,7 +40,7 @@ test('volume controls, mute and persistence', async ({ page }) => {
   for (const [id, v] of [['vol-master', '60'], ['vol-music', '20'], ['vol-sfx', '90'], ['vol-ambient', '10']]) await panel.locator(`#${id}`).fill(v);
   expect(await settings(page)).toMatchObject({ master: 0.6, music: 0.2, sfx: 0.9, ambient: 0.1, muted: false });
   // global mute from the keyboard, and from the ministries column
-  await page.locator('body').click({ position: { x: 700, y: 400 } });
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur()); // hotkeys are ignored while typing in a field
   await page.keyboard.press('m');
   expect((await settings(page)).muted).toBe(true);
   await expect.poll(async () => (await dbg(page)).ctx).toBe('suspended'); // a muted mix stops processing
@@ -57,14 +57,12 @@ test('missing audio files do not break the game', async ({ page }) => {
   const errors = watchErrors(page);
   await page.route('**/assets/audio/**', (r) => r.fulfill({ status: 404, body: '' }));
   await startReign(page);
-  await page.keyboard.press('Space');
-  await page.waitForTimeout(800);
+  await page.keyboard.press('3');
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __sd: { getState(): { game: { tick: number } } } }).__sd.getState().game.tick)).toBeGreaterThan(0);
   await page.keyboard.press('Space');
   await openScreen(page, 'capital', 'Imperial capital');
   await openScreen(page, 'economy', 'Economy');
   await expect.poll(async () => (await dbg(page)).failed.length).toBeGreaterThan(0);
   expect((await dbg(page)).ctx).toBe('running'); // generative music and ambience continue
-  // the game itself is unaffected
-  expect(await page.evaluate(() => (window as unknown as { __sd: { getState(): { game: { tick: number } } } }).__sd.getState().game.tick)).toBeGreaterThan(0);
   expect(errors.filter((e) => !/Failed to load resource/.test(e))).toEqual([]);
 });
