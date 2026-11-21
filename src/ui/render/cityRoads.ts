@@ -26,10 +26,12 @@ export interface RoadNode { id: number; x: number; z: number; edges: number[]; s
 export interface RoadEdge { id: number; a: number; b: number; axis: Axis; major: boolean; length: number }
 
 /** Half-widths: carriageway and the sidewalk centre line. */
-export function roadHalf(major: boolean) { return major ? 2.4 : 2.1; }
-export function sidewalkOffset(major: boolean) { return roadHalf(major) + 0.45; }
+/** Matched to the street pieces: tevy's 12 m four-lane road (4.8 units) for avenues, Kenney's
+ *  street tile scaled to the 6-unit avenue for local streets (its carriageway is ~3.9 units). */
+export function roadHalf(major: boolean) { return major ? 2.4 : 1.95; }
+export function sidewalkOffset(major: boolean) { return major ? 2.7 : 2.6; }
 /** Lane centre offsets to the right of travel (major: two lanes each way). */
-export function laneOffsets(major: boolean): number[] { return major ? [0.6, 1.8] : [1.05]; }
+export function laneOffsets(major: boolean): number[] { return major ? [0.6, 1.8] : [0.98]; }
 
 export interface RoadNetwork { nodes: RoadNode[]; edges: RoadEdge[]; nodeAt: Map<string, number> }
 

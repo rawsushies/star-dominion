@@ -75,14 +75,13 @@ export function megacityLayout(): { slots: MegaSlot[]; districts: DistrictBlock[
   // elevated highways: square loops on the avenues bounding ring 1 and ring 2, and four radials
   const highways: HighwaySeg[] = [];
   const step = 6;
-  for (const lineAt of [CELL, 3 * CELL]) { // avenue centre lines lie on cell boundaries
+  // one elevated expressway ring over the ring road (3 cells out); the ceremonial axes and the
+  // street round the plaza stay open boulevards
+  for (const lineAt of [3 * CELL]) { // avenue centre lines lie on cell boundaries
     for (let t = -lineAt; t < lineAt; t += step) {
       highways.push({ x: t + step / 2, z: -lineAt, dir: 'x', cross: false }, { x: t + step / 2, z: lineAt, dir: 'x', cross: false });
       highways.push({ x: -lineAt, z: t + step / 2, dir: 'z', cross: false }, { x: lineAt, z: t + step / 2, dir: 'z', cross: false });
     }
-  }
-  for (let t = CELL + step / 2; t < 4 * CELL; t += step) {
-    highways.push({ x: 0, z: -t, dir: 'z', cross: false }, { x: 0, z: t, dir: 'z', cross: false }, { x: -t, z: 0, dir: 'x', cross: false }, { x: t, z: 0, dir: 'x', cross: false });
   }
   return { slots, districts, highways, citadel: { x: 0, z: 0 } };
 }
@@ -90,11 +89,7 @@ export function megacityLayout(): { slots: MegaSlot[]; districts: DistrictBlock[
 // ------------------------------------------------------------ the wider city and its traffic
 
 export type SkylineModel = 'spire_a' | 'spire_b' | 'truss_a' | 'res_a' | 'res_b' | 'res_c' | 'hall_b' | 'vault';
-/** Street cars: the Neon Town car is 4.3 units long; at this scale it is about 1.8. */
-export const CAR_SCALE = 0.42;
 /** Avenues that carry street traffic (cell boundaries; the central one crosses the Citadel plaza). */
-export const STREET_LINES = [-3, -2, -1, 1, 2, 3].map((k) => k * CELL);
-export const STREET_END = 4 * CELL - 4;
 /** Sky photograph (Poly Haven, Kloppenheim 06): where its sun lies, as a fraction of the image width. */
 export const SKY_SUN_U = 0.613;
 export const SUN = { elevation: 28, azimuth: -58 };
@@ -128,14 +123,3 @@ export function skylineLayout(count: number): SkylineTower[] {
   return out;
 }
 
-/** A street car's position at `time` seconds: lanes keep to the right of each avenue. */
-export function carAt(i: number, time: number): { x: number; z: number; ry: number } {
-  const alongX = i % 2 === 0;
-  const line = STREET_LINES[Math.floor(hash(i * 1.3) * STREET_LINES.length) % STREET_LINES.length];
-  const dir = hash(i * 2.9) < 0.5 ? 1 : -1;
-  const speed = 5 + hash(i * 4.1) * 4;
-  const span = 2 * STREET_END;
-  const t = (((hash(i * 8.3) * span + dir * time * speed) % span) + span) % span - STREET_END;
-  const lane = dir * 1.35;
-  return alongX ? { x: t, z: line + lane, ry: dir > 0 ? Math.PI / 2 : -Math.PI / 2 } : { x: line - lane, z: t, ry: dir > 0 ? 0 : Math.PI };
-}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { megacityLayout, skylineLayout, carAt, CELL, PLOT, ringOf, STREET_END } from '../src/ui/render/megacityLayout';
+import { megacityLayout, skylineLayout, CELL, PLOT, ringOf } from '../src/ui/render/megacityLayout';
 import { MEGA_TIERS, megaModelFor } from '../src/ui/render/capitalMegacity';
 import { PLOT_ORDER } from '../src/sim/capital';
 import { CAPITAL_BUILDINGS, CITADEL_PLOT, PLOT_COLS, PLOT_ROWS } from '../src/sim/data/capital';
@@ -68,18 +68,4 @@ describe('megacity layout', () => {
     expect(skylineLayout(140)).toEqual(towers); // deterministic
   });
 
-  it('keeps street cars on the avenues and in their lanes, never through plots or the Citadel', () => {
-    for (let i = 0; i < 110; i++) for (const time of [0, 3.3, 47, 600]) {
-      const c = carAt(i, time);
-      expect(Math.max(Math.abs(c.x), Math.abs(c.z))).toBeLessThanOrEqual(STREET_END + 2);
-      expect(Math.max(Math.abs(c.x), Math.abs(c.z)), 'not inside the Citadel plaza').toBeGreaterThan(CELL - 3);
-      for (const s of L.slots) {
-        if (s.plot === CITADEL_PLOT) continue;
-        expect(Math.abs(c.x - s.x) < PLOT / 2 && Math.abs(c.z - s.z) < PLOT / 2, `car ${i} on plot ${s.plot}`).toBe(false);
-      }
-    }
-    // cars move
-    const a = carAt(5, 0), b = carAt(5, 1);
-    expect(Math.hypot(a.x - b.x, a.z - b.z)).toBeGreaterThan(4);
-  });
 });

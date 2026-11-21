@@ -10,14 +10,15 @@
 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { mergeByMaterial, instancedFrom } from './instancing';
+import { CapitalLife } from './capitalLife';
 import { CAPITAL_BY_ID, CITADEL_PLOT } from '../../sim/data/capital';
 import { capLevel, openPlots, plotOccupant } from '../../sim/capital';
 import type { Empire } from '../../sim/types';
 import type { CapitalLabel } from './capital3d';
 import { disposeObject } from './assets/resources';
 import { RenderPipeline, type QualityTier, type PassToggles } from './pipeline';
-import { megacityLayout, skylineLayout, carAt, hash, CELL, PLOT, CAR_SCALE, SKYLINE_MODELS, SKY_SUN_U, SUN, type DistrictBlock, type MegaSlot, type SkylineTower } from './megacityLayout';
+import { megacityLayout, skylineLayout, hash, CELL, PLOT, SKYLINE_MODELS, SKY_SUN_U, SUN, type DistrictBlock, type MegaSlot, type SkylineTower } from './megacityLayout';
 
 export type KitModel =
   | 'citadel_t1' | 'citadel_t2' | 'citadel_t3' | 'citadel_t4' | 'arco_a' | 'arco_b' | 'arco_c' | 'spire_a' | 'spire_b' | 'truss_a'
@@ -82,44 +83,6 @@ export const PROFILE: Record<QualityTier, { skyline: number; cars: number; shutt
 
 export interface MegacityOptions { quality: QualityTier; still?: boolean; passes?: PassToggles; kitUrl?: string; assetBase?: string }
 
-/** Merge static meshes by material, keeping UVs (the kit is textured). */
-function mergeByMaterial(group: THREE.Group) {
-  group.updateMatrixWorld(true);
-  const buckets = new Map<THREE.Material, { geos: THREE.BufferGeometry[]; meshes: THREE.Mesh[] }>();
-  group.traverse((o) => {
-    const m = o as THREE.Mesh;
-    if (!m.isMesh || Array.isArray(m.material) || m.userData.keep) return;
-    const g = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone();
-    for (const k of Object.keys(g.attributes)) if (!['position', 'normal', 'uv'].includes(k)) g.deleteAttribute(k);
-    if (!g.attributes.uv) g.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2));
-    if (!g.attributes.normal) g.computeVertexNormals();
-    // quantised kit attributes are normalised integers; merge in float
-    for (const k of Object.keys(g.attributes)) {
-      const a = g.attributes[k] as THREE.BufferAttribute;
-      if (!(a.array instanceof Float32Array)) {
-        const f = new Float32Array(a.count * a.itemSize);
-        for (let i = 0; i < a.count; i++) for (let c = 0; c < a.itemSize; c++) f[i * a.itemSize + c] = a.getComponent(i, c);
-        g.setAttribute(k, new THREE.BufferAttribute(f, a.itemSize));
-      }
-    }
-    g.applyMatrix4(m.matrixWorld);
-    let b = buckets.get(m.material);
-    if (!b) buckets.set(m.material, (b = { geos: [], meshes: [] }));
-    b.geos.push(g); b.meshes.push(m);
-  });
-  const out: THREE.Mesh[] = [];
-  for (const [mat, b] of buckets) {
-    const merged = mergeGeometries(b.geos);
-    b.geos.forEach((g) => g.dispose());
-    if (!merged) continue;
-    const mesh = new THREE.Mesh(merged, mat);
-    mesh.castShadow = true; mesh.receiveShadow = true;
-    out.push(mesh);
-  }
-  group.clear();
-  for (const m of out) group.add(m);
-}
-
 export class MegacityCapitalView3D {
   renderer: THREE.WebGLRenderer;
   scene = new THREE.Scene();
@@ -143,13 +106,16 @@ export class MegacityCapitalView3D {
   private selected: number | null = null;
   private selMesh: THREE.Mesh;
   private mats: Record<string, THREE.Material>;
-  private traffic: THREE.InstancedMesh | null = null;
-  private cars: THREE.InstancedMesh[] = [];
+  /** plots with a building (traffic destinations); filled by the first sync */
+  private occupied = new Set<number>();
   private shuttles: THREE.InstancedMesh[] = [];
   private skyline: { mesh: THREE.InstancedMesh; towers: SkylineTower[] }[] = [];
   private skylineLevel = -1;
   private plinths: { mesh: THREE.InstancedMesh; towers: SkylineTower[] } | null = null;
   private textures: THREE.Texture[] = [];
+  /** streets, signals, traffic and pedestrians (capitalLife.ts) */
+  life: CapitalLife | null = null;
+  private lastFrame = 0;
   private raf = 0;
   private disposed = false;
   private frames: number[] = [];
@@ -202,10 +168,13 @@ export class MegacityCapitalView3D {
     this.scene.add(this.selMesh);
     this.pipeline.fitShadow(new THREE.Box3(new THREE.Vector3(-80, -2, -80), new THREE.Vector3(80, 90, 80)));
     this.bindInput();
-    this.ready = Promise.all([this.loadKit(), this.loadShuttle(), texReady]).then(() => {
+    this.life = new CapitalLife(this.renderer, { quality: opts.quality, still: opts.still, assetBase: opts.assetBase }, { slots: this.layout.slots, districts: this.layout.districts, occupied: this.occupied });
+    this.scene.add(this.life.group);
+    this.ready = Promise.all([this.loadKit(), this.loadShuttle(), texReady, this.life.ready]).then(() => {
       if (this.disposed) return;
       this.buildInfrastructure();
       this.buildTraffic();
+      this.pipeline.setEnvironmentIntensity(this.life!.group, 0.75);
       this.sig = ''; this.districtLevel = -1;
       if (this.last) this.sync(...this.last);
     });
@@ -265,29 +234,12 @@ export class MegacityCapitalView3D {
 
   /** Instanced copies of one model (merged by material): one draw call per material. */
   private instanced(src: THREE.Object3D, count: number, opts: { shadow?: boolean } = {}): THREE.InstancedMesh[] {
-    const g = new THREE.Group();
-    const c = src.clone(true);
-    c.position.set(0, 0, 0); c.rotation.set(0, 0, 0); c.scale.setScalar(1);
-    g.add(c);
-    mergeByMaterial(g);
-    return (g.children as THREE.Mesh[]).map((m) => {
-      const im = new THREE.InstancedMesh(m.geometry, m.material, count);
-      im.castShadow = !!opts.shadow; im.receiveShadow = true;
-      im.userData.keep = true;
-      im.frustumCulled = false; // instances spread far beyond the source's bounds
-      return im;
-    });
+    return instancedFrom(src, count, opts);
   }
 
-  /** Street cars (Neon Town car and taxi, CC0) and shuttles on the air lanes. */
+  /** Shuttles on the air lanes (street traffic is CapitalLife's). */
   private buildTraffic() {
     const P = PROFILE[this.opts.quality];
-    const n = P.cars;
-    for (const [model, share] of [['car', 0.7], ['taxi', 0.3]] as const) {
-      const src = this.kit.get(model);
-      if (!src) continue;
-      for (const im of this.instanced(src, Math.round(n * share))) { im.userData.vehicle = model; this.cars.push(im); this.scene.add(im); }
-    }
     if (this.shuttleSrc) {
       for (const im of this.instanced(this.shuttleSrc, P.shuttles)) { this.shuttles.push(im); this.scene.add(im); }
     }
@@ -369,10 +321,6 @@ export class MegacityCapitalView3D {
       const o = this.place(cross ? 'hwy_cross' : 'hwy_straight', h.x, h.z, { scale: HIGHWAY_SCALE, ry: h.dir === 'x' ? 0 : Math.PI / 2 });
       if (o) g.add(o);
     }
-    // street lamps along the inner avenues
-    for (let t = -3 * CELL; t <= 3 * CELL; t += CELL) for (const s of [-2 * CELL, 2 * CELL]) {
-      for (const [x, z] of [[t, s], [s, t]]) { const l = this.place('lamp', x + 2.6, z + 2.6, { scale: 0.8 }); if (l) g.add(l); }
-    }
     // perimeter wall with a gate on each axis
     const R = 4 * CELL + 6;
     for (let t = -R + 5; t < R; t += 10) {
@@ -397,12 +345,7 @@ export class MegacityCapitalView3D {
         this.infra.add(im);
       }
     }
-    // traffic: small light points gliding along the highway decks
-    const n = PROFILE[this.opts.quality].tubeLights;
-    const im = new THREE.InstancedMesh(new THREE.BoxGeometry(0.9, 0.35, 0.45), this.mats.lights, n);
-    im.userData.keep = true;
-    this.traffic = im;
-    this.scene.add(im);
+    // (the expressway tubes are sealed corridors: no traffic is drawn on them)
   }
 
   /** Districts of the wider city appear as the Citadel rises (each block has a Citadel level). */
@@ -458,6 +401,7 @@ export class MegacityCapitalView3D {
     if (citadel !== this.districtLevel) { this.districtLevel = citadel; this.buildDistricts(citadel); }
     if (citadel !== this.skylineLevel) this.buildSkyline(citadel);
     const open = new Set(openPlots(e));
+    for (const [, b] of Object.entries(cap.buildings)) this.occupied.add(b.plot);
     const sig = JSON.stringify(cap.buildings) + cap.queue.map((j) => j.building + j.toLevel).join() + [...open].join();
     if (sig !== this.sig) {
       this.sig = sig;
@@ -659,37 +603,8 @@ export class MegacityCapitalView3D {
     this.pipeline.setSize(w, h);
     this.placeCamera(w, h);
     const time = this.opts.still ? 0 : t / 1000;
-    if (this.traffic) {
-      // each light runs round one of the two highway loops
-      const m = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(1, 1, 1), p = new THREE.Vector3();
-      const deck = 7.4 * HIGHWAY_SCALE; // through the transit tubes' glazing band
-      for (let i = 0; i < this.traffic.count; i++) {
-        const L = i % 2 ? CELL : 3 * CELL, lane = (i % 4 < 2 ? -1 : 1) * 1.1;
-        const perim = 8 * L;
-        let u = ((hash(i) * perim + (i % 4 < 2 ? 1 : -1) * time * (6 + hash(i + 7) * 4)) % perim + perim) % perim;
-        const side = Math.floor(u / (2 * L)); u -= side * 2 * L;
-        const a = -L + u;
-        const [x, z, ry] = side === 0 ? [a, -L + lane, 0] : side === 1 ? [L + lane, a, Math.PI / 2] : side === 2 ? [-a, L - lane, 0] : [-L - lane, -a, Math.PI / 2];
-        q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), ry);
-        m.compose(p.set(x, deck, z), q, sc);
-        this.traffic.setMatrixAt(i, m);
-      }
-      this.traffic.instanceMatrix.needsUpdate = true;
-    }
-    if (this.cars.length) {
-      const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), sc = new THREE.Vector3().setScalar(CAR_SCALE), p = new THREE.Vector3();
-      let i = 0;
-      for (const kind of ['car', 'taxi']) {
-        const meshes = this.cars.filter((c) => c.userData.vehicle === kind);
-        if (!meshes.length) continue;
-        for (let k = 0; k < meshes[0].count; k++, i++) {
-          const c = carAt(i, time);
-          m.compose(p.set(c.x, 0.3, c.z), q.setFromAxisAngle(up, c.ry), sc);
-          for (const im of meshes) im.setMatrixAt(k, m);
-        }
-        for (const im of meshes) im.instanceMatrix.needsUpdate = true;
-      }
-    }
+    const dt = this.lastFrame ? (t - this.lastFrame) / 1000 : 0; this.lastFrame = t;
+    this.life?.update(dt, time, this.camTarget);
     if (this.shuttles.length) {
       // shuttles circle the Citadel on three air lanes, alternating direction
       const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), sc = new THREE.Vector3().setScalar(0.32), p = new THREE.Vector3();
@@ -712,8 +627,8 @@ export class MegacityCapitalView3D {
     const f = this.frames;
     const fps = f.length > 1 ? ((f.length - 1) * 1000) / (f[f.length - 1] - f[0]) : 0;
     const skyline = this.skyline.length ? new Set(this.skyline.flatMap((s) => s.towers.slice(0, s.mesh.count).map((t) => `${t.x},${t.z}`))).size : 0;
-    const cars = this.cars.filter((c, i, a) => a.findIndex((d) => d.userData.vehicle === c.userData.vehicle) === i).reduce((n, c) => n + c.count, 0);
-    return { fps, tier: this.opts.quality, ...this.pipeline.info(), kitModels: this.kit.size, skyline, cars, shuttles: this.shuttles[0]?.count ?? 0 };
+    const life = this.life?.stats();
+    return { fps, tier: this.opts.quality, ...this.pipeline.info(), kitModels: this.kit.size, skyline, cars: life?.vehicles ?? 0, walkers: life?.walkers ?? 0, nearPeople: life?.nearPeople ?? 0, shuttles: this.shuttles[0]?.count ?? 0 };
   }
 
   private updateLabels() {
@@ -746,6 +661,7 @@ export class MegacityCapitalView3D {
     for (const src of this.kit.values()) disposeObject(src);
     if (this.shuttleSrc) disposeObject(this.shuttleSrc);
     for (const m of this.agedMats.values()) m.dispose();
+    this.life?.dispose();
     for (const t of this.textures) t.dispose();
     this.scene.clear();
     this.renderer.renderLists.dispose();
