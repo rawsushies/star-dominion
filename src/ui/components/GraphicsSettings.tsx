@@ -37,6 +37,10 @@ export function GraphicsSettings() {
           {QUALITY.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
       </div>
+      <label className="row setting">
+        <input type="checkbox" checked={s.stats} onChange={(e) => setGraphics({ stats: e.target.checked })} />
+        <span>Show frame rate and draw calls in the capital</span>
+      </label>
       <p className="hint" data-testid="graphics-now">
         {now}
         {s.capital === 'auto' && d.software && ' This browser draws 3D in software, so the lighter city is used.'}

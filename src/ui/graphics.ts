@@ -8,10 +8,10 @@ import type { QualityTier } from './render/pipeline';
 
 export type CapitalStyle = 'auto' | 'megacity' | 'classic';
 export type QualityPref = 'auto' | QualityTier;
-export interface GraphicsSettings { capital: CapitalStyle; quality: QualityPref }
+export interface GraphicsSettings { capital: CapitalStyle; quality: QualityPref; /** frame-rate readout in the capital */ stats: boolean }
 
 export const GRAPHICS_KEY = 'sd.graphics.v1';
-export const GRAPHICS_DEFAULTS: GraphicsSettings = { capital: 'auto', quality: 'auto' };
+export const GRAPHICS_DEFAULTS: GraphicsSettings = { capital: 'auto', quality: 'auto', stats: false };
 
 function storage(): Storage | null {
   try { return typeof localStorage !== 'undefined' ? localStorage : null; } catch { return null; }
@@ -23,6 +23,7 @@ export function loadGraphics(store: Pick<Storage, 'getItem'> | null = storage())
     return {
       capital: (['auto', 'megacity', 'classic'] as const).includes(raw.capital as CapitalStyle) ? raw.capital as CapitalStyle : GRAPHICS_DEFAULTS.capital,
       quality: (['auto', 'mobile', 'medium', 'desktop'] as const).includes(raw.quality as QualityPref) ? raw.quality as QualityPref : GRAPHICS_DEFAULTS.quality,
+      stats: raw.stats === true,
     };
   } catch { return { ...GRAPHICS_DEFAULTS }; }
 }
@@ -71,7 +72,7 @@ export function currentDevice(): Device {
 }
 
 /** The capital view and tier to use for these settings on this device. */
-export function resolveCapital(s: GraphicsSettings, d: Device): { style: 'megacity' | 'classic'; quality: QualityTier } {
+export function resolveCapital(s: Pick<GraphicsSettings, 'capital' | 'quality'>, d: Device): { style: 'megacity' | 'classic'; quality: QualityTier } {
   const style = s.capital === 'auto' ? (d.software ? 'classic' : 'megacity') : s.capital;
   const quality: QualityTier = s.quality !== 'auto' ? s.quality : d.coarsePointer || d.width < 900 || d.cores <= 4 ? 'mobile' : 'medium';
   return { style, quality };

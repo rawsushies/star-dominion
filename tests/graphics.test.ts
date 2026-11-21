@@ -9,7 +9,7 @@ describe('graphics settings', () => {
     expect(loadGraphics(null)).toEqual(GRAPHICS_DEFAULTS);
     expect(loadGraphics(store({ capital: 'castle', quality: 'ultra' }))).toEqual(GRAPHICS_DEFAULTS);
     expect(loadGraphics({ getItem: () => '{not json' })).toEqual(GRAPHICS_DEFAULTS);
-    expect(loadGraphics(store({ capital: 'classic', quality: 'desktop' }))).toEqual({ capital: 'classic', quality: 'desktop' });
+    expect(loadGraphics(store({ capital: 'classic', quality: 'desktop', stats: true }))).toEqual({ capital: 'classic', quality: 'desktop', stats: true });
   });
 
   it('automatic: the megacity at medium quality on a desktop, low quality on phones and small machines', () => {

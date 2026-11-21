@@ -646,3 +646,4 @@ table.t tr.sel td { background: var(--ice-dim); }
   .cap-tools .btn.small { padding: 6px 10px; font-size: 13px; }
 }
 .right-col[hidden] { display: none; }
+.cap-perf { position: absolute; left: 50%; top: 82px; transform: translateX(-50%); z-index: 23; font-size: 12px; padding: 3px 8px; background: rgba(6, 9, 13, 0.75); border: 1px solid var(--edge); color: var(--ice); pointer-events: none; }

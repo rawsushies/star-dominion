@@ -15,6 +15,7 @@ import { capLevel, openPlots, plotOccupant, canQueueCapital, capitalCost, capita
 import { CityCanvas, BuildingCard, type CityView } from './Capital';
 import { modText } from './Council';
 import type { Empire, GameState } from '../../sim/types';
+import { graphics, onGraphicsChange } from '../graphics';
 
 type PanelMode = 'auto' | 'build' | 'effects';
 
@@ -67,6 +68,7 @@ export function CapitalScene() {
         <Queue />
       </div>
 
+      <PerfReadout view={view} />
       {panelOpen && (
         <aside className="cap-panel glass" aria-label="Capital panel" data-guide="capital-build">
           <button className="wbtn cap-panel-x" onClick={() => { setPanelOpen(false); ui.set({ capitalPlot: null }); }} aria-label="Close the panel">×</button>
@@ -167,7 +169,7 @@ function BuildingPanel({ id }: { id: string }) {
           <>
             <div className="cap-next-h">Level {nl}: <span className="hint">{capitalDays(g, me, d, nl)} days</span></div>
             <CostView cost={capitalCost(d, nl)} empire={me} />
-            <div className="hint">+{Object.entries(d.perLevel).map(([k, v]) => modText(k, v)).join(', ')}</div>
+            <div className="hint">Each level: {Object.entries(d.perLevel).map(([k, v]) => modText(k, v)).join(', ')}</div>
             <button className="btn primary cap-act" disabled={!!why} title={why ?? `Raise to level ${nl}`} onClick={() => ui.cmd({ type: 'capitalBuild', building: id })} data-testid="capital-upgrade">Upgrade to level {nl}</button>
             {why && <div className="hint cap-why">{why}</div>}
           </>
@@ -227,4 +229,20 @@ function Effects({ compact = false }: { compact?: boolean }) {
       <div className="row wrap" style={{ gap: '3px 12px' }}>{mods.map(([k, v]) => <span key={k} className={v > 0 === (k !== 'shipCost') ? 'pos' : 'neg'}>{modText(k, v)}</span>)}</div>
     </div>
   );
+}
+
+/** Frame rate and renderer counters, when switched on in the graphics settings. */
+function PerfReadout({ view }: { view: { current: CityView | null } }) {
+  const [on, setOn] = useState(() => graphics().stats);
+  const [txt, setTxt] = useState('');
+  useEffect(() => onGraphicsChange(() => setOn(graphics().stats)), []);
+  useEffect(() => {
+    if (!on) return;
+    const t = setInterval(() => {
+      const st = (view.current as { stats?(): Record<string, number | string> } | null)?.stats?.();
+      if (st) setTxt(`${Number(st.fps).toFixed(0)} fps · ${st.tier ?? 'classic'} · ${st.calls} calls · ${(Number(st.triangles) / 1e6).toFixed(2)} M tris`);
+    }, 1000);
+    return () => clearInterval(t);
+  }, [on, view]);
+  return on ? <div className="cap-perf num" data-testid="capital-perf">{txt || 'measuring…'}</div> : null;
 }

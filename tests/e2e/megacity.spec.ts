@@ -26,7 +26,7 @@ test('the megacity capital: labels pick plots, and switching back to the classic
   // clicking a building's label selects its plot in the side panel
   const name = (await tags.first().getAttribute('title'))!;
   await tags.first().click();
-  await expect(page.locator('.section h3', { hasText: name }).first()).toBeVisible();
+  await expect(page.locator('.cap-panel h2', { hasText: name })).toBeVisible();
   // switch to the classic city from the Chancery; the view is rebuilt on a fresh canvas
   await page.getByRole('button', { name: /Chancery/ }).click();
   await page.getByLabel('Capital city').selectOption('classic');

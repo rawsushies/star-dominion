@@ -165,8 +165,8 @@ export const useUI = create<UI>((set, get) => ({
   selectFleet: (id) => set({ fleetId: id, planetId: null }),
   openScreen: (s) => {
     if (s === 'map') { set({ screen: 'map' }); return; }
-    // the capital is not a window: it fills the screen behind the HUD (toggles from the neocom)
-    if (s === 'capital') { if (get().view === 'capital') get().leaveCapital(); else get().enterCapital(); return; }
+    // the capital is not a window: it fills the screen behind the HUD
+    if (s === 'capital') { if (get().view === 'capital') set({ screen: 'map' }); else get().enterCapital(); return; }
     const w = get().windows.find((x) => x.id === s);
     // toggling the focused, visible window from the neocom closes it
     if (w && get().screen === s && !w.min) { get().closeWin(s); return; }

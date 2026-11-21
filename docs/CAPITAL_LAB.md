@@ -183,7 +183,46 @@ PERF_TIMES
   - Plot ids are unchanged, no simulation code changed and saves are unaffected.
 - **Camera:** a young capital is framed close up and a grown one whole, until the player turns or zooms it.
 
-### In the game
+### In the game: the full-screen capital
+
+The Capital is a view, not a window (`src/ui/screens/CapitalScene.tsx`, store `view: 'capital'`).
+
+| New game | Developed capital | Building selected | Phone |
+|---|---|---|---|
+| ![new](asset-previews/m15/fs-new.jpg) | ![developed](asset-previews/m15/fs-dev.jpg) | ![selected](asset-previews/m15/fs-sel.jpg) | ![phone](asset-previews/m15/fs-phone.jpg) |
+
+- **The city fills the viewport** beside the ministries column. The resource strip, throne dial, dispatches, guidance and neocom stay as HUD overlays. The galaxy map stops drawing underneath.
+- **Title card** (top left): the world, Citadel level, open plots, builder crews, a toolbar (Citadel, Build, City effects, Whole city) and the builders' queue with progress and cancel.
+- **Contextual panel** (right):
+  - for a selected building: its level and effects, work in progress with Cancel, the next level's cost, time and effect, and Upgrade, with the reason when it is not possible;
+  - for an open plot: a build list;
+  - for a sealed plot: what opens it;
+  - otherwise: the city's effects and the Citadel's next requirements.
+- **Every control issues the simulation's own commands** (`capitalBuild`, `capitalCancel`). Plot ids, levels, queues and saves are unchanged.
+- **Camera:** drag to pan, right-drag (or Shift, or a two-finger twist) to turn, wheel or pinch to zoom. Selecting a plot glides the camera to it.
+- **Leaving:** Esc closes an open window first, then clears the selection, then returns to the galaxy. The neocom's Capital button and the title card's × also leave.
+- **On phones** the title card spans the top and the panel is a bottom sheet that opens on selection. The throne dial, dispatches and resource strip are hidden while in the capital.
+- **Density from the first day:**
+  - district blocks always stand, as lower kit buildings until the Citadel reaches their level;
+  - plots the Citadel has not opened carry an older, darker quarter, cleared when the plot opens;
+  - more than half the outer skyline stands from the start;
+  - transit tubes continue past each gate across the outer city.
+- **Quality profiles** (`PROFILE` in `capitalMegacity.ts`):
+
+| Tier | Skyline towers | Cars | Shuttles | Tube lights | Outer tubes reach | Ambient occlusion |
+|---|---|---|---|---|---|---|
+| Low (mobile) | 80 | 36 | 8 | 60 | 200 units | off |
+| Medium | 150 | 90 | 18 | 120 | 260 units | on |
+| High (desktop) | 200 | 120 | 24 | 160 | 300 units | on |
+
+- **Frame-rate readout:** Chancery → Graphics → *Show frame rate and draw calls in the capital*. Use it to measure on real hardware; no GPU was available while building this.
+- `tests/e2e/capital.spec.ts` checks:
+  - the viewport coverage;
+  - building on the next free plot through the panel, the queue, cancel and the Citadel upgrade;
+  - Esc order;
+  - the phone bottom sheet.
+
+### Graphics settings
 
 - `CityCanvas` (`src/ui/screens/Capital.tsx`) picks the view from the graphics settings (`src/ui/graphics.ts`).
 - The setting is under Chancery → Graphics and Codex → Settings → Graphics, and is stored in this browser as `sd.graphics.v1`.

@@ -63,7 +63,7 @@ export function Neocom() {
             const isOpen = windows.some((w) => w.id === id) || (id === 'capital' && view === 'capital');
             const badge = id === 'diplomacy' && inbox ? String(inbox) : id === 'research' && idleResearch ? '!' : null;
             return (
-              <button key={id} className={cls('neo-btn', isOpen && 'open', (screen === id || (id === 'capital' && view === 'capital' && screen === 'map')) && 'on')} onClick={() => (id === 'map' ? set({ view: 'galaxy' }) : open(id))} aria-label={label(id)}>
+              <button key={id} className={cls('neo-btn', isOpen && 'open', (screen === id || (id === 'capital' && view === 'capital' && screen === 'map')) && 'on')} onClick={() => (id === 'map' ? set({ view: 'galaxy' }) : id === 'capital' && view === 'capital' && screen === 'map' ? useUI.getState().leaveCapital() : open(id))} aria-label={label(id)}>
                 <ScreenIcon id={id} size={20} />
                 <span className="neo-flyout">{label(id)}{prefs.tooltips && SCREEN_INFO[id] && <small>{SCREEN_INFO[id]!.purpose}</small>}</span>
                 {badge && <span className="neo-badge">{badge}</span>}
