@@ -13,6 +13,9 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { mergeByMaterial, instancedFrom } from './instancing';
 import { CapitalLife } from './capitalLife';
 import { CapitalMetro } from './capitalMetro';
+import { CapitalWorld, inOuterZone, CARGO_RING, BIOME_GROUND } from './capitalWorld';
+import { CapitalActivity } from './capitalActivity';
+import type { PlanetType } from '../../sim/types';
 import { CAPITAL_BY_ID, CITADEL_PLOT } from '../../sim/data/capital';
 import { capLevel, openPlots, plotOccupant } from '../../sim/capital';
 import type { Empire } from '../../sim/types';
@@ -82,12 +85,12 @@ export const PROFILE: Record<QualityTier, { skyline: number; cars: number; shutt
   desktop: { skyline: 200, cars: 120, shuttles: 24, tubeLights: 160, outerTubes: 300 },
 };
 
-export interface MegacityOptions { quality: QualityTier; still?: boolean; passes?: PassToggles; kitUrl?: string; assetBase?: string }
+export interface MegacityOptions { quality: QualityTier; still?: boolean; passes?: PassToggles; kitUrl?: string; assetBase?: string; planetType?: PlanetType }
 
 export class MegacityCapitalView3D {
   renderer: THREE.WebGLRenderer;
   scene = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera(26, 1, 2, 2400);
+  camera = new THREE.PerspectiveCamera(26, 1, 2, 7000);
   cam = { yaw: 0.32, pitch: 0.5, dist: 230 };
   readonly pipeline: RenderPipeline;
   readonly layout = megacityLayout();
@@ -118,6 +121,11 @@ export class MegacityCapitalView3D {
   life: CapitalLife | null = null;
   /** the elevated metro (capitalMetro.ts) */
   metro: CapitalMetro | null = null;
+  /** outer districts, cargo road and the planetary landscape (capitalWorld.ts) */
+  world: CapitalWorld | null = null;
+  /** freighter, fighters, drones and cranes, driven by the realm's state (capitalActivity.ts) */
+  activity: CapitalActivity | null = null;
+  private atWar = false;
   private lastFrame = 0;
   private raf = 0;
   private disposed = false;
@@ -134,7 +142,7 @@ export class MegacityCapitalView3D {
     // the low tier drops ambient occlusion here: it redraws the whole dense city a second time
     this.pipeline = new RenderPipeline(this.renderer, this.scene, this.camera, opts.quality, { ...SUN, intensity: 3.1 }, opts.passes ?? (opts.quality === 'mobile' ? { ao: false } : undefined));
     // haze in the colour of the photographed sky's horizon, so the far city melts into it
-    this.scene.fog = new THREE.Fog(0xb4b6bc, 200, 950);
+    this.scene.fog = new THREE.Fog(0xb4b6bc, 320, 3400);
     // ground surfaces: Poly Haven photo-scanned textures (CC0), see assets/textures/megacity/manifest.json
     const texLoad = new THREE.LoadingManager();
     const texReady = new Promise<void>((res) => { texLoad.onLoad = () => res(); texLoad.onError = (u) => console.warn(`[megacity] texture failed to load: ${u}`); });
@@ -174,16 +182,25 @@ export class MegacityCapitalView3D {
     this.life = new CapitalLife(this.renderer, { quality: opts.quality, still: opts.still, assetBase: opts.assetBase }, { slots: this.layout.slots, districts: this.layout.districts, occupied: this.occupied });
     this.scene.add(this.life.group);
     this.metro = new CapitalMetro(this.renderer, opts.quality);
+    this.world = new CapitalWorld(this.renderer, opts.quality, opts.planetType);
+    this.scene.add(this.world.group);
+    this.activity = new CapitalActivity(this.renderer, opts.quality, this.layout.slots);
+    this.scene.add(this.activity.group);
     this.scene.add(this.metro.group);
     this.life.extraWalkers = () => this.metro?.passengers ?? [];
     // street life is not essential to the city: a failure there is reported, the city still builds
-    const lifeReady = Promise.all([this.life.ready, this.metro.ready]).catch((e) => console.warn(`[megacity] street life failed: ${(e as Error).message ?? e}`));
+    const lifeReady = Promise.all([this.life.ready, this.metro.ready, this.world.ready, this.activity.ready]).catch((e) => console.warn(`[megacity] street life failed: ${(e as Error).message ?? e}`));
     this.ready = Promise.all([this.loadKit(), this.loadShuttle(), texReady, lifeReady]).then(() => {
       if (this.disposed) return;
       this.buildInfrastructure();
       this.buildTraffic();
       this.pipeline.setEnvironmentIntensity(this.life!.group, 0.75);
       this.pipeline.setEnvironmentIntensity(this.metro!.group, 0.75);
+      this.pipeline.setEnvironmentIntensity(this.world!.group, 0.75);
+      this.pipeline.setEnvironmentIntensity(this.activity!.group, 0.75);
+      // the land the city stands on: an island on worlds with a sea, tinted by the biome
+      const land = this.ground.children.find((o) => (o as THREE.Mesh).geometry?.type === 'CircleGeometry') as THREE.Mesh | undefined;
+      if (land) { const r = this.world!.landRadius(); land.scale.setScalar(r / 1400); (this.mats.land as THREE.MeshStandardMaterial).color.setRGB(2.9, 2.9, 2.95).multiply(new THREE.Color(BIOME_GROUND[this.world!.biome]).lerp(new THREE.Color(0xffffff), 0.6)); }
       this.sig = ''; this.districtLevel = -1;
       if (this.last) this.sync(...this.last);
     });
@@ -224,7 +241,7 @@ export class MegacityCapitalView3D {
     // scene until then, and stays if the photograph is missing)
     const t = loader.load(`${this.opts.assetBase ?? import.meta.env.BASE_URL ?? '/'}assets/textures/megacity/sky.jpg`, (tex) => {
       if (this.disposed) return;
-      this.scene.add(this.pipeline.setSkyMap(tex, turn, 2000));
+      this.scene.add(this.pipeline.setSkyMap(tex, turn, 6000));
     });
     this.textures.push(t);
     // seen from inside the dome the image would be mirrored: flip it back
@@ -257,7 +274,7 @@ export class MegacityCapitalView3D {
   /** The skyline beyond the walls: built once, revealed tower by tower with the Citadel. */
   private buildSkyline(citadel: number) {
     if (!this.skyline.length) {
-      const towers = skylineLayout(PROFILE[this.opts.quality].skyline);
+      const towers = skylineLayout(PROFILE[this.opts.quality].skyline, (x, z) => inOuterZone(x, z) || (Math.max(Math.abs(x), Math.abs(z)) > CARGO_RING - 9 && Math.max(Math.abs(x), Math.abs(z)) < CARGO_RING + 9));
       for (const model of SKYLINE_MODELS) {
         const src = this.kit.get(model);
         const mine = towers.filter((t) => t.model === model).sort((a, b) => a.from - b.from);
@@ -418,6 +435,13 @@ export class MegacityCapitalView3D {
     if (citadel !== this.skylineLevel) this.buildSkyline(citadel);
     const open = new Set(openPlots(e));
     for (const [, b] of Object.entries(cap.buildings)) this.occupied.add(b.plot);
+    // what the realm's state drives: cranes and drones at building sites, fighters by readiness
+    this.activity?.setActivity({
+      sites: cap.queue.map((j) => this.slotByPlot.get(j.plot)).filter((x): x is MegaSlot => !!x).map((sl) => ({ x: sl.x, z: sl.z })),
+      readiness: e.stats.navalCap ? Math.min(1, e.stats.navalUsed / e.stats.navalCap) : 0.3,
+      atWar: this.atWar,
+      industry: e.stats.industry ?? 0,
+    });
     const sig = JSON.stringify(cap.buildings) + cap.queue.map((j) => j.building + j.toLevel).join() + [...open].join();
     if (sig !== this.sig) {
       this.sig = sig;
@@ -502,6 +526,9 @@ export class MegacityCapitalView3D {
     const ss = sel != null ? this.slotByPlot.get(sel) : null;
     if (ss) { this.selMesh.position.set(ss.x, 0.45, ss.z); this.selMesh.scale.setScalar(ss.plot === CITADEL_PLOT ? 2.6 : 1); this.selMesh.visible = true; } else this.selMesh.visible = false;
   }
+
+  /** The realm's wider state that the city shows (patrols scramble at war). */
+  setRealmState(s: { atWar: boolean }) { this.atWar = s.atWar; if (this.activity) this.activity.activity = { ...this.activity.activity, atWar: s.atWar }; }
 
   // ------------------------------------------------------------------ input, camera, frame
 
@@ -621,6 +648,7 @@ export class MegacityCapitalView3D {
     const time = this.opts.still ? 0 : t / 1000;
     const dt = this.lastFrame ? (t - this.lastFrame) / 1000 : 0; this.lastFrame = t;
     this.metro?.update(dt, time, !!this.opts.still);
+    if (!this.opts.still) { this.world?.update(Math.min(dt, 0.1)); this.activity?.update(Math.min(dt, 0.1), time); }
     this.life?.update(dt, time, this.camTarget);
     if (this.shuttles.length) {
       // shuttles circle the Citadel on three air lanes, alternating direction
@@ -646,7 +674,8 @@ export class MegacityCapitalView3D {
     const skyline = this.skyline.length ? new Set(this.skyline.flatMap((s) => s.towers.slice(0, s.mesh.count).map((t) => `${t.x},${t.z}`))).size : 0;
     const life = this.life?.stats();
     const metro = this.metro?.stats();
-    return { fps, tier: this.opts.quality, ...this.pipeline.info(), kitModels: this.kit.size, skyline, trains: metro?.trains ?? 0, trainsStopped: metro?.stopped ?? 0, cars: life?.vehicles ?? 0, walkers: life?.walkers ?? 0, nearPeople: life?.nearPeople ?? 0, shuttles: this.shuttles[0]?.count ?? 0 };
+    const act = this.activity?.stats();
+    return { fps, tier: this.opts.quality, ...this.pipeline.info(), kitModels: this.kit.size, skyline, trains: metro?.trains ?? 0, trainsStopped: metro?.stopped ?? 0, freighter: act?.freighter ?? 'none', fighters: act?.fighters ?? 0, drones: act?.drones ?? 0, cranes: act?.cranes ?? 0, cars: life?.vehicles ?? 0, walkers: life?.walkers ?? 0, nearPeople: life?.nearPeople ?? 0, shuttles: this.shuttles[0]?.count ?? 0 };
   }
 
   private updateLabels() {
@@ -681,6 +710,8 @@ export class MegacityCapitalView3D {
     for (const m of this.agedMats.values()) m.dispose();
     this.life?.dispose();
     this.metro?.dispose();
+    this.world?.dispose();
+    this.activity?.dispose();
     for (const t of this.textures) t.dispose();
     this.scene.clear();
     this.renderer.renderLists.dispose();

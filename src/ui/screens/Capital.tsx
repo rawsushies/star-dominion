@@ -31,7 +31,7 @@ export function CityCanvas({ sel, onPick, height = 420, onView }: { sel: number 
     const c = canvas.current;
     const onP = (p: number | null) => pick.current?.(p);
     const v = style === 'megacity'
-      ? new MegacityCapitalView3D(c, overlay.current, me.color, onP, { quality })
+      ? new MegacityCapitalView3D(c, overlay.current, me.color, onP, { quality, planetType: me.capitalPlanetId != null ? g.planets[me.capitalPlanetId]?.type : undefined })
       : new CapitalView3D(c, overlay.current, me.color, onP);
     view.current = v;
     onView?.(v);
@@ -50,6 +50,7 @@ export function CityCanvas({ sel, onPick, height = 420, onView }: { sel: number 
       seen.add(id);
     }
     for (const j of cap.queue) if (!seen.has(j.building)) { seen.add(j.building); labels.push({ plot: j.plot, name: CAPITAL_BY_ID[j.building].label, level: 0, building: true, progress: j.progress / j.total, days: j.total - j.progress }); }
+    if (view.current instanceof MegacityCapitalView3D) view.current.setRealmState({ atWar: g.wars.some((w) => w.attackers.includes(g.playerId) || w.defenders.includes(g.playerId)) });
     view.current.sync(me, labels, sel);
   });
   return (

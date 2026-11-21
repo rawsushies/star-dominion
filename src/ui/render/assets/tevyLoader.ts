@@ -32,6 +32,12 @@ export function tevyUrl(slug: string, lod: number, base = `${(import.meta.env.BA
   return `${base}${slug}.lod${lod}.glb`;
 }
 
+/** A KTX2 texture (tevy's ground materials), through the renderer's shared KTX2 loader. */
+export async function loadTevyTexture(renderer: THREE.WebGLRenderer, url: string): Promise<THREE.Texture> {
+  tevyLoader(renderer);
+  return loaders.get(renderer)!.ktx2.loadAsync(url);
+}
+
 export async function loadTevy(renderer: THREE.WebGLRenderer, url: string): Promise<GLTF> {
   return tevyLoader(renderer).loadAsync(url);
 }

@@ -107,13 +107,14 @@ export interface SkylineTower { model: SkylineModel; x: number; z: number; ry: n
  * approaches clear, with the farthest ones raised first. Each tower has the Citadel level from
  * which it stands, so the skyline thickens as the capital grows.
  */
-export function skylineLayout(count: number): SkylineTower[] {
+export function skylineLayout(count: number, exclude?: (x: number, z: number) => boolean): SkylineTower[] {
   const out: SkylineTower[] = [];
   for (let i = 0; out.length < count && i < count * 4; i++) {
     const a = hash(i * 3.1) * Math.PI * 2;
     const r = 4 * CELL + 22 + Math.pow(hash(i * 7.7), 0.8) * 230;
     const x = Math.cos(a) * r, z = Math.sin(a) * r;
     if (Math.abs(x) < 12 || Math.abs(z) < 12) continue; // gate approaches
+    if (exclude?.(x, z)) continue; // outer districts, cargo road
     if (out.some((t) => Math.hypot(t.x - x, t.z - z) < 11)) continue;
     const model = SKYLINE_MODELS[Math.floor(hash(i * 1.9) * SKYLINE_MODELS.length) % SKYLINE_MODELS.length];
     const tall = model.startsWith('spire') || model === 'truss_a';

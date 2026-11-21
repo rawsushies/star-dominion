@@ -1681,6 +1681,109 @@
           "sha256": "2179b6e991f50e3d99c7bfc1bc88417a21b7d82002f5482120b23dfe91846621"
         }
       ]
+    },
+    {
+      "slug": "substation",
+      "name": "Electrical Substation",
+      "version": 2,
+      "page": "https://tevy.dev/models/substation",
+      "dimensions": {
+        "x": 31,
+        "y": 14.53,
+        "z": 31.004
+      },
+      "parts": [
+        "gate_L",
+        "gate_R"
+      ],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/substation.lod2.glb",
+          "bytes": 223208,
+          "triangles": 3016,
+          "sha256": "5625677e37b7a3768ba2f4e2fb4d6b9b9e5058e2a022ab7c60b57d2038f3cde1"
+        }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "slug": "meadow-ground",
+      "name": "Meadow Ground",
+      "version": 1,
+      "tileSize": 2,
+      "page": "https://tevy.dev/materials/meadow-ground",
+      "files": [
+        {
+          "file": "assets/textures/tevy/meadow-ground-color-1k.ktx2",
+          "bytes": 260142,
+          "sha256": "d8c4cc22fe163b5f81eb93e1fdd1c83f91f3861083be2616ec699654218067ac"
+        },
+        {
+          "file": "assets/textures/tevy/meadow-ground-normal-1k.ktx2",
+          "bytes": 751392,
+          "sha256": "3d7c29e8c59f03fd6b1d0e9de87f8b6a536cfe6021628a2ba527439c19b0ad35"
+        }
+      ]
+    },
+    {
+      "slug": "desert-sand",
+      "name": "Desert Sand",
+      "version": 1,
+      "tileSize": 4,
+      "page": "https://tevy.dev/materials/desert-sand",
+      "files": [
+        {
+          "file": "assets/textures/tevy/desert-sand-color-1k.ktx2",
+          "bytes": 551594,
+          "sha256": "5781c5352705052ab10e911694bbde201522dc7792946d31dc8a5b17654774c5"
+        },
+        {
+          "file": "assets/textures/tevy/desert-sand-normal-1k.ktx2",
+          "bytes": 686756,
+          "sha256": "ac1d39a9c5d71a6324bf5392d5411db994ce19d0fca67cfcb5f5b6921798baca"
+        }
+      ]
+    },
+    {
+      "slug": "snow",
+      "name": "Fresh Snow",
+      "version": 1,
+      "tileSize": 2,
+      "page": "https://tevy.dev/materials/snow",
+      "files": [
+        {
+          "file": "assets/textures/tevy/snow-color-1k.ktx2",
+          "bytes": 73824,
+          "sha256": "bf7ea9690dbfe2d301b0eff4e6a3a0c3dce0168a2fe8b1391e59916f47d0fa2f"
+        },
+        {
+          "file": "assets/textures/tevy/snow-normal-1k.ktx2",
+          "bytes": 1039186,
+          "sha256": "3302bc8885923f7c8f003edb16c3a47168b94f1f7ba5ddfecc2ee7dabd38518d"
+        }
+      ]
+    },
+    {
+      "slug": "granite-rock",
+      "name": "Granite Rock Face",
+      "version": 1,
+      "tileSize": 2,
+      "page": "https://tevy.dev/materials/granite-rock",
+      "files": [
+        {
+          "file": "assets/textures/tevy/granite-rock-color-1k.ktx2",
+          "bytes": 262879,
+          "sha256": "d7bc96727b5db1d01e16fad66d67d0f47d62be0158c20772160ac4d8fe69a3a9"
+        },
+        {
+          "file": "assets/textures/tevy/granite-rock-normal-1k.ktx2",
+          "bytes": 694090,
+          "sha256": "e5bd2771d0d058d7fd8b3d04feab73666af2ac7ce0a55db110f23aa13ee78a8c"
+        }
+      ]
     }
   ]
 }

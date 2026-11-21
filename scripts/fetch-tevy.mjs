@@ -46,4 +46,29 @@ for (const [slug, [version, lods]] of Object.entries(list)) {
   manifest.models.push({ slug, name: meta.name, version, page: `https://tevy.dev/models/${slug}`, dimensions: meta.dimensions, parts: meta.parts, animations: meta.animations, files: taken });
   console.log(`${slug} v${version}: ${taken.map((t) => `lod${t.lod} ${(t.bytes / 1024).toFixed(0)} KB ${t.triangles} tris`).join(', ')}`);
 }
+// seamless PBR ground materials (1K colour and normal maps, KTX2)
+if (mode !== 'candidates') {
+  const mats = await (await fetch('https://tevy.dev/materials.json')).json();
+  const bySlugM = new Map(mats.materials.map((m) => [m.slug, m]));
+  manifest.materials = [];
+  const MOUT = 'public/assets/textures/tevy';
+  mkdirSync(MOUT, { recursive: true });
+  for (const [slug, version] of Object.entries(JSON.parse(readFileSync(new URL('./tevy-materials.json', import.meta.url))))) {
+    const meta = bySlugM.get(slug);
+    if (!meta || meta.license !== 'CC0-1.0' || meta.version !== version) throw new Error(`material ${slug} v${version} unavailable or not CC0`);
+    const taken = [];
+    for (const kind of ['color', 'normal']) {
+      const f = meta.files.find((x) => x.path.endsWith(`/${kind}-1k.ktx2`));
+      const dst = join(MOUT, `${slug}-${kind}-1k.ktx2`);
+      if (!existsSync(dst) || createHash('sha256').update(readFileSync(dst)).digest('hex') !== f.sha256) {
+        const buf = Buffer.from(await (await fetch(`https://tevy.dev${f.path}`)).arrayBuffer());
+        if (createHash('sha256').update(buf).digest('hex') !== f.sha256) throw new Error(`${slug} ${kind}: checksum mismatch`);
+        writeFileSync(dst, buf);
+      }
+      taken.push({ file: dst.replace(/^public\//, ''), bytes: f.bytes, sha256: f.sha256 });
+    }
+    manifest.materials.push({ slug, name: meta.name, version, tileSize: meta.tileSize, page: `https://tevy.dev/materials/${slug}`, files: taken });
+    console.log(`material ${slug} v${version}: ${taken.map((t) => `${(t.bytes / 1024).toFixed(0)} KB`).join(', ')}`);
+  }
+}
 writeFileSync(join(OUT, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
