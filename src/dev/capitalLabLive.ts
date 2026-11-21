@@ -28,6 +28,7 @@ let view: View;
 const pick = (p: number | null) => { selected = p; view.sync(empire, labels, selected); (window as unknown as { __labPick?: number | null }).__labPick = p; };
 if (variant === 'd') {
   const m = new MegacityCapitalView3D(canvas, overlay, empire.color, pick, { quality, still, passes });
+  m.cameraLocked = true;
   Object.assign(m.cam, ANGLE, { dist: 250 }, q.has('dist') ? { dist: +q.get('dist')! } : {}, q.has('yaw') ? { yaw: +q.get('yaw')! } : {}, q.has('pitch') ? { pitch: +q.get('pitch')! } : {});
   view = m;
   m.ready.then(() => { view.sync(empire, labels, selected); markReady(); });

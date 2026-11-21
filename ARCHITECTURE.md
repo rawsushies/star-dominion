@@ -28,6 +28,7 @@ src/
     cloud.ts        Firebase Auth (Google) + Firestore saves (optional, lazy-loaded)
   ui/
     store.ts        zustand UI store, real-time loop, windows, toasts, save/load glue
+    graphics.ts     graphics preferences (capital view, quality tier), software-renderer probe
     App.tsx         HUD composition
     components/     Hud, ContextPanel, MapView, MainMenu, Evolution, Tutorial, Account,
                     PlanetHero, OpControls, icons, common widgets, and in Chrome.tsx
@@ -39,11 +40,14 @@ src/
       galaxy3d.ts   the 3D galaxy (10,000 systems, instanced stars, lanes, territory)
       system3d.ts   star-system scene with fleet formations built from real hulls
       planet3d.ts   procedural planet shader; planetScene.ts for large portraits
-      capital3d.ts  the capital city built from sourced building parts by tier
+      capital3d.ts  the classic capital city built from sourced building parts by tier
+      capitalMegacity.ts, megacityLayout.ts   the imperial megacity capital (default where
+                    WebGL runs on a GPU): megacity kit, sky dome, outer skyline, traffic
       hero3d.ts     animated character stage (Hall of Heroes, throne-room ruler)
       battle3d.ts   3D replay of a recorded BattleReport
       pipeline.ts   shared post-processing pipeline and quality tiers (HDR sky/PMREM, fitted
-                    shadows, GTAO, emissive bloom, ACES output)
+                    shadows, GTAO, emissive bloom, ACES output); setSkyMap() swaps in a
+                    photographed sky
       capitalDiorama.ts, dioramaLayout.ts   candidate terraced-island capital (laboratory only)
       nebula.ts     background bake
       assets/

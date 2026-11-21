@@ -136,6 +136,8 @@ export class MegacityCapitalView3D {
   private raf = 0;
   private disposed = false;
   private frames: number[] = [];
+  /** set when the player (or the laboratory) has placed the camera; stops the automatic framing */
+  cameraLocked = false;
   ready: Promise<void>;
   private shuttleSrc: THREE.Object3D | null = null;
 
@@ -410,6 +412,9 @@ export class MegacityCapitalView3D {
     const cap = e.capital;
     if (!cap || !this.kit.size) return;
     const citadel = capLevel(e, 'citadel');
+    // frame the city as it stands: a young capital close up, a grown one whole (until the
+    // player turns or zooms the camera themselves)
+    if (!this.cameraLocked) this.cam.dist = Math.min(230, 120 + citadel * 6);
     if (citadel !== this.districtLevel) { this.districtLevel = citadel; this.buildDistricts(citadel); }
     if (citadel !== this.skylineLevel) this.buildSkyline(citadel);
     const open = new Set(openPlots(e));
@@ -493,7 +498,7 @@ export class MegacityCapitalView3D {
   private bindInput() {
     let down: { x: number; y: number; yaw: number; pitch: number } | null = null;
     let moved = false;
-    this.canvas.addEventListener('pointerdown', (ev) => { down = { x: ev.clientX, y: ev.clientY, yaw: this.cam.yaw, pitch: this.cam.pitch }; moved = false; this.canvas.setPointerCapture(ev.pointerId); });
+    this.canvas.addEventListener('pointerdown', (ev) => { this.cameraLocked = true; down = { x: ev.clientX, y: ev.clientY, yaw: this.cam.yaw, pitch: this.cam.pitch }; moved = false; this.canvas.setPointerCapture(ev.pointerId); });
     this.canvas.addEventListener('pointermove', (ev) => {
       if (!down) return;
       const dx = ev.clientX - down.x, dy = ev.clientY - down.y;
@@ -502,7 +507,7 @@ export class MegacityCapitalView3D {
       this.cam.pitch = Math.max(0.3, Math.min(1.35, down.pitch + dy * 0.004));
     });
     this.canvas.addEventListener('pointerup', (ev) => { if (down && !moved) this.onPick(this.pick(ev.clientX, ev.clientY)); down = null; });
-    this.canvas.addEventListener('wheel', (ev) => { ev.preventDefault(); this.cam.dist = Math.max(70, Math.min(420, this.cam.dist * (ev.deltaY > 0 ? 1.1 : 0.9))); }, { passive: false });
+    this.canvas.addEventListener('wheel', (ev) => { ev.preventDefault(); this.cameraLocked = true; this.cam.dist = Math.max(70, Math.min(420, this.cam.dist * (ev.deltaY > 0 ? 1.1 : 0.9))); }, { passive: false });
   }
 
   pick(cx: number, cy: number): number | null {

@@ -151,35 +151,71 @@ PERF_TIMES
 2. Choose the default quality tier per device class, after trying the live lab on your phone.
 3. Choose how to get the Direction A character models, as described above.
 
-## Variant D · Megacity (milestone 15, at the approval gate)
+## Variant D · Megacity (milestone 15, in the game behind a graphics setting)
 
-`capitallab.html?variant=d` renders the same sample capital as an imperial megacity. It is built only from the CC0 megacity kit (`docs/ASSET_CATALOG.md` → *Capital megacity kit*).
+`capitallab.html?variant=d` renders the sample capital as an imperial megacity. The same view is now the game's Capital screen (see *In the game* below). It is built only from sourced CC0 assets: the megacity kit, the Neon Town vehicles, a Quaternius shuttle and Poly Haven textures (`docs/ASSET_CATALOG.md` → *Capital megacity kit*).
 
-| Wide | Close | Phone |
-|---|---|---|
-| ![D wide](asset-previews/m15/d-wide.jpg) | ![D close](asset-previews/m15/d-close.jpg) | ![D phone](asset-previews/m15/d-phone.jpg) |
+| Medium tier | Close | Low horizon (skyline) | New game, low tier |
+|---|---|---|---|
+| ![D wide](asset-previews/m15/d-wide.jpg) | ![D close](asset-previews/m15/d-close.jpg) | ![D skyline](asset-previews/m15/d-skyline.jpg) | ![D in game](asset-previews/m15/d-ingame.jpg) |
 
-- **Layout** (`src/ui/render/megacityLayout.ts`):
+- **Layout** (`src/ui/render/megacityLayout.ts`, pure data and tested):
   - The Imperial Citadel stands on a central 2 × 2 block.
   - The 23 other plots fill ring 1, then ring 2, in the game's unlock order (`PLOT_ORDER`).
-  - Every other block of rings 2 and 3 is a residential, industrial, energy or civic district. Districts are built as the Citadel rises; until then a block is an empty lot.
-  - Elevated transit tubes on pylons form two loops and four radials, with arched junction hubs and moving lights.
+  - Every other block of rings 2 and 3 is a residential, industrial, energy or civic district, built as the Citadel rises.
+  - Elevated transit tubes on pylons form two loops and four radials, with lights moving through them.
   - A perimeter wall has a gate on each axis.
+  - Beyond the wall, up to 140 towers of the outer city stand on paved plinths. They keep the gate approaches clear and rise with the Citadel level (`skylineLayout`).
+- **Surroundings:**
+  - A photographed sky (Poly Haven, Kloppenheim 06) forms the horizon, turned so its sun matches the scene's light.
+  - The same sky is pre-filtered into the environment light (`RenderPipeline.setSkyMap`).
+  - Haze in the horizon's colour fades the outer city.
+  - Avenues, lots, the plaza and the land use scanned Poly Haven textures with normal maps.
+- **Traffic:**
+  - Neon Town cars and taxis drive the six avenues, keeping to the right of each (`carAt`; tests check they never cross a plot or the Citadel plaza).
+  - Quaternius shuttles circle the Citadel on three air lanes.
+  - Both are instanced, so each vehicle type costs one draw call per material.
 - **Buildings:**
   - Each capital building maps to a kit model per level tier (`MEGA_TIERS`) and grows 3% per level within a tier.
   - The Citadel passes through four stages (levels 1, 6, 12 and 20).
   - Sky-bridges link neighbouring towers that both rise above 24 units.
-- **Gameplay is preserved.**
-  - The interface matches the other capital views: `sync`, `pick`, `plotScreen`, `stats` and `dispose`.
-  - Labels, selection, scaffolding over work in progress and ghosts for first levels under construction all behave as in the other views.
+  - Labels, selection, scaffolding and construction ghosts behave as in the other views.
   - Plot ids are unchanged, no simulation code changed and saves are unaffected.
-  - `tests/megacity-layout.test.ts` checks plots, unlock order, overlaps, highways and every building's models.
-- **Performance** (SwiftShader, so these are not device frame rates):
-  - About 600 draw calls and 1.65 M triangles per frame, counting the shadow and AO passes.
-  - Buildings, districts and infrastructure are merged by material.
-  - The desktop tier (16-sample GTAO, 4096 shadow map) does not settle within 90 s on SwiftShader. It has not been measured on a GPU.
-- **Known gaps:**
-  - Ground surfaces (deck, lots, plaza) are plain shaded slabs, not sourced assets.
-  - The far background is a flat plain.
-  - Street-level traffic and people are not modelled.
-  - **Production is unchanged.**
+- **Camera:** a young capital is framed close up and a grown one whole, until the player turns or zooms it.
+
+### In the game
+
+- `CityCanvas` (`src/ui/screens/Capital.tsx`) picks the view from the graphics settings (`src/ui/graphics.ts`).
+- The setting is under Chancery → Graphics and Codex → Settings → Graphics, and is stored in this browser as `sd.graphics.v1`.
+- **Capital city** setting:
+  - *Automatic* (the default) draws the megacity, unless the browser renders WebGL in software (SwiftShader, llvmpipe), where it would crawl; then it draws the classic city.
+  - *Imperial megacity* or *Classic city* force either view.
+- **Megacity quality** setting:
+  - *Automatic* uses the low (mobile) tier on touch devices, windows narrower than 900 px and machines with 4 cores or fewer, and medium elsewhere.
+  - The high (desktop) tier is opt-in.
+- Changing either setting rebuilds the view on a fresh canvas.
+- `tests/e2e/megacity.spec.ts` checks the software fallback, label picking in the megacity and switching back to the classic city. `tests/graphics.test.ts` checks the setting logic.
+
+### Performance (SwiftShader, so not device frame rates)
+
+| Scene | Tier | Draw calls | Triangles per frame (all passes) |
+|---|---|---|---|
+| Sample capital (14 buildings, Citadel 14) | low | 711 | 1.8 M |
+| Sample capital | medium | 726 | 2.1 M |
+| New game (Citadel 1) | low | 221 | 0.89 M |
+
+- Scene triangles for the sample capital at the low tier:
+  - infrastructure 195 k;
+  - districts 117 k;
+  - outer skyline 112 k;
+  - buildings 70 k;
+  - vehicles 22 k.
+- The shadow and AO passes roughly triple the per-frame triangle count. The skyline and vehicles cast no shadows.
+- On SwiftShader a frame takes about one second, which is why *Automatic* chooses the classic city there.
+- The desktop tier has not been measured on a GPU.
+
+### Known gaps
+
+- Pedestrians are not modelled; at the city's scale they would be under a pixel.
+- Cars pass through one another at crossings (there are no traffic signals).
+- The transit tubes put a pylon under every 6-unit section. Thinning them out would need a pylon-free section in the kit.

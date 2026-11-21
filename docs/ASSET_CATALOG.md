@@ -195,14 +195,28 @@ The original downloads are not committed. Only the optimised GLBs are.
 
 Sound effects are Kenney's CC0 Interface Sounds and Sci-fi Sounds, processed by `scripts/build_audio.py`. Music and synthesised ambience are original and generated at runtime. `docs/AUDIO.md` lists every sound with its source file and licence, and `src/audio/manifest.json` is the machine-readable manifest.
 
-## Capital megacity kit (laboratory variant D, awaiting approval)
+## Capital megacity kit
 
-`public/assets/models/megacity/kit.glb` (2.1 MB) holds 28 models assembled by `scripts/blender/assemble_megacity.py`. Nothing in it is modelled from scratch: the script appends or imports parts, places them and groups them.
+`public/assets/models/megacity/kit.glb` (2.1 MB) holds 30 models assembled by `scripts/blender/assemble_megacity.py`. Nothing in it is modelled from scratch: the script appends or imports parts, places them and groups them.
 
 | Source | Creator | Licence | Used for |
 |---|---|---|---|
 | [Alien building/base set](https://opengameart.org/content/alien-buildingbase-set) and [extension pack](https://opengameart.org/content/alien-builings-extension-pack) | rubberduck | CC0 1.0 | Citadel fortress, drums, blocks, halls, towers, pylons, generator, pipes, walls, gate, corridors (sky-bridges and transit tubes), landing pad. Lime accents recoloured to imperial gold |
 | [Industrial extension pack 1: tanks](https://opengameart.org/content/industrial-extension-pack-1-tanks) | rubberduck | CC0 1.0 | Storage tanks (painted textures are not included in the pack, so they are given a steel finish) |
 | [Industrial extension pack 3: chimneys](https://opengameart.org/content/industrial-extension-pack-3-factory-chimneys) | rubberduck | CC0 1.0 | Chimneys (concrete finish) |
-| Modular Sci-Fi MegaKit (Standard) | Quaternius | CC0 1.0 | Hollow structural cores, truss columns (reduced to 30% of their faces), round floor slabs |
+| Modular Sci-Fi MegaKit (Standard) | Quaternius | CC0 1.0 | Hollow structural cores (reduced to 40% of their faces), truss columns (18%), round floor slabs (50%) |
 | City Kit Roads | Kenney | CC0 1.0 | Street lamps |
+| [Neon Town](https://opengameart.org/content/neon-town) | Darkvinter | CC0 1.0 | The car and taxi of the street traffic |
+
+The megacity also uses, outside the kit:
+
+| Asset | Source | Creator | Licence | Used for |
+|---|---|---|---|---|
+| `ships/Dispatcher.glb` (already in the game) | Ultimate Spaceships | Quaternius | CC0 1.0 | Shuttles on the air lanes over the city |
+| `textures/megacity/sky.jpg` | [Kloppenheim 06 (Pure Sky)](https://polyhaven.com/a/kloppenheim_06_puresky) | Poly Haven | CC0 1.0 | Sky dome and image-based light (2K HDRI, ACES tone-mapped) |
+| `textures/megacity/street_*.jpg` | [Clean Asphalt](https://polyhaven.com/a/clean_asphalt) | Poly Haven | CC0 1.0 | Avenues and the city deck |
+| `textures/megacity/lot_*.jpg` | [Metal Plate](https://polyhaven.com/a/metal_plate) | Poly Haven | CC0 1.0 | Building lots and the outer city's plinths |
+| `textures/megacity/plaza_*.jpg` | [Hexagonal Concrete Paving](https://polyhaven.com/a/hexagonal_concrete_paving) | Poly Haven | CC0 1.0 | The Citadel plaza |
+| `textures/megacity/land_*.jpg` | [Hangar Concrete Floor](https://polyhaven.com/a/hangar_concrete_floor) | Poly Haven | CC0 1.0 | Ground beyond the walls and sealed lots |
+
+`node scripts/fetch-polyhaven.mjs` downloads and converts the Poly Haven files (colour maps at 512 px, normal maps at 256 px) and writes `public/assets/textures/megacity/manifest.json` with authors and pages.

@@ -1,0 +1,46 @@
+// Graphics settings: the capital's look and its render quality. Used in the Chancery and the
+// Codex settings tab; kept in this browser (src/ui/graphics.ts).
+
+import { useEffect, useState } from 'react';
+import { currentDevice, graphics, onGraphicsChange, resolveCapital, setGraphics, type CapitalStyle, type QualityPref } from '../graphics';
+
+const STYLES: { value: CapitalStyle; label: string }[] = [
+  { value: 'auto', label: 'Automatic' },
+  { value: 'megacity', label: 'Imperial megacity' },
+  { value: 'classic', label: 'Classic city (lighter)' },
+];
+const QUALITY: { value: QualityPref; label: string }[] = [
+  { value: 'auto', label: 'Automatic' },
+  { value: 'mobile', label: 'Low (phones, tablets, older laptops)' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'desktop', label: 'High (dedicated graphics card)' },
+];
+const TIER = { mobile: 'low', medium: 'medium', desktop: 'high' } as const;
+
+export function GraphicsSettings() {
+  const [s, setS] = useState(graphics);
+  useEffect(() => onGraphicsChange(() => setS(graphics())), []);
+  const d = currentDevice();
+  const r = resolveCapital(s, d);
+  const now = r.style === 'megacity' ? `The capital is drawn as the imperial megacity at ${TIER[r.quality]} quality.` : 'The capital is drawn as the classic city.';
+  return (
+    <div className="graphics-settings" data-testid="graphics-settings">
+      <div className="field">
+        <label htmlFor="gfx-capital">Capital city</label>
+        <select id="gfx-capital" value={s.capital} onChange={(e) => setGraphics({ capital: e.target.value as CapitalStyle })}>
+          {STYLES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+      </div>
+      <div className="field">
+        <label htmlFor="gfx-quality">Megacity quality</label>
+        <select id="gfx-quality" value={s.quality} disabled={r.style !== 'megacity'} onChange={(e) => setGraphics({ quality: e.target.value as QualityPref })}>
+          {QUALITY.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+      </div>
+      <p className="hint" data-testid="graphics-now">
+        {now}
+        {s.capital === 'auto' && d.software && ' This browser draws 3D in software, so the lighter city is used.'}
+      </p>
+    </div>
+  );
+}
