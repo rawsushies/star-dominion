@@ -10,7 +10,7 @@ test('automatic graphics fall back to the classic city in a software renderer', 
 });
 
 test('the megacity capital: labels pick plots, and switching back to the classic city releases it', async ({ page }) => {
-  test.setTimeout(300_000);
+  test.setTimeout(600_000);
   const errors = watchErrors(page);
   await page.addInitScript(() => { if (!sessionStorage.getItem('gfx-set')) { localStorage.setItem('sd.graphics.v1', JSON.stringify({ capital: 'megacity', quality: 'mobile' })); sessionStorage.setItem('gfx-set', '1'); } });
   await startReign(page);
@@ -21,6 +21,19 @@ test('the megacity capital: labels pick plots, and switching back to the classic
     const v = (window as unknown as { __sdCapital?: { stats?(): { kitModels: number } } }).__sdCapital;
     return !!v?.stats && v.stats().kitModels >= 30;
   }, null, { timeout: 120_000 });
+  // street life, the metro and the outer world are built from their sourced models
+  await page.waitForFunction(() => { const st = (window as unknown as { __sdCapital: { stats(): { cars: number; walkers: number; trains: number } } }).__sdCapital.stats(); return st.cars > 0 && st.walkers > 0 && st.trains === 2; }, null, { timeout: 240_000, polling: 2000 });
+  // a train brought to a station stops, and its platform-side door leaves slide open
+  await page.evaluate(() => { const l = (window as unknown as { __sdCapital: { metro: { line: { trains: { x: number; speed: number; served: number | null }[] } } } }).__sdCapital.metro.line; l.trains[0].x = -8.6; l.trains[0].speed = 0.6; l.trains[0].served = null; });
+  await page.waitForFunction(() => (window as unknown as { __sdCapital: { metro: { line: { trains: { doors: number }[] } } } }).__sdCapital.metro.line.trains[0].doors > 0.6, null, { timeout: 200_000, polling: 1000 });
+  const moved = await page.evaluate(() => {
+    const m = (window as unknown as { __sdCapital: { metro: { line: { trains: { speed: number }[] }; trains: { doors: { node: { position: { z: number } }; rest: { z: number }; side: string }[] }[][] } } }).__sdCapital.metro;
+    const doors = m.trains[0][0].doors;
+    return { speed: m.line.trains[0].speed, open: doors.filter((d) => d.side === 'L' && Math.abs(d.node.position.z - d.rest.z) > 0.2).length, closedOtherSide: doors.filter((d) => d.side === 'R').every((d) => Math.abs(d.node.position.z - d.rest.z) < 1e-6) };
+  });
+  expect(moved.speed).toBe(0);
+  expect(moved.open).toBe(8);
+  expect(moved.closedOtherSide).toBe(true);
   const tags = page.locator('.cap-overlay .cap-tag');
   await expect(tags.first()).toBeVisible({ timeout: 120_000 });
   // clicking a building's label selects its plot in the side panel

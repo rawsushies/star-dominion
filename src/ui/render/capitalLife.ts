@@ -16,15 +16,15 @@ import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { loadTevy, tevyUrl, releaseTevyLoader } from './assets/tevyLoader';
-import { instancedFrom } from './instancing';
+import { instancedFrom, finishStatic } from './instancing';
 import { disposeObject } from './assets/resources';
 import type { QualityTier } from './pipeline';
 import { M, JUNCTION, roadNetwork, nearestNode, Traffic, Crowd, SquareCrowd, signalFor, sidewalkOffset, roadHalf, type RoadNetwork, type VehicleKind, type Light, type Square, type Walker } from './cityRoads';
 import type { MegaSlot, DistrictBlock } from './megacityLayout';
 
 export const LIFE_PROFILE: Record<QualityTier, { vehicles: Partial<Record<VehicleKind, number>>; walkers: number; squareCrowd: number; nearPeople: number; lamps: boolean }> = {
-  mobile: { vehicles: { car: 20, taxi: 9, hover: 7, van: 10, bus: 3, police: 2, ambulance: 1 }, walkers: 90, squareCrowd: 16, nearPeople: 0, lamps: true },
-  medium: { vehicles: { car: 40, taxi: 16, hover: 12, van: 18, bus: 4, police: 3, ambulance: 2 }, walkers: 180, squareCrowd: 26, nearPeople: 12, lamps: true },
+  mobile: { vehicles: { car: 14, taxi: 6, hover: 5, van: 8, bus: 2, police: 2, ambulance: 1 }, walkers: 64, squareCrowd: 12, nearPeople: 0, lamps: true },
+  medium: { vehicles: { car: 40, taxi: 16, hover: 12, van: 18, bus: 4, police: 3, ambulance: 2 }, walkers: 150, squareCrowd: 24, nearPeople: 12, lamps: true },
   desktop: { vehicles: { car: 56, taxi: 22, hover: 16, van: 24, bus: 5, police: 4, ambulance: 2 }, walkers: 280, squareCrowd: 36, nearPeople: 24, lamps: true },
 };
 
@@ -91,11 +91,14 @@ export class CapitalLife {
   private stamp(k: string, xf: { x: number; y?: number; z: number; ry?: number; sx?: number; sy?: number; sz?: number }[], shadow = false) {
     const src = this.scene(k);
     if (!src || !xf.length) return;
-    for (const im of instancedFrom(src, xf.length, { shadow })) {
+    // furniture casts shadows only at the high tier (each shadow caster is drawn twice)
+    const ims = instancedFrom(src, xf.length, { shadow: shadow && this.opts.quality === 'desktop' });
+    for (const im of ims) {
       xf.forEach((t, i) => im.setMatrixAt(i, this.m4.compose(this.v3.set(t.x, t.y ?? 0, t.z), this.q.setFromAxisAngle(this.up, t.ry ?? 0), this.s3.set(t.sx ?? 1, t.sy ?? t.sx ?? 1, t.sz ?? t.sx ?? 1))));
       im.instanceMatrix.needsUpdate = true;
       this.group.add(im);
     }
+    finishStatic(ims);
   }
 
   // ------------------------------------------------------------------ build
@@ -159,8 +162,11 @@ export class CapitalLife {
     const spots: { node: number; axis: 'x' | 'z'; x: number; y: number; z: number }[] = [];
     for (const n of net.nodes) {
       if (!n.signal) continue;
+      // the low tier draws one pole per street axis at each junction (the far approaches share it)
+      const seenAxis = new Set<string>();
       for (const id of n.edges) {
         const e = net.edges[id]; const o = net.nodes[e.a === n.id ? e.b : e.a];
+        if (this.opts.quality === 'mobile') { if (seenAxis.has(e.axis)) continue; seenAxis.add(e.axis); }
         const dx = Math.sign(n.x - o.x), dz = Math.sign(n.z - o.z); // travel direction into the node
         const rx = -dz, rz = dx; // right of travel
         const off = sidewalkOffset(e.major) - 0.2;
@@ -223,7 +229,7 @@ export class CapitalLife {
       const src = this.scene(VEHICLE_MODEL[kind]);
       if (!src) continue;
       const n = this.traffic.vehicles.filter((v) => v.kind === kind).length;
-      const meshes = instancedFrom(src, n, { shadow: true });
+      const meshes = instancedFrom(src, n, { shadow: this.opts.quality !== 'mobile' });
       meshes.forEach((m) => this.group.add(m));
       this.vehicleMeshes.set(kind, meshes);
     }
@@ -331,7 +337,7 @@ export class CapitalLife {
         if (geos.length > 1) geos.forEach((x) => x.dispose());
         if (!merged) continue;
         const im = new THREE.InstancedMesh(merged, mat, capacity);
-        im.count = 0; im.frustumCulled = false; im.castShadow = this.opts.quality !== 'mobile'; im.userData.keep = true;
+        im.count = 0; im.frustumCulled = false; im.castShadow = this.opts.quality === 'desktop'; im.userData.keep = true;
         this.group.add(im);
         meshes.push(im);
       }

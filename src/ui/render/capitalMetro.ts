@@ -11,7 +11,7 @@
 import * as THREE from 'three';
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { loadTevy, tevyUrl } from './assets/tevyLoader';
-import { instancedFrom, mergeByMaterial } from './instancing';
+import { instancedFrom, mergeByMaterial, finishStatic } from './instancing';
 import { disposeObject } from './assets/resources';
 import type { QualityTier } from './pipeline';
 import { M, type Walker } from './cityRoads';
@@ -60,11 +60,13 @@ export class CapitalMetro {
     const src = this.models.get(k)?.scene;
     if (!src || !xf.length) return;
     const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), p = new THREE.Vector3(), sc = new THREE.Vector3();
-    for (const im of instancedFrom(src, xf.length, { shadow })) {
+    const ims = instancedFrom(src, xf.length, { shadow: shadow && this.quality !== 'mobile' });
+    for (const im of ims) {
       xf.forEach((t, i) => im.setMatrixAt(i, m.compose(p.set(t.x, t.y ?? 0, t.z), q.setFromAxisAngle(up, t.ry ?? 0), sc.set(t.s ?? M, (t.sy ?? 1) * (t.s ?? M), t.s ?? M))));
       im.instanceMatrix.needsUpdate = true;
       this.group.add(im);
     }
+    finishStatic(ims);
   }
 
   /** Rail-head height of the span model, found by casting a ray onto a track (model units). */
@@ -86,7 +88,9 @@ export class CapitalMetro {
     // clear of the junctions; station sections use the span with shops underneath
     const spans: Parameters<CapitalMetro['stamp']>[1] = [], shops: typeof spans = [];
     const stationAt = (x: number) => STATIONS.some((sx) => Math.abs(x - sx) <= SPAN * 1.01);
-    for (let x = -LINE_END; x <= LINE_END; x += SPAN) (stationAt(x) ? shops : spans).push({ x, z: LINE_Z });
+    // the low tier ends the visible viaduct where the haze thickens (trains run on beyond it)
+    const reach = this.quality === 'mobile' ? 200 : LINE_END;
+    for (let x = -reach; x <= reach; x += SPAN) (stationAt(x) ? shops : spans).push({ x, z: LINE_Z });
     this.stamp('span', spans); this.stamp('shops', shops);
     // stations: platforms both sides at deck height, columns underneath, benches, street entrance
     const plats: typeof spans = [], cols: typeof spans = [], benches: typeof spans = [], canopies: typeof spans = [];

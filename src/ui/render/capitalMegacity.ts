@@ -10,7 +10,7 @@
 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { mergeByMaterial, instancedFrom } from './instancing';
+import { mergeByMaterial, instancedFrom, finishStatic } from './instancing';
 import { CapitalLife } from './capitalLife';
 import { CapitalMetro } from './capitalMetro';
 import { CapitalWorld, inOuterZone, CARGO_RING, BIOME_GROUND } from './capitalWorld';
@@ -139,8 +139,8 @@ export class MegacityCapitalView3D {
     for (const s of this.layout.slots) this.slotByPlot.set(s.plot, s);
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', preserveDrawingBuffer: !!opts.still });
     // late-afternoon sun, low and warm, so the towers throw long shadows across the city
-    // the low tier drops ambient occlusion here: it redraws the whole dense city a second time
-    this.pipeline = new RenderPipeline(this.renderer, this.scene, this.camera, opts.quality, { ...SUN, intensity: 3.1 }, opts.passes ?? (opts.quality === 'mobile' ? { ao: false } : undefined));
+    // only the high tier keeps ambient occlusion here: it redraws the whole dense city a second time
+    this.pipeline = new RenderPipeline(this.renderer, this.scene, this.camera, opts.quality, { ...SUN, intensity: 3.1 }, opts.passes ?? (opts.quality !== 'desktop' ? { ao: false } : undefined));
     // haze in the colour of the photographed sky's horizon, so the far city melts into it
     this.scene.fog = new THREE.Fog(0xb4b6bc, 320, 3400);
     // ground surfaces: Poly Haven photo-scanned textures (CC0), see assets/textures/megacity/manifest.json
@@ -284,6 +284,7 @@ export class MegacityCapitalView3D {
           mine.forEach((t, k) => im.setMatrixAt(k, m.compose(new THREE.Vector3(t.x, 0, t.z), q.setFromAxisAngle(up, t.ry), new THREE.Vector3(t.sx, t.sy, t.sx))));
           im.instanceMatrix.needsUpdate = true;
           this.skyline.push({ mesh: im, towers: mine });
+          finishStatic([im]);
           this.scene.add(im);
         }
       }
@@ -368,6 +369,7 @@ export class MegacityCapitalView3D {
       for (const im of this.instanced(tube, segs.length)) {
         segs.forEach(([x, z, ry], k) => im.setMatrixAt(k, m.compose(new THREE.Vector3(x, 0, z), q.setFromAxisAngle(up, ry), sc)));
         im.instanceMatrix.needsUpdate = true;
+        finishStatic([im]);
         this.infra.add(im);
       }
     }

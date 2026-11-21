@@ -63,3 +63,8 @@ export function instancedFrom(src: THREE.Object3D, count: number, opts: { shadow
     return im;
   });
 }
+
+/** Once a static set's instances are placed: bound them so the whole set is culled off screen. */
+export function finishStatic(ims: THREE.InstancedMesh[]) {
+  for (const im of ims) { im.computeBoundingSphere(); im.frustumCulled = true; }
+}

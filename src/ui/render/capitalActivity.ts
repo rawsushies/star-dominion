@@ -275,7 +275,7 @@ export class CapitalActivity {
 
   private updateDrones(time: number) {
     if (!this.drones.length) return;
-    const n = this.drones[0].count;
+    const n = this.drones[0].instanceMatrix.count;
     const sites = this.activity.sites.length ? this.activity.sites : [];
     const ind = OUTER_ZONES.industry;
     const home = { x: (ind.x0 + ind.x1) / 2, z: (ind.z0 + ind.z1) / 2 };
@@ -296,7 +296,8 @@ export class CapitalActivity {
       this.m4.compose(this.v.set(x, y, z), this.q.setFromEuler(this.e.set(0, ry, 0)), this.s3.setScalar(i < active ? M * 1.6 : 0));
       for (const d of this.drones) d.setMatrixAt(i, this.m4);
     }
-    for (const d of this.drones) d.instanceMatrix.needsUpdate = true;
+    // only the active drones are drawn
+    for (const d of this.drones) { d.count = active; d.instanceMatrix.needsUpdate = true; }
   }
 
   stats() {
@@ -304,7 +305,7 @@ export class CapitalActivity {
       freighter: this.freighter ? (this.freighter.phase < 0 ? 'away' : ['descending', 'landing', 'ramp down', 'unloading', 'ramp up', 'departing'][this.freighter.phase]) : 'none',
       fighters: this.fighters.filter((f) => f.state === 'patrol').length,
       landing: this.fighters.filter((f) => f.state !== 'patrol' && f.state !== 'stowed').length,
-      drones: Math.min(this.drones[0]?.count ?? 0, this.activity.sites.length ? 8 + this.activity.sites.length * 10 : 6),
+      drones: Math.min(this.drones[0]?.instanceMatrix.count ?? 0, this.activity.sites.length ? 8 + this.activity.sites.length * 10 : 6),
       cranes: this.cranes.length,
     };
   }

@@ -220,3 +220,36 @@ The megacity also uses, outside the kit:
 | `textures/megacity/land_*.jpg` | [Hangar Concrete Floor](https://polyhaven.com/a/hangar_concrete_floor) | Poly Haven | CC0 1.0 | Ground beyond the walls and sealed lots |
 
 `node scripts/fetch-polyhaven.mjs` downloads and converts the Poly Haven files (colour maps at 512 px, normal maps at 256 px) and writes `public/assets/textures/megacity/manifest.json` with authors and pages.
+
+## Capital street life, metro, outer world and activity (tevy.dev, Kenney)
+
+**tevy.dev** ([tevy.dev](https://tevy.dev); "All assets are CC0 1.0"):
+
+- `scripts/fetch-tevy.mjs` fetches the models listed in `scripts/tevy-selection.json` and the ground materials in `scripts/tevy-materials.json`.
+  - Versions are pinned and every file's sha256 is checked against tevy's catalogue.
+  - It refuses anything that is not CC0.
+  - It writes `public/assets/models/tevy/manifest.json`, which lists each slug, version, page, dimensions, moving parts, LOD files, triangles and checksums.
+- Files are GLB with meshopt geometry and KTX2 textures. The Basis transcoder is bundled in `public/basis/`, so nothing loads from a CDN.
+
+| Use | Models (slug, LOD) |
+|---|---|
+| Avenues and junctions | four-lane-city-road-12-m (1), scramble-crossing-junction-box (1), scramble-crossing-zebra-arm (1) |
+| Street furniture | traffic-light (2), street-lamp (2), glass-bus-shelter (2), walk-signal and traffic-signal-mast (2; fetched, not used yet) |
+| Traffic | estate-car, city-taxi, hover-car, cargo-hauler-van, city-bus, police-car, ambulance, semi-truck (2) |
+| People (rigged, shared skeleton, walk/idle clips) | casual-walker, dog-walker, road-worker, hiker (1 near the camera, 2 baked for crowds), astronaut (2) |
+| Squares | noodle-kiosk, newsstand-kiosk, street-food-stall-cart, plaza-bistro-set, concrete-planter, park-bench (2); holo-ring-sign, holo-blade-sign (1) |
+| Metro | elevated-railway-span, elevated-railway-span-shops (2), station-platform (1), metro-platform-column, metro-platform-bench, station-entrance-canopy (2), metro-train-car (1 or 2; door leaves animated) |
+| Spaceport and industry | scifi-freighter (1; ramp, containers and legs animated), scifi-hangar (2; blast door animated), scifi-fighter, stealth-fighter, scifi-shuttle, scifi-dropship, quad-rotor-recon-drone, forklift, industrial-exosuit-loader, container-stack-40-ft-four-high, harbour-crane, tower-crane (slewing and hook animated), loading-dock, control-tower, cooling-tower, gas-tanks, substation, factory-hall (2) |
+| Landscape | mountain-peak, mountain-ridge, red-sandstone-mesa, cliff-face (2); ground materials meadow-ground, desert-sand, snow, granite-rock (1K colour and normal) |
+
+- Size: about 14 MB of models plus 4.2 MB of ground textures.
+- Every candidate was first rendered in the game's own pipeline (`assetlab.html`, dev only). Rejected candidates:
+  - railway-station: a Victorian brick building, which does not match the city;
+  - giant-led-screen-portrait: an unlit black slab.
+
+**Kenney City Kit Roads** (CC0, `public/assets/models/roads/`, licence file included):
+
+- Used: road-straight, road-crossroad-path, road-intersection-path, road-bend-sidewalk, tile-low, road-sign-street and the colormap texture.
+- These are the local streets, junctions with crosswalks, kerbs and sidewalks. The pastel palette is toned down in code.
+
+**Kenney Train Kit:** not used. kenney.nl refuses automated requests (HTTP 403), and tevy's metro car, viaduct and platforms cover the railway.

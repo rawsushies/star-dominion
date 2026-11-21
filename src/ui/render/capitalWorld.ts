@@ -13,7 +13,7 @@
 import * as THREE from 'three';
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { loadTevy, loadTevyTexture, tevyUrl } from './assets/tevyLoader';
-import { instancedFrom } from './instancing';
+import { instancedFrom, finishStatic } from './instancing';
 import { disposeObject } from './assets/resources';
 import type { QualityTier } from './pipeline';
 import type { PlanetType } from '../../sim/types';
@@ -81,12 +81,15 @@ export class CapitalWorld {
   private stamp(slug: string, xf: { x: number; y?: number; z: number; ry?: number; s?: number; sx?: number; sz?: number }[], shadow = true): THREE.InstancedMesh[] {
     const src = this.models.get(slug)?.scene;
     if (!src || !xf.length) return [];
-    const ims = instancedFrom(src, xf.length, { shadow });
+    // beyond the walls is outside the sun's shadow map: nothing there casts shadows
+    void shadow;
+    const ims = instancedFrom(src, xf.length, { shadow: false });
     for (const im of ims) {
       xf.forEach((t, i) => { const s = t.s ?? M; im.setMatrixAt(i, this.m4.compose(this.v.set(t.x, t.y ?? 0, t.z), this.q.setFromAxisAngle(this.up, t.ry ?? 0), this.s3.set(t.sx ?? s, s, t.sz ?? s))); });
       im.instanceMatrix.needsUpdate = true;
       this.group.add(im);
     }
+    finishStatic(ims);
     return ims;
   }
 
@@ -146,7 +149,7 @@ export class CapitalWorld {
     const truck = this.models.get('semi-truck')?.scene;
     if (truck) {
       const n = this.quality === 'mobile' ? 6 : 12;
-      const mesh = instancedFrom(truck, n, { shadow: true });
+      const mesh = instancedFrom(truck, n, { shadow: false });
       mesh.forEach((m) => this.group.add(m));
       const per = 8 * CARGO_RING;
       this.trucks = { mesh, s: Array.from({ length: n }, (_, i) => (i / n) * per + hash(i) * 10), speed: Array.from({ length: n }, (_, i) => 5 + hash(i * 3) * 2) };
