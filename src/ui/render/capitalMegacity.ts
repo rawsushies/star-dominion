@@ -17,12 +17,12 @@ import type { Empire } from '../../sim/types';
 import type { CapitalLabel } from './capital3d';
 import { disposeObject } from './assets/resources';
 import { RenderPipeline, type QualityTier, type PassToggles } from './pipeline';
-import { megacityLayout, CELL, PLOT, type DistrictBlock, type MegaSlot } from './megacityLayout';
+import { megacityLayout, skylineLayout, carAt, hash, CELL, PLOT, CAR_SCALE, SKYLINE_MODELS, SKY_SUN_U, SUN, type DistrictBlock, type MegaSlot, type SkylineTower } from './megacityLayout';
 
 export type KitModel =
   | 'citadel_t1' | 'citadel_t2' | 'citadel_t3' | 'citadel_t4' | 'arco_a' | 'arco_b' | 'arco_c' | 'spire_a' | 'spire_b' | 'truss_a'
   | 'res_a' | 'res_b' | 'res_c' | 'hall_a' | 'hall_b' | 'vault' | 'works_a' | 'refinery_a' | 'power_a' | 'yard_a' | 'bastion_a'
-  | 'hwy_straight' | 'hwy_cross' | 'hwy_t' | 'skybridge' | 'lamp' | 'wall' | 'gate';
+  | 'hwy_straight' | 'hwy_cross' | 'hwy_t' | 'skybridge' | 'lamp' | 'wall' | 'gate' | 'car' | 'taxi';
 
 /** Capital building -> kit model by level tier (the last tier whose `from` the level reaches). */
 export const MEGA_TIERS: Record<string, [number, KitModel][]> = {
@@ -63,10 +63,7 @@ const DISTRICT_MODELS: Record<DistrictBlock['kind'], KitModel[]> = {
 const KIT = 1;
 const HIGHWAY_SCALE = 0.6;
 const PICK_Y = 0.15;
-
-export interface MegacityOptions { quality: QualityTier; still?: boolean; passes?: PassToggles; kitUrl?: string }
-
-function hash(n: number): number { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); }
+export interface MegacityOptions { quality: QualityTier; still?: boolean; passes?: PassToggles; kitUrl?: string; assetBase?: string }
 
 /** Merge static meshes by material, keeping UVs (the kit is textured). */
 function mergeByMaterial(group: THREE.Group) {
@@ -130,23 +127,46 @@ export class MegacityCapitalView3D {
   private selMesh: THREE.Mesh;
   private mats: Record<string, THREE.Material>;
   private traffic: THREE.InstancedMesh | null = null;
+  private cars: THREE.InstancedMesh[] = [];
+  private shuttles: THREE.InstancedMesh[] = [];
+  private skyline: { mesh: THREE.InstancedMesh; towers: SkylineTower[] }[] = [];
+  private skylineLevel = -1;
+  private plinths: { mesh: THREE.InstancedMesh; towers: SkylineTower[] } | null = null;
+  private textures: THREE.Texture[] = [];
   private raf = 0;
   private disposed = false;
   private frames: number[] = [];
   ready: Promise<void>;
+  private shuttleSrc: THREE.Object3D | null = null;
 
   constructor(private canvas: HTMLCanvasElement, private overlay: HTMLDivElement, color: string, private onPick: (plot: number | null) => void, private opts: MegacityOptions) {
     for (const s of this.layout.slots) this.slotByPlot.set(s.plot, s);
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', preserveDrawingBuffer: !!opts.still });
     // late-afternoon sun, low and warm, so the towers throw long shadows across the city
-    this.pipeline = new RenderPipeline(this.renderer, this.scene, this.camera, opts.quality, { elevation: 24, azimuth: -58, intensity: 3.1 }, opts.passes);
-    this.scene.fog = new THREE.Fog(0x9fb4c9, 420, 1500);
+    this.pipeline = new RenderPipeline(this.renderer, this.scene, this.camera, opts.quality, { ...SUN, intensity: 3.1 }, opts.passes);
+    // haze in the colour of the photographed sky's horizon, so the far city melts into it
+    this.scene.fog = new THREE.Fog(0xb4b6bc, 200, 950);
+    // ground surfaces: Poly Haven photo-scanned textures (CC0), see assets/textures/megacity/manifest.json
+    const texLoad = new THREE.LoadingManager();
+    const texReady = new Promise<void>((res) => { texLoad.onLoad = () => res(); texLoad.onError = (u) => console.warn(`[megacity] texture failed to load: ${u}`); });
+    const loader = new THREE.TextureLoader(texLoad);
+    const base = `${opts.assetBase ?? import.meta.env.BASE_URL ?? '/'}assets/textures/megacity/`;
+    const tex = (name: string, repeat: number, colour: boolean) => {
+      const t = loader.load(`${base}${name}.jpg`);
+      t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(repeat, repeat); t.anisotropy = 8;
+      if (colour) t.colorSpace = THREE.SRGBColorSpace;
+      this.textures.push(t);
+      return t;
+    };
+    const surface = (name: string, repeat: number, o: THREE.MeshStandardMaterialParameters) =>
+      new THREE.MeshStandardMaterial({ map: tex(`${name}_color`, repeat, true), normalMap: tex(`${name}_normal`, repeat, false), ...o });
+    const half = 4 * CELL + 10;
     this.mats = {
-      deck: new THREE.MeshStandardMaterial({ color: 0x59606b, roughness: 0.8, metalness: 0.25 }),
-      avenue: new THREE.MeshStandardMaterial({ color: 0x3d434c, roughness: 0.88, metalness: 0.15 }),
-      plaza: new THREE.MeshStandardMaterial({ color: 0x8a8f96, roughness: 0.6, metalness: 0.35 }),
-      lot: new THREE.MeshStandardMaterial({ color: 0x6b717a, roughness: 0.7, metalness: 0.3 }),
-      sealed: new THREE.MeshStandardMaterial({ color: 0x4a4f57, roughness: 0.9 }),
+      avenue: surface('street', (half * 2) / 7, { color: new THREE.Color(1.5, 1.5, 1.55), roughness: 0.85, metalness: 0.05 }),
+      plaza: surface('plaza', 7, { color: 0xffffff, roughness: 0.7, metalness: 0.0 }),
+      lot: surface('lot', 3, { color: new THREE.Color(1.2, 1.25, 1.35), roughness: 0.5, metalness: 0.45 }),
+      sealed: surface('land', 2, { color: new THREE.Color(1.3, 1.3, 1.3), roughness: 0.9 }),
+      land: surface('land', 260, { color: new THREE.Color(2.2, 2.2, 2.25), roughness: 0.95 }),
       trim: new THREE.MeshStandardMaterial({ color: new THREE.Color(color).lerp(new THREE.Color(0xd9b45a), 0.5), roughness: 0.35, metalness: 0.75 }),
       holo: new THREE.MeshStandardMaterial({ color: 0xffd27a, emissive: 0xffb43a, emissiveIntensity: 1.6, transparent: true, opacity: 0.6 }),
       ghost: new THREE.MeshStandardMaterial({ color: 0xd9c9a0, transparent: true, opacity: 0.32, depthWrite: false }),
@@ -154,6 +174,7 @@ export class MegacityCapitalView3D {
       lights: new THREE.MeshStandardMaterial({ color: 0xfff1cf, emissive: 0xffd28a, emissiveIntensity: 9 }),
       pick: new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }),
     };
+    this.loadSky(loader);
     this.buildGround();
     this.scene.add(this.ground, this.infra, this.districts, this.city);
     this.selMesh = new THREE.Mesh(new THREE.RingGeometry(PLOT * 0.66, PLOT * 0.74, 4, 1), new THREE.MeshBasicMaterial({ color: 0xffd36a, side: THREE.DoubleSide, transparent: true, opacity: 0.95 }));
@@ -161,9 +182,10 @@ export class MegacityCapitalView3D {
     this.scene.add(this.selMesh);
     this.pipeline.fitShadow(new THREE.Box3(new THREE.Vector3(-80, -2, -80), new THREE.Vector3(80, 90, 80)));
     this.bindInput();
-    this.ready = this.loadKit().then(() => {
+    this.ready = Promise.all([this.loadKit(), this.loadShuttle(), texReady]).then(() => {
       if (this.disposed) return;
       this.buildInfrastructure();
+      this.buildTraffic();
       this.sig = ''; this.districtLevel = -1;
       if (this.last) this.sync(...this.last);
     });
@@ -195,6 +217,95 @@ export class MegacityCapitalView3D {
     }
   }
 
+  /** The photographed sky, turned so its sun stands where the scene's light comes from. */
+  private loadSky(loader: THREE.TextureLoader) {
+    const u = 1 - SKY_SUN_U;
+    const sunNow = Math.atan2(-Math.cos(2 * Math.PI * u), Math.sin(2 * Math.PI * u));
+    const turn = THREE.MathUtils.degToRad(SUN.azimuth) - sunNow;
+    // the environment is pre-filtered from the image, so wait for it (the procedural sky lights the
+    // scene until then, and stays if the photograph is missing)
+    const t = loader.load(`${this.opts.assetBase ?? import.meta.env.BASE_URL ?? '/'}assets/textures/megacity/sky.jpg`, (tex) => {
+      if (this.disposed) return;
+      this.scene.add(this.pipeline.setSkyMap(tex, turn, 2000));
+    });
+    this.textures.push(t);
+    // seen from inside the dome the image would be mirrored: flip it back
+    t.wrapS = THREE.RepeatWrapping; t.repeat.x = -1;
+  }
+
+  /** A small transport (Quaternius Ultimate Spaceships, CC0) for the air lanes over the city. */
+  private async loadShuttle() {
+    try {
+      const g = await new GLTFLoader().loadAsync(`${this.opts.assetBase ?? import.meta.env.BASE_URL ?? '/'}assets/models/ships/Dispatcher.glb`);
+      this.shuttleSrc = g.scene;
+    } catch (e) {
+      console.warn(`[megacity] shuttle failed to load: ${(e as Error).message ?? e}`);
+    }
+  }
+
+  /** Instanced copies of one model (merged by material): one draw call per material. */
+  private instanced(src: THREE.Object3D, count: number, opts: { shadow?: boolean } = {}): THREE.InstancedMesh[] {
+    const g = new THREE.Group();
+    const c = src.clone(true);
+    c.position.set(0, 0, 0); c.rotation.set(0, 0, 0); c.scale.setScalar(1);
+    g.add(c);
+    mergeByMaterial(g);
+    return (g.children as THREE.Mesh[]).map((m) => {
+      const im = new THREE.InstancedMesh(m.geometry, m.material, count);
+      im.castShadow = !!opts.shadow; im.receiveShadow = true;
+      im.userData.keep = true;
+      im.frustumCulled = false; // instances spread far beyond the source's bounds
+      return im;
+    });
+  }
+
+  /** Street cars (Neon Town car and taxi, CC0) and shuttles on the air lanes. */
+  private buildTraffic() {
+    const mobile = this.opts.quality === 'mobile';
+    const n = mobile ? 40 : 110;
+    for (const [model, share] of [['car', 0.7], ['taxi', 0.3]] as const) {
+      const src = this.kit.get(model);
+      if (!src) continue;
+      for (const im of this.instanced(src, Math.round(n * share))) { im.userData.vehicle = model; this.cars.push(im); this.scene.add(im); }
+    }
+    if (this.shuttleSrc) {
+      for (const im of this.instanced(this.shuttleSrc, mobile ? 10 : 24)) { this.shuttles.push(im); this.scene.add(im); }
+    }
+  }
+
+  /** The skyline beyond the walls: built once, revealed tower by tower with the Citadel. */
+  private buildSkyline(citadel: number) {
+    if (!this.skyline.length) {
+      const towers = skylineLayout(this.opts.quality === 'mobile' ? 70 : 140);
+      for (const model of SKYLINE_MODELS) {
+        const src = this.kit.get(model);
+        const mine = towers.filter((t) => t.model === model).sort((a, b) => a.from - b.from);
+        if (!src || !mine.length) continue;
+        const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0);
+        for (const im of this.instanced(src, mine.length)) {
+          mine.forEach((t, k) => im.setMatrixAt(k, m.compose(new THREE.Vector3(t.x, 0, t.z), q.setFromAxisAngle(up, t.ry), new THREE.Vector3(t.sx, t.sy, t.sx))));
+          im.instanceMatrix.needsUpdate = true;
+          this.skyline.push({ mesh: im, towers: mine });
+          this.scene.add(im);
+        }
+      }
+    }
+    if (!this.plinths) {
+      // every tower of the outer city stands on a paved block, so it meets the ground
+      const towers = this.skyline.length ? [...new Map(this.skyline.flatMap((s) => s.towers).map((t) => [`${t.x},${t.z}`, t])).values()].sort((a, b) => a.from - b.from) : [];
+      const im = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), this.mats.lot, Math.max(1, towers.length));
+      const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0);
+      towers.forEach((t, k) => im.setMatrixAt(k, m.compose(new THREE.Vector3(t.x, 0.2, t.z), q.setFromAxisAngle(up, t.ry), new THREE.Vector3(12 * t.sx, 0.8, 12 * t.sx))));
+      im.receiveShadow = true; im.frustumCulled = false; im.userData.keep = true;
+      this.plinths = { mesh: im, towers };
+      this.scene.add(im);
+    }
+    // towers are sorted by level, so revealing is a matter of the instance count
+    for (const s of this.skyline) s.mesh.count = s.towers.filter((t) => t.from <= citadel).length;
+    this.plinths.mesh.count = this.plinths.towers.filter((t) => t.from <= citadel).length;
+    this.skylineLevel = citadel;
+  }
+
   private place(model: KitModel, x: number, z: number, opts: { scale?: number; ry?: number; y?: number } = {}): THREE.Object3D | null {
     const src = this.kit.get(model);
     if (!src) return null;
@@ -213,7 +324,7 @@ export class MegacityCapitalView3D {
     // the city deck, avenues and the ground beyond the walls
     const deck = new THREE.Mesh(new THREE.BoxGeometry(half * 2, 1, half * 2), this.mats.avenue);
     deck.position.y = -0.5; deck.receiveShadow = true; g.add(deck);
-    const plain = new THREE.Mesh(new THREE.CircleGeometry(1400, 64), new THREE.MeshStandardMaterial({ color: 0x6f7a6a, roughness: 1 }));
+    const plain = new THREE.Mesh(new THREE.CircleGeometry(1400, 64), this.mats.land);
     plain.rotation.x = -Math.PI / 2; plain.position.y = -1.2; plain.receiveShadow = true; g.add(plain);
     // the Citadel plaza: the central 2 x 2 block
     const plaza = new THREE.Mesh(new THREE.BoxGeometry(2 * CELL - 4, 0.3, 2 * CELL - 4), this.mats.plaza);
@@ -300,6 +411,7 @@ export class MegacityCapitalView3D {
     if (!cap || !this.kit.size) return;
     const citadel = capLevel(e, 'citadel');
     if (citadel !== this.districtLevel) { this.districtLevel = citadel; this.buildDistricts(citadel); }
+    if (citadel !== this.skylineLevel) this.buildSkyline(citadel);
     const open = new Set(openPlots(e));
     const sig = JSON.stringify(cap.buildings) + cap.queue.map((j) => j.building + j.toLevel).join() + [...open].join();
     if (sig !== this.sig) {
@@ -441,6 +553,32 @@ export class MegacityCapitalView3D {
       }
       this.traffic.instanceMatrix.needsUpdate = true;
     }
+    if (this.cars.length) {
+      const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), sc = new THREE.Vector3().setScalar(CAR_SCALE), p = new THREE.Vector3();
+      let i = 0;
+      for (const kind of ['car', 'taxi']) {
+        const meshes = this.cars.filter((c) => c.userData.vehicle === kind);
+        if (!meshes.length) continue;
+        for (let k = 0; k < meshes[0].count; k++, i++) {
+          const c = carAt(i, time);
+          m.compose(p.set(c.x, 0.3, c.z), q.setFromAxisAngle(up, c.ry), sc);
+          for (const im of meshes) im.setMatrixAt(k, m);
+        }
+        for (const im of meshes) im.instanceMatrix.needsUpdate = true;
+      }
+    }
+    if (this.shuttles.length) {
+      // shuttles circle the Citadel on three air lanes, alternating direction
+      const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), sc = new THREE.Vector3().setScalar(0.32), p = new THREE.Vector3();
+      for (let k = 0; k < this.shuttles[0].count; k++) {
+        const lane = k % 3, dir = lane === 1 ? -1 : 1;
+        const r = 38 + lane * 34, y = 34 + lane * 9 + hash(k) * 4;
+        const a = hash(k * 3.7) * Math.PI * 2 + dir * time * (9 / r);
+        m.compose(p.set(Math.cos(a) * r, y, Math.sin(a) * r), q.setFromAxisAngle(up, -a + (dir > 0 ? 0 : Math.PI)), sc);
+        for (const im of this.shuttles) im.setMatrixAt(k, m);
+      }
+      for (const im of this.shuttles) im.instanceMatrix.needsUpdate = true;
+    }
     this.pipeline.render();
     const now = performance.now();
     this.frames.push(now); while (this.frames.length && now - this.frames[0] > 2000) this.frames.shift();
@@ -450,7 +588,9 @@ export class MegacityCapitalView3D {
   stats() {
     const f = this.frames;
     const fps = f.length > 1 ? ((f.length - 1) * 1000) / (f[f.length - 1] - f[0]) : 0;
-    return { fps, tier: this.opts.quality, ...this.pipeline.info(), kitModels: this.kit.size };
+    const skyline = this.skyline.length ? new Set(this.skyline.flatMap((s) => s.towers.slice(0, s.mesh.count).map((t) => `${t.x},${t.z}`))).size : 0;
+    const cars = this.cars.filter((c, i, a) => a.findIndex((d) => d.userData.vehicle === c.userData.vehicle) === i).reduce((n, c) => n + c.count, 0);
+    return { fps, tier: this.opts.quality, ...this.pipeline.info(), kitModels: this.kit.size, skyline, cars, shuttles: this.shuttles[0]?.count ?? 0 };
   }
 
   private updateLabels() {
@@ -481,6 +621,8 @@ export class MegacityCapitalView3D {
     this.pipeline.dispose();
     disposeObject(this.scene);
     for (const src of this.kit.values()) disposeObject(src);
+    if (this.shuttleSrc) disposeObject(this.shuttleSrc);
+    for (const t of this.textures) t.dispose();
     this.scene.clear();
     this.renderer.renderLists.dispose();
     this.renderer.dispose();

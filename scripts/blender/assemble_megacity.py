@@ -1,6 +1,6 @@
 # Assembles the capital megacity kit from downloaded third-party parts. Nothing is modelled here:
 # parts are imported (appended from .blend files or glTF), placed and grouped into models.
-#   npm run candidates:fetch -- alien-buildings-ext industrial-tanks industrial-chimneys q-scifi-megakit k-city-roads
+#   npm run candidates:fetch -- alien-buildings-ext industrial-tanks industrial-chimneys q-scifi-megakit k-city-roads neon-town
 #   blender -b -P scripts/blender/assemble_megacity.py -- [out_dir]
 # Sources (all CC0, see scripts/candidate-sources.json):
 #   rubberduck  - Alien building/base set + extension pack: fortresses, drums, towers, generators,
@@ -8,6 +8,7 @@
 #   rubberduck  - Industrial extension packs 1 (tanks) and 3 (chimneys)
 #   Quaternius  - Modular Sci-Fi MegaKit: structural columns, truss columns, platforms (floor slabs)
 #   Kenney      - City Kit Roads: highway decks, crossings, bridge pillars, lights
+#   Darkvinter  - Neon Town: the car and taxi used for street traffic
 # Kit units: one city plot is 10 x 10 units; Z up (glTF export turns it Y-up).
 # Each model is a top-level empty named after the model; parts are linked copies (shared meshes).
 import bpy, bmesh, sys, os, math, glob, mathutils
@@ -24,6 +25,7 @@ TK = ('industrial-tanks', 'industrial_tanks.blend')
 CH = ('industrial-chimneys', 'chimneys.blend')
 MK = 'q-scifi-megakit'
 KR = 'k-city-roads'
+NT = 'neon-town'
 # key: (source, name)   source is a (pack, blend) pair or a glTF pack
 PARTS = {
     'fortress': (AB, 'alien_base_big'), 'drum': (AB, 'alien_base3'), 'block_a': (AB, 'alien_base2'), 'block_b': (AB, 'alien_base6'),
@@ -38,10 +40,11 @@ PARTS = {
     'slab_round': (MK, 'Platform_Round1.gltf'), 'slab': (MK, 'Platform_DarkPlates.gltf'),
     'road': (KR, 'road-straight-barrier.glb'), 'road_x': (KR, 'road-crossroad-barrier.glb'), 'road_t': (KR, 'road-intersection-barrier.glb'),
     'pillar': (KR, 'bridge-pillar-wide.glb'), 'lamp': (KR, 'light-square-double.glb'),
+    'car': (NT, 'car.glb'), 'taxi': (NT, 'taxi.glb'),
 }
 
-# heavy parts reduced (face ratio kept); the truss columns are 6,480 faces each
-DECIMATE = {'col_pipes': 0.3}
+# heavy parts reduced (face ratio of the original): truss columns 6,480 faces, round slabs 720, hollow cores 2,848
+DECIMATE = {'col_pipes': 0.18, 'slab_round': 0.5, 'col_hollow': 0.4}
 
 GOLD = np.array([0.86, 0.64, 0.25])
 
@@ -351,6 +354,8 @@ def build():
     simple('lamp', 'lamp', h=3)
     simple('wall', 'wall_long', fit=10)
     simple('gate', 'gate', fit=10)
+    # street traffic, at the packs' own scale (a car is about 4.3 units long)
+    simple('car', 'car'); simple('taxi', 'taxi')
     # textures: colour maps at 1024, everything else at 512
     for im in bpy.data.images:
         try: _ = im.pixels[0]  # force the lazy load

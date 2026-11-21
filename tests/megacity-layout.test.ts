@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { megacityLayout, CELL, PLOT, ringOf } from '../src/ui/render/megacityLayout';
+import { megacityLayout, skylineLayout, carAt, CELL, PLOT, ringOf, STREET_END } from '../src/ui/render/megacityLayout';
 import { MEGA_TIERS, megaModelFor } from '../src/ui/render/capitalMegacity';
 import { PLOT_ORDER } from '../src/sim/capital';
 import { CAPITAL_BUILDINGS, CITADEL_PLOT, PLOT_COLS, PLOT_ROWS } from '../src/sim/data/capital';
@@ -49,5 +49,37 @@ describe('megacity layout', () => {
     }
     expect(megaModelFor('citadel', 1)!.model).toBe('citadel_t1');
     expect(megaModelFor('citadel', 30)!.model).toBe('citadel_t4');
+  });
+
+  it('raises the outer skyline beyond the walls, clear of the gate roads, thickening with the Citadel', () => {
+    const towers = skylineLayout(140);
+    expect(towers.length).toBe(140);
+    const wall = 4 * CELL + 6;
+    for (const t of towers) {
+      expect(Math.hypot(t.x, t.z), 'outside the wall').toBeGreaterThan(wall + 8);
+      expect(Math.min(Math.abs(t.x), Math.abs(t.z)), 'clear of the gate approaches').toBeGreaterThanOrEqual(12);
+      expect(t.from).toBeGreaterThanOrEqual(1);
+      expect(t.from).toBeLessThanOrEqual(19);
+    }
+    for (let a = 0; a < towers.length; a++) for (let b = a + 1; b < towers.length; b++) expect(Math.hypot(towers[a].x - towers[b].x, towers[a].z - towers[b].z)).toBeGreaterThanOrEqual(11);
+    const standing = (lv: number) => towers.filter((t) => t.from <= lv).length;
+    expect(standing(1)).toBeLessThan(standing(10));
+    expect(standing(20)).toBe(140);
+    expect(skylineLayout(140)).toEqual(towers); // deterministic
+  });
+
+  it('keeps street cars on the avenues and in their lanes, never through plots or the Citadel', () => {
+    for (let i = 0; i < 110; i++) for (const time of [0, 3.3, 47, 600]) {
+      const c = carAt(i, time);
+      expect(Math.max(Math.abs(c.x), Math.abs(c.z))).toBeLessThanOrEqual(STREET_END + 2);
+      expect(Math.max(Math.abs(c.x), Math.abs(c.z)), 'not inside the Citadel plaza').toBeGreaterThan(CELL - 3);
+      for (const s of L.slots) {
+        if (s.plot === CITADEL_PLOT) continue;
+        expect(Math.abs(c.x - s.x) < PLOT / 2 && Math.abs(c.z - s.z) < PLOT / 2, `car ${i} on plot ${s.plot}`).toBe(false);
+      }
+    }
+    // cars move
+    const a = carAt(5, 0), b = carAt(5, 1);
+    expect(Math.hypot(a.x - b.x, a.z - b.z)).toBeGreaterThan(4);
   });
 });

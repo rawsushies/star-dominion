@@ -17,6 +17,8 @@ export const AVENUE = CELL - PLOT;
 /** cells per side (centre block is 2 x 2 at indices 3 and 4) */
 export const GRID = 8;
 
+export function hash(n: number): number { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); }
+
 export type DistrictKind = 'residential' | 'industrial' | 'energy' | 'civic';
 
 export interface MegaSlot { plot: number; x: number; z: number; ring: 1 | 2; cell: [number, number] }
@@ -83,4 +85,55 @@ export function megacityLayout(): { slots: MegaSlot[]; districts: DistrictBlock[
     highways.push({ x: 0, z: -t, dir: 'z', cross: false }, { x: 0, z: t, dir: 'z', cross: false }, { x: -t, z: 0, dir: 'x', cross: false }, { x: t, z: 0, dir: 'x', cross: false });
   }
   return { slots, districts, highways, citadel: { x: 0, z: 0 } };
+}
+
+// ------------------------------------------------------------ the wider city and its traffic
+
+export type SkylineModel = 'spire_a' | 'spire_b' | 'truss_a' | 'res_a' | 'res_b' | 'res_c' | 'hall_b' | 'vault';
+/** Street cars: the Neon Town car is 4.3 units long; at this scale it is about 1.8. */
+export const CAR_SCALE = 0.42;
+/** Avenues that carry street traffic (cell boundaries; the central one crosses the Citadel plaza). */
+export const STREET_LINES = [-3, -2, -1, 1, 2, 3].map((k) => k * CELL);
+export const STREET_END = 4 * CELL - 4;
+/** Sky photograph (Poly Haven, Kloppenheim 06): where its sun lies, as a fraction of the image width. */
+export const SKY_SUN_U = 0.613;
+export const SUN = { elevation: 28, azimuth: -58 };
+
+/** Models that make up the distant skyline beyond the walls (the kit's lighter towers). */
+export const SKYLINE_MODELS: SkylineModel[] = ['spire_a', 'spire_b', 'truss_a', 'res_a', 'res_b', 'res_c', 'hall_b', 'vault'];
+
+export interface SkylineTower { model: SkylineModel; x: number; z: number; ry: number; sx: number; sy: number; from: number }
+
+/**
+ * The wider metropolis beyond the walls: towers on concentric bands, leaving the four gate
+ * approaches clear, with the farthest ones raised first. Each tower has the Citadel level from
+ * which it stands, so the skyline thickens as the capital grows.
+ */
+export function skylineLayout(count: number): SkylineTower[] {
+  const out: SkylineTower[] = [];
+  for (let i = 0; out.length < count && i < count * 4; i++) {
+    const a = hash(i * 3.1) * Math.PI * 2;
+    const r = 4 * CELL + 22 + Math.pow(hash(i * 7.7), 0.8) * 230;
+    const x = Math.cos(a) * r, z = Math.sin(a) * r;
+    if (Math.abs(x) < 12 || Math.abs(z) < 12) continue; // gate approaches
+    if (out.some((t) => Math.hypot(t.x - x, t.z - z) < 11)) continue;
+    const model = SKYLINE_MODELS[Math.floor(hash(i * 1.9) * SKYLINE_MODELS.length) % SKYLINE_MODELS.length];
+    const tall = model.startsWith('spire') || model === 'truss_a';
+    const sx = 0.9 + hash(i * 5.3) * 0.5;
+    const sy = sx * (tall ? 1 + hash(i * 2.2) * 0.9 : 1 + hash(i * 4.4) * 1.6);
+    out.push({ model, x, z, ry: Math.floor(hash(i * 9.1) * 4) * Math.PI / 2, sx, sy, from: 1 + Math.floor(hash(i * 6.6) * 19) });
+  }
+  return out;
+}
+
+/** A street car's position at `time` seconds: lanes keep to the right of each avenue. */
+export function carAt(i: number, time: number): { x: number; z: number; ry: number } {
+  const alongX = i % 2 === 0;
+  const line = STREET_LINES[Math.floor(hash(i * 1.3) * STREET_LINES.length) % STREET_LINES.length];
+  const dir = hash(i * 2.9) < 0.5 ? 1 : -1;
+  const speed = 5 + hash(i * 4.1) * 4;
+  const span = 2 * STREET_END;
+  const t = (((hash(i * 8.3) * span + dir * time * speed) % span) + span) % span - STREET_END;
+  const lane = dir * 1.35;
+  return alongX ? { x: t, z: line + lane, ry: dir > 0 ? Math.PI / 2 : -Math.PI / 2 } : { x: line - lane, z: t, ry: dir > 0 ? 0 : Math.PI };
 }
