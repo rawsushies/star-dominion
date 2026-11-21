@@ -426,3 +426,71 @@ export class Crowd {
     }
   }
 }
+
+// ---------------------------------------------------------------- squares
+
+export interface Square { x: number; z: number; half: number; obstacles: { x: number; z: number; r: number }[]; gather: { x: number; z: number }[] }
+
+function segmentClear(sq: Square, ax: number, az: number, bx: number, bz: number, pad: number) {
+  for (const o of sq.obstacles) {
+    const dx = bx - ax, dz = bz - az, L2 = dx * dx + dz * dz || 1;
+    const t = Math.max(0, Math.min(1, ((o.x - ax) * dx + (o.z - az) * dz) / L2));
+    if (Math.hypot(ax + dx * t - o.x, az + dz * t - o.z) < o.r + pad) return false;
+  }
+  return true;
+}
+
+/**
+ * People in a public square: they stroll between free points, stop at stalls and gathering
+ * points, idle and look around, and never walk through furniture or leave the square.
+ */
+export class SquareCrowd {
+  walkers: Walker[] = [];
+  private rng: () => number;
+  private target: { x: number; z: number }[] = [];
+  constructor(readonly squares: Square[], perSquare: number, variants: number, seed = 13, idOffset = 10000) {
+    let s = seed;
+    this.rng = () => { s = (s * 48271) % 2147483647; return (s - 1) / 2147483646; };
+    squares.forEach((sq, si) => {
+      for (let i = 0; i < perSquare; i++) {
+        const p = this.freePoint(sq);
+        const corner: Corner = { node: si, sx: 1, sz: 1 }; // unused for squares
+        const w: Walker = { id: idOffset + si * 1000 + i, variant: (i + si) % variants, from: p, to: p, t: 0, len: 0, at: corner, next: null, crossing: null, wait: this.rng() * 6, speed: 1.1 * M * (0.8 + this.rng() * 0.3), x: p.x, z: p.z, ry: this.rng() * Math.PI * 2, walking: false };
+        this.walkers.push(w); this.target.push(p);
+        (w as Walker & { sq: number }).sq = si;
+      }
+    });
+  }
+
+  freePoint(sq: Square): { x: number; z: number } {
+    for (let k = 0; k < 40; k++) {
+      // a third of the time head for a gathering point (a stall, a sign, a bench)
+      const g = sq.gather.length && this.rng() < 0.35 ? sq.gather[Math.floor(this.rng() * sq.gather.length) % sq.gather.length] : null;
+      const x = g ? g.x + (this.rng() - 0.5) * 1.6 : sq.x + (this.rng() * 2 - 1) * (sq.half - 0.4);
+      const z = g ? g.z + (this.rng() - 0.5) * 1.6 : sq.z + (this.rng() * 2 - 1) * (sq.half - 0.4);
+      if (Math.abs(x - sq.x) > sq.half - 0.3 || Math.abs(z - sq.z) > sq.half - 0.3) continue;
+      if (sq.obstacles.every((o) => Math.hypot(x - o.x, z - o.z) > o.r + 0.3)) return { x, z };
+    }
+    return { x: sq.x + sq.half - 0.5, z: sq.z + sq.half - 0.5 };
+  }
+
+  step(dt: number) {
+    this.walkers.forEach((w) => {
+      const sq = this.squares[(w as Walker & { sq: number }).sq];
+      if (w.wait > 0) { w.wait -= dt; w.walking = false; return; }
+      if (w.t >= w.len) {
+        // pick a new destination reachable in a straight line past the furniture
+        let p = this.freePoint(sq), guard = 0;
+        while (!segmentClear(sq, w.x, w.z, p.x, p.z, 0.25) && guard++ < 12) p = this.freePoint(sq);
+        if (!segmentClear(sq, w.x, w.z, p.x, p.z, 0.25)) { w.wait = 1; return; }
+        w.from = { x: w.x, z: w.z }; w.to = p; w.len = Math.hypot(p.x - w.x, p.z - w.z); w.t = 0;
+      }
+      w.walking = true;
+      w.t = Math.min(w.len, w.t + w.speed * dt);
+      const k = w.len ? w.t / w.len : 1;
+      w.x = w.from.x + (w.to.x - w.from.x) * k; w.z = w.from.z + (w.to.z - w.from.z) * k;
+      w.ry = Math.atan2(w.to.x - w.from.x, w.to.z - w.from.z);
+      if (w.t >= w.len) w.wait = 1.5 + this.rng() * 7; // stop: browse, chat, look around
+    });
+  }
+}

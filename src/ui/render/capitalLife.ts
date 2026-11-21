@@ -19,13 +19,13 @@ import { loadTevy, tevyUrl, releaseTevyLoader } from './assets/tevyLoader';
 import { instancedFrom } from './instancing';
 import { disposeObject } from './assets/resources';
 import type { QualityTier } from './pipeline';
-import { M, JUNCTION, roadNetwork, nearestNode, Traffic, Crowd, signalFor, sidewalkOffset, roadHalf, type RoadNetwork, type VehicleKind, type Light } from './cityRoads';
+import { M, JUNCTION, roadNetwork, nearestNode, Traffic, Crowd, SquareCrowd, signalFor, sidewalkOffset, roadHalf, type RoadNetwork, type VehicleKind, type Light, type Square, type Walker } from './cityRoads';
 import type { MegaSlot, DistrictBlock } from './megacityLayout';
 
-export const LIFE_PROFILE: Record<QualityTier, { vehicles: Partial<Record<VehicleKind, number>>; walkers: number; nearPeople: number; lamps: boolean }> = {
-  mobile: { vehicles: { car: 20, taxi: 9, hover: 7, van: 10, bus: 3, police: 2, ambulance: 1 }, walkers: 90, nearPeople: 0, lamps: true },
-  medium: { vehicles: { car: 40, taxi: 16, hover: 12, van: 18, bus: 4, police: 3, ambulance: 2 }, walkers: 180, nearPeople: 12, lamps: true },
-  desktop: { vehicles: { car: 56, taxi: 22, hover: 16, van: 24, bus: 5, police: 4, ambulance: 2 }, walkers: 280, nearPeople: 24, lamps: true },
+export const LIFE_PROFILE: Record<QualityTier, { vehicles: Partial<Record<VehicleKind, number>>; walkers: number; squareCrowd: number; nearPeople: number; lamps: boolean }> = {
+  mobile: { vehicles: { car: 20, taxi: 9, hover: 7, van: 10, bus: 3, police: 2, ambulance: 1 }, walkers: 90, squareCrowd: 16, nearPeople: 0, lamps: true },
+  medium: { vehicles: { car: 40, taxi: 16, hover: 12, van: 18, bus: 4, police: 3, ambulance: 2 }, walkers: 180, squareCrowd: 26, nearPeople: 12, lamps: true },
+  desktop: { vehicles: { car: 56, taxi: 22, hover: 16, van: 24, bus: 5, police: 4, ambulance: 2 }, walkers: 280, squareCrowd: 36, nearPeople: 24, lamps: true },
 };
 
 const VEHICLE_MODEL: Record<VehicleKind, string> = { car: 'estate-car', taxi: 'city-taxi', hover: 'hover-car', van: 'cargo-hauler-van', bus: 'city-bus', police: 'police-car', ambulance: 'ambulance' };
@@ -43,6 +43,7 @@ export class CapitalLife {
   readonly group = new THREE.Group();
   traffic: Traffic | null = null;
   crowd: Crowd | null = null;
+  squares: SquareCrowd | null = null;
   ready: Promise<void>;
   private models = new Map<string, GLTF>();
   private vehicleMeshes = new Map<VehicleKind, THREE.InstancedMesh[]>();
@@ -65,6 +66,8 @@ export class CapitalLife {
       ['k:straight', `${roads}road-straight.glb`], ['k:cross', `${roads}road-crossroad-path.glb`], ['k:tee', `${roads}road-intersection-path.glb`],
       ['k:bend', `${roads}road-bend-sidewalk.glb`], ['k:tile', `${roads}tile-low.glb`], ['k:sign', `${roads}road-sign-street.glb`],
       ['avenue', tevyUrl('four-lane-city-road-12-m', 1)], ['junction', tevyUrl('scramble-crossing-junction-box', 1)],
+      ['kiosk', tevyUrl('noodle-kiosk', 2)], ['news', tevyUrl('newsstand-kiosk', 2)], ['cart', tevyUrl('street-food-stall-cart', 2)],
+      ['holo', tevyUrl('holo-ring-sign', 1)], ['blade', tevyUrl('holo-blade-sign', 1)], ['planter', tevyUrl('concrete-planter', 2)], ['bench', tevyUrl('park-bench', 2)], ['bistro', tevyUrl('plaza-bistro-set', 2)],
       ['signal', tevyUrl('traffic-light', 2)], ['lamp', tevyUrl('street-lamp', 2)], ['shelter', tevyUrl('glass-bus-shelter', 2)],
       ...Object.values(VEHICLE_MODEL).map((s) => [s, tevyUrl(s, 2)] as [string, string]),
       ...PEOPLE.map((s) => [s, tevyUrl(s, 2)] as [string, string]),
@@ -222,9 +225,12 @@ export class CapitalLife {
       meshes.forEach((m) => this.group.add(m));
       this.vehicleMeshes.set(kind, meshes);
     }
+    // public squares: market furniture, and a crowd that strolls, gathers and idles
+    const squares = this.buildSquares();
+    this.squares = new SquareCrowd(squares, P.squareCrowd, PEOPLE.length, 17);
     // pedestrians
     this.crowd = new Crowd(net, P.walkers, PEOPLE.length, 9);
-    this.crowdMeshes = PEOPLE.map((slug) => this.bakeWalk(slug, P.walkers));
+    this.crowdMeshes = PEOPLE.map((slug) => this.bakeWalk(slug, P.walkers + P.squareCrowd * squares.length));
     for (let i = 0; i < P.nearPeople; i++) {
       const variant = i % PEOPLE.length;
       const g = this.models.get(`${PEOPLE[variant]}:near`);
@@ -240,6 +246,36 @@ export class CapitalLife {
       this.group.add(root);
       this.near.push({ root, mixer, walk, idle, variant, walker: -1 });
     }
+  }
+
+  /** Furnish each public square (tevy kiosks, stalls, screen, signs, planters, benches, tables). */
+  private buildSquares(): Square[] {
+    const out: Square[] = [];
+    const place: Record<string, Parameters<CapitalLife['stamp']>[1]> = {};
+    const put = (k: string, x: number, z: number, ry: number, r: number, sq: Square, gatherAt?: number) => {
+      (place[k] ??= []).push({ x, z, ry, sx: M });
+      sq.obstacles.push({ x, z, r });
+      // gather in front of it (its front faces +Z before turning)
+      if (gatherAt != null) sq.gather.push({ x: x + Math.sin(ry) * gatherAt, z: z + Math.cos(ry) * gatherAt });
+    };
+    for (const d of this.sites.districts.filter((x) => x.kind === 'plaza')) {
+      const sq: Square = { x: d.x, z: d.z, half: 5.4, obstacles: [], gather: [] };
+      // face the stalls inwards, towards the square's centre
+      const face = (x: number, z: number) => Math.atan2(d.x - x, d.z - z);
+      const c = (dx: number, dz: number) => [d.x + dx, d.z + dz] as const;
+      { const [x, z] = c(-3.2, -3.2); put('kiosk', x, z, face(x, z), 0.75, sq, 1.4); }
+      { const [x, z] = c(3.2, -3.2); put('news', x, z, face(x, z), 0.75, sq, 1.4); }
+      { const [x, z] = c(-3.4, 3.0); put('cart', x, z, face(x, z), 0.8, sq, 1.3); }
+      { const [x, z] = c(3.2, 3.2); put('kiosk', x, z, face(x, z), 0.75, sq, 1.4); }
+      { const [x, z] = c(0, 0); put('holo', x, z, 0, 0.4, sq, 1.2); }
+      for (const [dx, dz] of [[-1.6, 1.6], [1.6, -1.6]] as const) { const [x, z] = c(dx, dz); put('bistro', x, z, 0.4, 0.4, sq, 0.7); }
+      for (const [dx, dz, ry] of [[0, -4.6, 0], [0, 4.6, Math.PI], [-4.6, 0, Math.PI / 2], [4.6, 0, -Math.PI / 2]] as const) { const [x, z] = c(dx, dz); put('planter', x, z, ry, 0.5, sq); }
+      for (const [dx, dz, ry] of [[-1.8, -4.4, 0], [1.8, 4.4, Math.PI], [4.4, 1.8, -Math.PI / 2]] as const) { const [x, z] = c(dx, dz); put('bench', x, z, ry, 0.45, sq, 0.6); }
+      { const [x, z] = c(-4.6, -1.4); put('blade', x, z, Math.PI / 2, 0.2, sq); }
+      out.push(sq);
+    }
+    for (const [k, xf] of Object.entries(place)) this.stamp(k, xf, true);
+    return out;
   }
 
   /**
@@ -308,7 +344,7 @@ export class CapitalLife {
   update(dt: number, time: number, focus: THREE.Vector3) {
     if (!this.traffic || !this.crowd) return;
     const step = this.opts.still ? 0 : Math.min(dt, 0.1);
-    if (step > 0) { this.traffic.step(step, time); this.crowd.step(step, time); }
+    if (step > 0) { this.traffic.step(step, time); this.crowd.step(step, time); this.squares?.step(step); }
     // vehicles
     const byKind = new Map<VehicleKind, number>();
     for (const v of this.traffic.vehicles) {
@@ -329,7 +365,7 @@ export class CapitalLife {
       this.signalLamps.mesh.instanceColor!.needsUpdate = true;
     }
     // pedestrians: the nearest ones as skinned meshes, the rest as baked instanced poses
-    const ws = this.crowd.walkers;
+    const ws: Walker[] = this.squares ? [...this.crowd.walkers, ...this.squares.walkers] : this.crowd.walkers;
     const nearIds = new Set<number>();
     if (this.near.length) {
       const order = ws.map((w, i) => ({ i, d: (w.x - focus.x) ** 2 + (w.z - focus.z) ** 2 })).filter((o) => o.d < 45 * 45).sort((a, b) => a.d - b.d);
@@ -360,7 +396,7 @@ export class CapitalLife {
   }
 
   stats() {
-    return { vehicles: this.traffic?.vehicles.filter((v) => v.dwell <= 0).length ?? 0, walkers: this.crowd?.walkers.length ?? 0, nearPeople: this.near.filter((n) => n.root.visible).length };
+    return { vehicles: this.traffic?.vehicles.filter((v) => v.dwell <= 0).length ?? 0, walkers: (this.crowd?.walkers.length ?? 0) + (this.squares?.walkers.length ?? 0), nearPeople: this.near.filter((n) => n.root.visible).length };
   }
 
   dispose() {

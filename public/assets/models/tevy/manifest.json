@@ -610,6 +610,13 @@
       ],
       "files": [
         {
+          "lod": 1,
+          "file": "assets/models/tevy/dog-walker.lod1.glb",
+          "bytes": 600648,
+          "triangles": 8999,
+          "sha256": "a5408cf77434f9a74b112bc4924f07e1f86191edfac7f11eb4bb29b7d28b0ef4"
+        },
+        {
           "lod": 2,
           "file": "assets/models/tevy/dog-walker.lod2.glb",
           "bytes": 244032,
@@ -733,6 +740,13 @@
         }
       ],
       "files": [
+        {
+          "lod": 1,
+          "file": "assets/models/tevy/hiker.lod1.glb",
+          "bytes": 614708,
+          "triangles": 8999,
+          "sha256": "bbf5f07bf23991a967cd29ef6c692d852047f1fc0d6860f689108e8e485b2f6e"
+        },
         {
           "lod": 2,
           "file": "assets/models/tevy/hiker.lod2.glb",
@@ -1394,6 +1408,233 @@
           "bytes": 240536,
           "triangles": 1998,
           "sha256": "0fe4a8ec4e9748925e34fe1f665ddd05da082eb61b085e6cb60f642470d9b792"
+        }
+      ]
+    },
+    {
+      "slug": "holo-ring-sign",
+      "name": "Round Hologram Sign",
+      "version": 1,
+      "page": "https://tevy.dev/models/holo-ring-sign",
+      "dimensions": {
+        "x": 1.536,
+        "y": 3.744,
+        "z": 0.52
+      },
+      "parts": [],
+      "animations": [],
+      "files": [
+        {
+          "lod": 1,
+          "file": "assets/models/tevy/holo-ring-sign.lod1.glb",
+          "bytes": 90012,
+          "triangles": 580,
+          "sha256": "3a5004ad59c57be3e7bdab030307930e1cf9514515d802fcd2108732e69eec40"
+        }
+      ]
+    },
+    {
+      "slug": "holo-blade-sign",
+      "name": "Hologram Blade Sign",
+      "version": 1,
+      "page": "https://tevy.dev/models/holo-blade-sign",
+      "dimensions": {
+        "x": 0.2,
+        "y": 2.774,
+        "z": 0.91
+      },
+      "parts": [],
+      "animations": [],
+      "files": [
+        {
+          "lod": 1,
+          "file": "assets/models/tevy/holo-blade-sign.lod1.glb",
+          "bytes": 82480,
+          "triangles": 186,
+          "sha256": "dbdeab9efc1f8ad99d085d14f0cce1a2c633caa6ff904c9ccbe45dede41a5d26"
+        }
+      ]
+    },
+    {
+      "slug": "street-food-stall-cart",
+      "name": "Street Food Stall Cart",
+      "version": 1,
+      "page": "https://tevy.dev/models/street-food-stall-cart",
+      "dimensions": {
+        "x": 3.179,
+        "y": 2.37,
+        "z": 1.7
+      },
+      "parts": [
+        "wheel_front",
+        "wheel_back"
+      ],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/street-food-stall-cart.lod2.glb",
+          "bytes": 86604,
+          "triangles": 1390,
+          "sha256": "1977513262dd3bb05a0d8533fc529b82b5be5aab1c6c2e2d0c89be142e81da90"
+        }
+      ]
+    },
+    {
+      "slug": "round-steel-street-table",
+      "name": "Round Steel Street Table",
+      "version": 1,
+      "page": "https://tevy.dev/models/round-steel-street-table",
+      "dimensions": {
+        "x": 0.78,
+        "y": 0.602,
+        "z": 0.78
+      },
+      "parts": [],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/round-steel-street-table.lod2.glb",
+          "bytes": 16780,
+          "triangles": 84,
+          "sha256": "a9c111ce0662ea797fb61cbe02e0799c5d9a0dedcee1ddd916feb9755e1db073"
+        }
+      ]
+    },
+    {
+      "slug": "concrete-planter",
+      "name": "Concrete Planter",
+      "version": 1,
+      "page": "https://tevy.dev/models/concrete-planter",
+      "dimensions": {
+        "x": 2,
+        "y": 1.253,
+        "z": 1
+      },
+      "parts": [],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/concrete-planter.lod2.glb",
+          "bytes": 109340,
+          "triangles": 324,
+          "sha256": "25843f7e4228c1351e285104e88fcdd3841187ccd7fc96d3f3d2da6c6352bdce"
+        }
+      ]
+    },
+    {
+      "slug": "park-bench",
+      "name": "Park Bench",
+      "version": 1,
+      "page": "https://tevy.dev/models/park-bench",
+      "dimensions": {
+        "x": 1.8,
+        "y": 0.918,
+        "z": 0.684
+      },
+      "parts": [],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/park-bench.lod2.glb",
+          "bytes": 92956,
+          "triangles": 728,
+          "sha256": "0b949f38ee02166fda12acf6438e8f6dc344a0d8b04aa1df85acc2766c0ef694"
+        }
+      ]
+    },
+    {
+      "slug": "noodle-kiosk",
+      "name": "Robot Noodle Kiosk",
+      "version": 1,
+      "page": "https://tevy.dev/models/noodle-kiosk",
+      "dimensions": {
+        "x": 2.685,
+        "y": 3.27,
+        "z": 2.2
+      },
+      "parts": [],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/noodle-kiosk.lod2.glb",
+          "bytes": 214508,
+          "triangles": 2236,
+          "sha256": "299e1ca11ef96e07b8fc2cc1ad32c31e4e17567c0e676d831b60f5f07f9c9814"
+        }
+      ]
+    },
+    {
+      "slug": "newsstand-kiosk",
+      "name": "Newsstand Kiosk",
+      "version": 1,
+      "page": "https://tevy.dev/models/newsstand-kiosk",
+      "dimensions": {
+        "x": 3.282,
+        "y": 2.52,
+        "z": 1.78
+      },
+      "parts": [],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/newsstand-kiosk.lod2.glb",
+          "bytes": 131488,
+          "triangles": 1520,
+          "sha256": "daf2b27906ddf1fcb0a521e451e3a67da99d1843d41479fd2069168e9599645e"
+        }
+      ]
+    },
+    {
+      "slug": "plaza-bistro-set",
+      "name": "Plaza Table and Chairs",
+      "version": 1,
+      "page": "https://tevy.dev/models/plaza-bistro-set",
+      "dimensions": {
+        "x": 1.523,
+        "y": 0.87,
+        "z": 1.748
+      },
+      "parts": [
+        "chair_1",
+        "chair_2",
+        "chair_3"
+      ],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/plaza-bistro-set.lod2.glb",
+          "bytes": 87220,
+          "triangles": 758,
+          "sha256": "bf1e5df10f3262ffa00064f9a1ce740db1bb6951f93b596f5e7e84ba209f7e1e"
+        }
+      ]
+    },
+    {
+      "slug": "metro-platform-bench",
+      "name": "Metro Platform Bench",
+      "version": 1,
+      "page": "https://tevy.dev/models/metro-platform-bench",
+      "dimensions": {
+        "x": 2,
+        "y": 0.855,
+        "z": 0.605
+      },
+      "parts": [],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/metro-platform-bench.lod2.glb",
+          "bytes": 26788,
+          "triangles": 240,
+          "sha256": "2ec3a1eb2410cc8f6483655711fac3823f8229df4b8a0f180a470dc2078e0aa6"
         }
       ]
     }

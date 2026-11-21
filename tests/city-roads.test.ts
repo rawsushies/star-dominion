@@ -105,3 +105,24 @@ describe('capital road network', () => {
     expect(crossings).toBeGreaterThan(10);
   });
 });
+
+describe('public squares', () => {
+  it('crowds stroll, gather and idle without walking through furniture or leaving the square', async () => {
+    const { SquareCrowd } = await import('../src/ui/render/cityRoads');
+    const squares = L.districts.filter((d) => d.kind === 'plaza').map((d) => ({ x: d.x, z: d.z, half: 5.4, obstacles: [{ x: d.x - 3.2, z: d.z - 3.2, r: 0.75 }, { x: d.x, z: d.z, r: 0.4 }, { x: d.x + 3, z: d.z + 3.6, r: 1.3 }], gather: [{ x: d.x - 2.2, z: d.z - 2.2 }] }));
+    expect(squares.length).toBe(2);
+    const crowd = new SquareCrowd(squares, 30, 4, 3);
+    let idle = 0, moving = 0;
+    for (let step = 0; step < 20 * 60; step++) {
+      crowd.step(1 / 20);
+      for (const w of crowd.walkers) {
+        const sq = squares[(w as unknown as { sq: number }).sq];
+        expect(Math.abs(w.x - sq.x)).toBeLessThanOrEqual(sq.half);
+        expect(Math.abs(w.z - sq.z)).toBeLessThanOrEqual(sq.half);
+        for (const o of sq.obstacles) expect(Math.hypot(w.x - o.x, w.z - o.z), 'inside furniture').toBeGreaterThan(o.r);
+        if (w.walking) moving++; else idle++;
+      }
+    }
+    expect(moving).toBeGreaterThan(1000); expect(idle).toBeGreaterThan(1000);
+  });
+});

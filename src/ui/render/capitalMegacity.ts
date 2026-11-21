@@ -54,7 +54,7 @@ export function megaModelFor(id: string, level: number): { model: KitModel; from
 }
 
 /** Lower kit buildings for district blocks whose Citadel level is not reached yet. */
-const DISTRICT_EARLY: Record<DistrictBlock['kind'], KitModel[]> = {
+const DISTRICT_EARLY: Record<Exclude<DistrictBlock['kind'], 'plaza'>, KitModel[]> = {
   residential: ['res_a', 'res_b', 'hall_a', 'res_a'],
   industrial: ['works_a', 'power_a', 'works_a'],
   energy: ['power_a', 'vault', 'power_a'],
@@ -63,7 +63,7 @@ const DISTRICT_EARLY: Record<DistrictBlock['kind'], KitModel[]> = {
 /** The old quarter standing on plots the Citadel has not opened yet (cleared when a plot opens). */
 const OLD_QUARTER: KitModel[] = ['res_a', 'hall_a', 'works_a', 'res_b', 'vault', 'power_a'];
 
-const DISTRICT_MODELS: Record<DistrictBlock['kind'], KitModel[]> = {
+const DISTRICT_MODELS: Record<Exclude<DistrictBlock['kind'], 'plaza'>, KitModel[]> = {
   residential: ['res_a', 'res_b', 'res_c', 'arco_a', 'arco_b', 'res_b'],
   industrial: ['works_a', 'refinery_a', 'power_a', 'works_a'],
   energy: ['power_a', 'truss_a', 'power_a', 'spire_a'],
@@ -170,7 +170,9 @@ export class MegacityCapitalView3D {
     this.bindInput();
     this.life = new CapitalLife(this.renderer, { quality: opts.quality, still: opts.still, assetBase: opts.assetBase }, { slots: this.layout.slots, districts: this.layout.districts, occupied: this.occupied });
     this.scene.add(this.life.group);
-    this.ready = Promise.all([this.loadKit(), this.loadShuttle(), texReady, this.life.ready]).then(() => {
+    // street life is not essential to the city: a failure there is reported, the city still builds
+    const lifeReady = this.life.ready.catch((e) => console.warn(`[megacity] street life failed: ${(e as Error).message ?? e}`));
+    this.ready = Promise.all([this.loadKit(), this.loadShuttle(), texReady, lifeReady]).then(() => {
       if (this.disposed) return;
       this.buildInfrastructure();
       this.buildTraffic();
@@ -353,8 +355,15 @@ export class MegacityCapitalView3D {
     for (const o of [...this.districts.children]) { this.districts.remove(o); disposeObject(o, this.shared()); }
     const g = new THREE.Group();
     for (const d of this.layout.districts) {
+      // public squares are paved; their stalls and crowds are CapitalLife's
+      if (d.kind === 'plaza') {
+        const sq = new THREE.Mesh(new THREE.BoxGeometry(PLOT + 1, 0.25, PLOT + 1), this.mats.plaza);
+        sq.position.set(d.x, 0.12, d.z); sq.receiveShadow = true; g.add(sq);
+        continue;
+      }
       // until the Citadel reaches the block's level it stands as an older, lower quarter
-      const pool = citadel < d.from ? DISTRICT_EARLY[d.kind] : DISTRICT_MODELS[d.kind];
+      const kind = d.kind as Exclude<DistrictBlock['kind'], 'plaza'>;
+      const pool = citadel < d.from ? DISTRICT_EARLY[kind] : DISTRICT_MODELS[kind];
       const k = Math.floor(hash(d.seed) * pool.length) % pool.length;
       const scale = d.ring === 3 ? 0.9 + hash(d.seed + 3) * 0.25 : 1;
       const o = this.place(pool[k], d.x, d.z, { scale, ry: Math.floor(hash(d.seed + 1) * 4) * Math.PI / 2 });

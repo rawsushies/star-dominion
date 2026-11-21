@@ -19,7 +19,7 @@ export const GRID = 8;
 
 export function hash(n: number): number { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); }
 
-export type DistrictKind = 'residential' | 'industrial' | 'energy' | 'civic';
+export type DistrictKind = 'residential' | 'industrial' | 'energy' | 'civic' | 'plaza';
 
 export interface MegaSlot { plot: number; x: number; z: number; ring: 1 | 2; cell: [number, number] }
 export interface DistrictBlock { x: number; z: number; ring: 2 | 3; kind: DistrictKind; /** Citadel level from which it is built */ from: number; seed: number }
@@ -72,6 +72,9 @@ export function megacityLayout(): { slots: MegaSlot[]; districts: DistrictBlock[
   const districts: DistrictBlock[] = [];
   ring2.forEach(([i, j], idx) => { if (!used.has(idx)) districts.push({ x: centre(i), z: centre(j), ring: 2, kind: districtFor(i, j), from: 4 + (idx % 4), seed: i * 31 + j * 7 }); });
   ring3.forEach(([i, j], idx) => districts.push({ x: centre(i), z: centre(j), ring: 3, kind: districtFor(i, j), from: 8 + (idx % 6) * 2, seed: i * 31 + j * 7 }));
+  // two public squares in ring 2, the blocks nearest the ceremonial axes: market plazas
+  const squares = districts.filter((d) => d.ring === 2).sort((a, b) => Math.min(Math.abs(a.x), Math.abs(a.z)) - Math.min(Math.abs(b.x), Math.abs(b.z)) || a.seed - b.seed).slice(0, 2);
+  for (const d of squares) { d.kind = 'plaza'; d.from = 1; }
   // elevated highways: square loops on the avenues bounding ring 1 and ring 2, and four radials
   const highways: HighwaySeg[] = [];
   const step = 6;
