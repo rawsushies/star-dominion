@@ -24,7 +24,7 @@ export function musicFor(s: View): MusicContext {
   const g = s.game;
   if (!g) return 'menu';
   if (atWar(g)) return 'war';
-  const focus = s.windows.some((w) => w.id === s.screen && !w.min) ? s.screen : 'map';
+  const focus = s.windows.some((w) => w.id === s.screen && !w.min) ? s.screen : s.view === 'capital' ? 'capital' : 'map';
   const me = g.empires[g.playerId];
   if (focus === 'capital') return 'capital';
   if (DIPLOMATIC.includes(focus)) return 'diplomacy';
@@ -39,7 +39,7 @@ export function musicFor(s: View): MusicContext {
 /** The ambient bed. */
 export function sceneFor(s: View): AmbientScene {
   if (!s.game) return 'none';
-  const focus = s.windows.some((w) => w.id === s.screen && !w.min) ? s.screen : 'map';
+  const focus = s.windows.some((w) => w.id === s.screen && !w.min) ? s.screen : s.view === 'capital' ? 'capital' : 'map';
   if (focus === 'capital') return 'city';
   if (MILITARY.includes(focus)) return 'fleet';
   if (s.view === 'system' || s.view === 'planet') return 'orbit';

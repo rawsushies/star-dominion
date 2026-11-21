@@ -37,6 +37,7 @@ export function useGuidanceController() {
       if (st.planetId != null && st.planetId !== prev.planetId) recordFlag(g, 'sel:planet');
       if (st.fleetId != null && st.fleetId !== prev.fleetId) recordFlag(g, 'sel:fleet');
       if (st.windows !== prev.windows) for (const w of st.windows) if (!prev.windows.some((p) => p.id === w.id)) recordFlag(g, `win:${w.id}`);
+      if (st.view === 'capital' && prev.view !== 'capital') recordFlag(g, 'win:capital');
     });
     return () => { offCmd(); offStore(); };
   }, []);

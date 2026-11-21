@@ -11,7 +11,9 @@ import {
 import { Sheet, Section, Meter, CostView, cls } from '../components/common';
 import { modText } from './Council';
 
-export function CityCanvas({ sel, onPick, height = 420 }: { sel: number | null; onPick?: (p: number | null) => void; height?: number }) {
+export type CityView = CapitalView3D | MegacityCapitalView3D;
+
+export function CityCanvas({ sel, onPick, height = 420, onView }: { sel: number | null; onPick?: (p: number | null) => void; height?: number | string; onView?: (v: CityView | null) => void }) {
   const g = useGame();
   const me = g.empires[g.playerId];
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -32,9 +34,10 @@ export function CityCanvas({ sel, onPick, height = 420 }: { sel: number | null; 
       ? new MegacityCapitalView3D(c, overlay.current, me.color, onP, { quality })
       : new CapitalView3D(c, overlay.current, me.color, onP);
     view.current = v;
+    onView?.(v);
     if (v instanceof MegacityCapitalView3D) v.ready.then(() => setReady((n) => n + 1));
     (window as unknown as { __sdCapital?: unknown }).__sdCapital = v;
-    return () => { v.dispose(); view.current = null; overlay.current?.replaceChildren(); };
+    return () => { onView?.(null); v.dispose(); view.current = null; overlay.current?.replaceChildren(); };
   }, [me.color, style, quality]);
   useEffect(() => {
     const cap = me.capital;
@@ -54,7 +57,7 @@ export function CityCanvas({ sel, onPick, height = 420 }: { sel: number | null; 
       {/* keyed: each view gets a fresh canvas, since a WebGL context cannot pass between renderers */}
       <canvas key={`${style}-${quality}`} ref={canvas} data-testid="city" data-view={style} style={{ width: '100%', height: '100%', display: 'block', cursor: onPick ? 'pointer' : 'grab', touchAction: 'none' }} />
       <div ref={overlay} className="cap-overlay" />
-      <div className="cap-help">Drag to turn the city, scroll to zoom, select a plot to build.</div>
+      <div className="cap-help">{style === 'megacity' ? 'Drag to move · right-drag or two fingers to turn · scroll or pinch to zoom · tap a plot' : 'Drag to turn the city, scroll to zoom, select a plot to build.'}</div>
     </div>
   );
 }
@@ -128,7 +131,7 @@ export function CapitalScreen() {
   );
 }
 
-function BuildingCard({ id }: { id: string }) {
+export function BuildingCard({ id }: { id: string }) {
   const g = useGame();
   const me = g.empires[g.playerId];
   const d = CAPITAL_BY_ID[id];

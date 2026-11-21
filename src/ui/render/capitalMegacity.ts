@@ -52,6 +52,16 @@ export function megaModelFor(id: string, level: number): { model: KitModel; from
   return { model: t[1], from: t[0] };
 }
 
+/** Lower kit buildings for district blocks whose Citadel level is not reached yet. */
+const DISTRICT_EARLY: Record<DistrictBlock['kind'], KitModel[]> = {
+  residential: ['res_a', 'res_b', 'hall_a', 'res_a'],
+  industrial: ['works_a', 'power_a', 'works_a'],
+  energy: ['power_a', 'vault', 'power_a'],
+  civic: ['hall_a', 'hall_b', 'vault'],
+};
+/** The old quarter standing on plots the Citadel has not opened yet (cleared when a plot opens). */
+const OLD_QUARTER: KitModel[] = ['res_a', 'hall_a', 'works_a', 'res_b', 'vault', 'power_a'];
+
 const DISTRICT_MODELS: Record<DistrictBlock['kind'], KitModel[]> = {
   residential: ['res_a', 'res_b', 'res_c', 'arco_a', 'arco_b', 'res_b'],
   industrial: ['works_a', 'refinery_a', 'power_a', 'works_a'],
@@ -63,6 +73,13 @@ const DISTRICT_MODELS: Record<DistrictBlock['kind'], KitModel[]> = {
 const KIT = 1;
 const HIGHWAY_SCALE = 0.6;
 const PICK_Y = 0.15;
+/** Per-tier scene budget (the render passes themselves are set by the pipeline's tiers). */
+export const PROFILE: Record<QualityTier, { skyline: number; cars: number; shuttles: number; tubeLights: number; outerTubes: number }> = {
+  mobile: { skyline: 80, cars: 36, shuttles: 8, tubeLights: 60, outerTubes: 200 },
+  medium: { skyline: 150, cars: 90, shuttles: 18, tubeLights: 120, outerTubes: 260 },
+  desktop: { skyline: 200, cars: 120, shuttles: 24, tubeLights: 160, outerTubes: 300 },
+};
+
 export interface MegacityOptions { quality: QualityTier; still?: boolean; passes?: PassToggles; kitUrl?: string; assetBase?: string }
 
 /** Merge static meshes by material, keeping UVs (the kit is textured). */
@@ -107,7 +124,7 @@ export class MegacityCapitalView3D {
   renderer: THREE.WebGLRenderer;
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(26, 1, 2, 2400);
-  cam = { yaw: 0.32, pitch: 0.62, dist: 230 };
+  cam = { yaw: 0.32, pitch: 0.5, dist: 230 };
   readonly pipeline: RenderPipeline;
   readonly layout = megacityLayout();
   private slotByPlot = new Map<number, MegaSlot>();
@@ -145,7 +162,8 @@ export class MegacityCapitalView3D {
     for (const s of this.layout.slots) this.slotByPlot.set(s.plot, s);
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', preserveDrawingBuffer: !!opts.still });
     // late-afternoon sun, low and warm, so the towers throw long shadows across the city
-    this.pipeline = new RenderPipeline(this.renderer, this.scene, this.camera, opts.quality, { ...SUN, intensity: 3.1 }, opts.passes);
+    // the low tier drops ambient occlusion here: it redraws the whole dense city a second time
+    this.pipeline = new RenderPipeline(this.renderer, this.scene, this.camera, opts.quality, { ...SUN, intensity: 3.1 }, opts.passes ?? (opts.quality === 'mobile' ? { ao: false } : undefined));
     // haze in the colour of the photographed sky's horizon, so the far city melts into it
     this.scene.fog = new THREE.Fog(0xb4b6bc, 200, 950);
     // ground surfaces: Poly Haven photo-scanned textures (CC0), see assets/textures/megacity/manifest.json
@@ -263,22 +281,22 @@ export class MegacityCapitalView3D {
 
   /** Street cars (Neon Town car and taxi, CC0) and shuttles on the air lanes. */
   private buildTraffic() {
-    const mobile = this.opts.quality === 'mobile';
-    const n = mobile ? 40 : 110;
+    const P = PROFILE[this.opts.quality];
+    const n = P.cars;
     for (const [model, share] of [['car', 0.7], ['taxi', 0.3]] as const) {
       const src = this.kit.get(model);
       if (!src) continue;
       for (const im of this.instanced(src, Math.round(n * share))) { im.userData.vehicle = model; this.cars.push(im); this.scene.add(im); }
     }
     if (this.shuttleSrc) {
-      for (const im of this.instanced(this.shuttleSrc, mobile ? 10 : 24)) { this.shuttles.push(im); this.scene.add(im); }
+      for (const im of this.instanced(this.shuttleSrc, P.shuttles)) { this.shuttles.push(im); this.scene.add(im); }
     }
   }
 
   /** The skyline beyond the walls: built once, revealed tower by tower with the Citadel. */
   private buildSkyline(citadel: number) {
     if (!this.skyline.length) {
-      const towers = skylineLayout(this.opts.quality === 'mobile' ? 70 : 140);
+      const towers = skylineLayout(PROFILE[this.opts.quality].skyline);
       for (const model of SKYLINE_MODELS) {
         const src = this.kit.get(model);
         const mine = towers.filter((t) => t.model === model).sort((a, b) => a.from - b.from);
@@ -367,8 +385,20 @@ export class MegacityCapitalView3D {
     }
     mergeByMaterial(g);
     this.infra.add(g);
+    // the transit tubes run on from each gate across the outer city (instanced)
+    const tube = this.kit.get('hwy_straight');
+    if (tube) {
+      const segs: [number, number, number][] = [];
+      for (let r = 4 * CELL + 16; r < PROFILE[this.opts.quality].outerTubes; r += 10) for (const [x, z, ry] of [[0, -r, Math.PI / 2], [0, r, Math.PI / 2], [-r, 0, 0], [r, 0, 0]] as const) segs.push([x, z, ry]);
+      const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), sc = new THREE.Vector3(1, 1, 1);
+      for (const im of this.instanced(tube, segs.length)) {
+        segs.forEach(([x, z, ry], k) => im.setMatrixAt(k, m.compose(new THREE.Vector3(x, 0, z), q.setFromAxisAngle(up, ry), sc)));
+        im.instanceMatrix.needsUpdate = true;
+        this.infra.add(im);
+      }
+    }
     // traffic: small light points gliding along the highway decks
-    const n = this.opts.quality === 'mobile' ? 60 : 160;
+    const n = PROFILE[this.opts.quality].tubeLights;
     const im = new THREE.InstancedMesh(new THREE.BoxGeometry(0.9, 0.35, 0.45), this.mats.lights, n);
     im.userData.keep = true;
     this.traffic = im;
@@ -380,13 +410,8 @@ export class MegacityCapitalView3D {
     for (const o of [...this.districts.children]) { this.districts.remove(o); disposeObject(o, this.shared()); }
     const g = new THREE.Group();
     for (const d of this.layout.districts) {
-      if (citadel < d.from) {
-        // an unbuilt block: a fenced lot
-        const lot = new THREE.Mesh(new THREE.BoxGeometry(PLOT, 0.25, PLOT), this.mats.sealed);
-        lot.position.set(d.x, 0.12, d.z); lot.receiveShadow = true; g.add(lot);
-        continue;
-      }
-      const pool = DISTRICT_MODELS[d.kind];
+      // until the Citadel reaches the block's level it stands as an older, lower quarter
+      const pool = citadel < d.from ? DISTRICT_EARLY[d.kind] : DISTRICT_MODELS[d.kind];
       const k = Math.floor(hash(d.seed) * pool.length) % pool.length;
       const scale = d.ring === 3 ? 0.9 + hash(d.seed + 3) * 0.25 : 1;
       const o = this.place(pool[k], d.x, d.z, { scale, ry: Math.floor(hash(d.seed + 1) * 4) * Math.PI / 2 });
@@ -398,8 +423,23 @@ export class MegacityCapitalView3D {
     this.districts.add(g);
   }
 
+  private agedMats = new Map<THREE.Material, THREE.Material>();
+  /** A darker, rougher copy of a kit material for the old quarter on sealed plots. */
+  private aged(m: THREE.Material): THREE.Material {
+    let a = this.agedMats.get(m);
+    if (!a) {
+      a = m.clone();
+      const s = a as THREE.MeshStandardMaterial;
+      if (s.color) s.color.multiplyScalar(0.5);
+      if ('roughness' in s) s.roughness = Math.min(1, s.roughness + 0.25);
+      if (s.emissive) s.emissiveIntensity = 0;
+      this.agedMats.set(m, a);
+    }
+    return a;
+  }
+
   private shared(): Set<unknown> {
-    const s = new Set<unknown>(Object.values(this.mats));
+    const s = new Set<unknown>([...Object.values(this.mats), ...this.agedMats.values()]);
     for (const src of this.kit.values()) src.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) { s.add(m.geometry); s.add(m.material); const mat = m.material as THREE.MeshStandardMaterial; if (mat.map) s.add(mat.map); if (mat.normalMap) s.add(mat.normalMap); if (mat.metalnessMap) s.add(mat.metalnessMap); } });
     return s;
   }
@@ -414,7 +454,7 @@ export class MegacityCapitalView3D {
     const citadel = capLevel(e, 'citadel');
     // frame the city as it stands: a young capital close up, a grown one whole (until the
     // player turns or zooms the camera themselves)
-    if (!this.cameraLocked) this.cam.dist = Math.min(230, 120 + citadel * 6);
+    if (!this.cameraLocked) this.cam.dist = Math.min(250, 175 + citadel * 4);
     if (citadel !== this.districtLevel) { this.districtLevel = citadel; this.buildDistricts(citadel); }
     if (citadel !== this.skylineLevel) this.buildSkyline(citadel);
     const open = new Set(openPlots(e));
@@ -424,6 +464,7 @@ export class MegacityCapitalView3D {
       for (const o of [...this.city.children]) { this.city.remove(o); disposeObject(o, this.shared()); }
       this.tops.clear();
       const lots = new THREE.Group();
+      const oldQuarter = new THREE.Group();
       const towers: { plot: number; x: number; z: number; top: number }[] = [];
       for (const s of this.layout.slots) {
         const isCitadel = s.plot === CITADEL_PLOT;
@@ -438,7 +479,14 @@ export class MegacityCapitalView3D {
             kerb.position.set(s.x, 0.1, s.z); lots.add(kerb);
           }
         }
-        if (!open.has(s.plot)) continue;
+        if (!open.has(s.plot)) {
+          if (!isCitadel) {
+            const m = OLD_QUARTER[Math.floor(hash(s.plot * 5.3) * OLD_QUARTER.length) % OLD_QUARTER.length];
+            const o = this.place(m, s.x, s.z, { scale: 0.82, ry: Math.floor(hash(s.plot * 2.1) * 4) * Math.PI / 2, y: 0.3 });
+            if (o) { o.traverse((x) => { const mm = x as THREE.Mesh; if (mm.isMesh) mm.material = this.aged(mm.material as THREE.Material); }); oldQuarter.add(o); }
+          }
+          continue;
+        }
         if (!id) {
           const holo = new THREE.Mesh(new THREE.RingGeometry(PLOT * 0.3, PLOT * 0.34, 4, 1), this.mats.holo);
           holo.rotation.x = -Math.PI / 2; holo.rotation.z = Math.PI / 4; holo.position.set(s.x, 0.36, s.z); holo.userData.plot = s.plot;
@@ -485,7 +533,9 @@ export class MegacityCapitalView3D {
         if (o) { o.scale.set(d / 10, 0.9, 0.9); bridges.add(o); }
       }
       mergeByMaterial(lots);
-      this.city.add(lots, bridges);
+      mergeByMaterial(oldQuarter);
+      oldQuarter.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.userData.oldQuarter = true; });
+      this.city.add(lots, bridges, oldQuarter);
     }
     this.pipeline.setEnvironmentIntensity(this.scene, 0.55);
     this.selected = sel;
@@ -495,19 +545,84 @@ export class MegacityCapitalView3D {
 
   // ------------------------------------------------------------------ input, camera, frame
 
+  /** Pan with one finger or the left button, rotate with the right button, Shift or a two-finger
+   *  twist, zoom with the wheel or a pinch. A tap (no movement) picks a plot. */
   private bindInput() {
-    let down: { x: number; y: number; yaw: number; pitch: number } | null = null;
+    const pts = new Map<number, { x: number; y: number }>();
+    let start: { x: number; y: number; tx: number; tz: number; yaw: number; pitch: number; dist: number; rotate: boolean; span: number; angle: number } | null = null;
     let moved = false;
-    this.canvas.addEventListener('pointerdown', (ev) => { this.cameraLocked = true; down = { x: ev.clientX, y: ev.clientY, yaw: this.cam.yaw, pitch: this.cam.pitch }; moved = false; this.canvas.setPointerCapture(ev.pointerId); });
-    this.canvas.addEventListener('pointermove', (ev) => {
-      if (!down) return;
-      const dx = ev.clientX - down.x, dy = ev.clientY - down.y;
-      if (Math.abs(dx) + Math.abs(dy) > 4) moved = true;
-      this.cam.yaw = down.yaw - dx * 0.006;
-      this.cam.pitch = Math.max(0.3, Math.min(1.35, down.pitch + dy * 0.004));
+    const two = () => { const [a, b] = [...pts.values()]; return { span: Math.hypot(b.x - a.x, b.y - a.y), angle: Math.atan2(b.y - a.y, b.x - a.x), x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; };
+    const begin = (rotate: boolean) => {
+      const c = pts.size >= 2 ? two() : { ...[...pts.values()][0], span: 0, angle: 0 };
+      start = { x: c.x, y: c.y, tx: this.camGoal.x, tz: this.camGoal.z, yaw: this.cam.yaw, pitch: this.cam.pitch, dist: this.cam.dist, rotate, span: c.span, angle: c.angle };
+    };
+    this.canvas.addEventListener('contextmenu', (ev) => ev.preventDefault());
+    this.canvas.addEventListener('pointerdown', (ev) => {
+      this.cameraLocked = true;
+      pts.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+      if (pts.size === 1) moved = false; else moved = true;
+      begin(ev.button === 2 || ev.shiftKey);
+      this.canvas.setPointerCapture(ev.pointerId);
     });
-    this.canvas.addEventListener('pointerup', (ev) => { if (down && !moved) this.onPick(this.pick(ev.clientX, ev.clientY)); down = null; });
-    this.canvas.addEventListener('wheel', (ev) => { ev.preventDefault(); this.cameraLocked = true; this.cam.dist = Math.max(70, Math.min(420, this.cam.dist * (ev.deltaY > 0 ? 1.1 : 0.9))); }, { passive: false });
+    this.canvas.addEventListener('pointermove', (ev) => {
+      if (!pts.has(ev.pointerId) || !start) return;
+      pts.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+      if (pts.size >= 2) {
+        const c = two();
+        if (start.span > 0) this.cam.dist = Math.max(55, Math.min(420, start.dist * (start.span / Math.max(1, c.span))));
+        this.cam.yaw = start.yaw - (c.angle - start.angle);
+        return;
+      }
+      const dx = ev.clientX - start.x, dy = ev.clientY - start.y;
+      if (Math.abs(dx) + Math.abs(dy) > 5) moved = true;
+      if (start.rotate) {
+        this.cam.yaw = start.yaw - dx * 0.006;
+        this.cam.pitch = Math.max(0.3, Math.min(1.35, start.pitch + dy * 0.004));
+      } else {
+        // drag the ground under the pointer: scale screen pixels to ground units at this distance
+        const k = (this.cam.dist * 0.95) / Math.max(1, this.canvas.clientHeight);
+        const cy = Math.cos(this.cam.yaw), sy = Math.sin(this.cam.yaw);
+        const fx = -dx * k, fz = -dy * k / Math.max(0.35, Math.sin(this.cam.pitch));
+        this.panTo(start.tx + fx * cy + fz * sy, start.tz - fx * sy + fz * cy, true);
+      }
+    });
+    const end = (ev: PointerEvent) => {
+      if (!pts.has(ev.pointerId)) return;
+      pts.delete(ev.pointerId);
+      if (!pts.size) { if (!moved && ev.type === 'pointerup') this.onPick(this.pick(ev.clientX, ev.clientY)); start = null; }
+      else begin(false);
+    };
+    this.canvas.addEventListener('pointerup', end);
+    this.canvas.addEventListener('pointercancel', end);
+    this.canvas.addEventListener('wheel', (ev) => { ev.preventDefault(); this.cameraLocked = true; this.cam.dist = Math.max(55, Math.min(420, this.cam.dist * (ev.deltaY > 0 ? 1.1 : 0.9))); }, { passive: false });
+  }
+
+  /** Where the camera looks (ground point); it eases towards `camGoal`. */
+  private camTarget = new THREE.Vector3(0, 12, 0);
+  private camGoal = new THREE.Vector3(0, 12, 0);
+  private distGoal: number | null = null;
+
+  private panTo(x: number, z: number, instant = false) {
+    const R = 4 * CELL + 30; // keep the city in reach
+    this.camGoal.set(Math.max(-R, Math.min(R, x)), 12, Math.max(-R, Math.min(R, z)));
+    if (instant) this.camTarget.copy(this.camGoal);
+  }
+
+  /** Glide to a plot and frame it (selection from the interface or a tap). */
+  focusPlot(plot: number | null) {
+    if (plot == null) return;
+    const s = this.slotByPlot.get(plot);
+    if (!s) return;
+    this.cameraLocked = true;
+    this.panTo(s.x, s.z);
+    const top = this.tops.get(plot) ?? 10;
+    this.distGoal = Math.max(70, Math.min(160, top * 2.4 + 50));
+  }
+
+  /** Back to the whole city. */
+  frameCity() {
+    this.panTo(0, 0);
+    this.distGoal = Math.min(250, 175 + Math.max(1, this.districtLevel) * 4);
   }
 
   pick(cx: number, cy: number): number | null {
@@ -526,8 +641,11 @@ export class MegacityCapitalView3D {
   }
 
   private placeCamera(w: number, h: number) {
+    // ease towards the goal (selection glides; panning sets both at once)
+    this.camTarget.lerp(this.camGoal, this.opts.still ? 1 : 0.12);
+    if (this.distGoal != null) { this.cam.dist += (this.distGoal - this.cam.dist) * (this.opts.still ? 1 : 0.1); if (Math.abs(this.distGoal - this.cam.dist) < 0.5) this.distGoal = null; }
     const { yaw, pitch, dist } = this.cam;
-    const target = new THREE.Vector3(0, 12, 0);
+    const target = this.camTarget;
     this.camera.position.set(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch)).multiplyScalar(dist).add(target);
     this.camera.aspect = w / h;
     this.camera.fov = w / h < 0.8 ? 26 * Math.min(1.9, 0.8 / (w / h)) : 26;
@@ -627,6 +745,7 @@ export class MegacityCapitalView3D {
     disposeObject(this.scene);
     for (const src of this.kit.values()) disposeObject(src);
     if (this.shuttleSrc) disposeObject(this.shuttleSrc);
+    for (const m of this.agedMats.values()) m.dispose();
     for (const t of this.textures) t.dispose();
     this.scene.clear();
     this.renderer.renderLists.dispose();

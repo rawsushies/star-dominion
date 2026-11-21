@@ -121,7 +121,9 @@ export function skylineLayout(count: number): SkylineTower[] {
     const tall = model.startsWith('spire') || model === 'truss_a';
     const sx = 0.9 + hash(i * 5.3) * 0.5;
     const sy = sx * (tall ? 1 + hash(i * 2.2) * 0.9 : 1 + hash(i * 4.4) * 1.6);
-    out.push({ model, x, z, ry: Math.floor(hash(i * 9.1) * 4) * Math.PI / 2, sx, sy, from: 1 + Math.floor(hash(i * 6.6) * 19) });
+    // more than half the outer city stands from the start, so even a young capital sits in a metropolis
+    const f = hash(i * 6.6);
+    out.push({ model, x, z, ry: Math.floor(hash(i * 9.1) * 4) * Math.PI / 2, sx, sy, from: f < 0.55 ? 1 : 2 + Math.floor(((f - 0.55) / 0.45) * 18) });
   }
   return out;
 }

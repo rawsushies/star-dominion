@@ -44,6 +44,7 @@ export function Neocom() {
   const g = useGame();
   const screen = useUI((s) => s.screen);
   const windows = useUI((s) => s.windows);
+  const view = useUI((s) => s.view);
   const open = useUI((s) => s.openScreen);
   const set = useUI((s) => s.set);
   const e = g.empires[g.playerId];
@@ -59,10 +60,10 @@ export function Neocom() {
       {GROUPS.map((grp, gi) => (
         <div key={gi} className="neo-group">
           {grp.map((id) => {
-            const isOpen = windows.some((w) => w.id === id);
+            const isOpen = windows.some((w) => w.id === id) || (id === 'capital' && view === 'capital');
             const badge = id === 'diplomacy' && inbox ? String(inbox) : id === 'research' && idleResearch ? '!' : null;
             return (
-              <button key={id} className={cls('neo-btn', isOpen && 'open', screen === id && 'on')} onClick={() => (id === 'map' ? set({ view: 'galaxy' }) : open(id))} aria-label={label(id)}>
+              <button key={id} className={cls('neo-btn', isOpen && 'open', (screen === id || (id === 'capital' && view === 'capital' && screen === 'map')) && 'on')} onClick={() => (id === 'map' ? set({ view: 'galaxy' }) : open(id))} aria-label={label(id)}>
                 <ScreenIcon id={id} size={20} />
                 <span className="neo-flyout">{label(id)}{prefs.tooltips && SCREEN_INFO[id] && <small>{SCREEN_INFO[id]!.purpose}</small>}</span>
                 {badge && <span className="neo-badge">{badge}</span>}

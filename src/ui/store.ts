@@ -47,7 +47,13 @@ interface UI {
   speed: number;
   lastSpeed: number;
   screen: ScreenId;
-  view: 'galaxy' | 'system' | 'planet';
+  view: 'galaxy' | 'system' | 'planet' | 'capital';
+  /** the view to return to when leaving the full-screen capital */
+  capitalReturn: 'galaxy' | 'system' | 'planet';
+  /** selected plot in the full-screen capital */
+  capitalPlot: number | null;
+  enterCapital: () => void;
+  leaveCapital: () => void;
   systemId: number | null;
   planetId: number | null;
   fleetId: number | null;
@@ -91,6 +97,13 @@ export const useUI = create<UI>((set, get) => ({
   lastSpeed: 1,
   screen: 'map',
   view: 'galaxy',
+  capitalReturn: 'galaxy',
+  capitalPlot: null,
+  enterCapital: () => {
+    const v = get().view;
+    if (v !== 'capital') set({ view: 'capital', capitalReturn: v, capitalPlot: null, screen: 'map' });
+  },
+  leaveCapital: () => { if (get().view === 'capital') set({ view: get().capitalReturn, capitalPlot: null }); },
   systemId: null,
   planetId: null,
   fleetId: null,
@@ -152,6 +165,8 @@ export const useUI = create<UI>((set, get) => ({
   selectFleet: (id) => set({ fleetId: id, planetId: null }),
   openScreen: (s) => {
     if (s === 'map') { set({ screen: 'map' }); return; }
+    // the capital is not a window: it fills the screen behind the HUD (toggles from the neocom)
+    if (s === 'capital') { if (get().view === 'capital') get().leaveCapital(); else get().enterCapital(); return; }
     const w = get().windows.find((x) => x.id === s);
     // toggling the focused, visible window from the neocom closes it
     if (w && get().screen === s && !w.min) { get().closeWin(s); return; }

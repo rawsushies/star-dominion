@@ -20,3 +20,15 @@ createRoot(document.getElementById('root')!).render(<App />);
 (window as any).__sdCam = galaxyCam;
 (window as any).__sdRender = renderStats;
 (window as any).__sdAudio = { audio, debug: audioDebug };
+
+// Development only (stripped from production builds): jump the player's capital to the
+// laboratory's developed sample, for screenshots of a grown city.
+if (import.meta.env.DEV) {
+  (window as any).__sdDev = {
+    developCapital: async () => {
+      const { developCapital } = await import('./dev/sampleCapital');
+      const ui = useUI.getState();
+      if (ui.game) { developCapital(ui.game.empires[ui.game.playerId]); ui.bump(); }
+    },
+  };
+}

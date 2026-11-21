@@ -98,6 +98,7 @@ export function useHotkeys() {
         if (ui.pendingOrder) ui.set({ pendingOrder: null });
         else if (ui.menuOpen) ui.set({ menuOpen: false });
         else if (ui.screen !== 'map') ui.set({ screen: 'map' });
+        else if (ui.view === 'capital') { if (ui.capitalPlot != null) ui.set({ capitalPlot: null }); else ui.leaveCapital(); }
         else if (ui.view === 'system') ui.set({ view: 'galaxy' });
         else ui.set({ systemId: null, fleetId: null, planetId: null });
       } else if (e.key === 'F1') { e.preventDefault(); ui.set({ screen: 'map' }); }

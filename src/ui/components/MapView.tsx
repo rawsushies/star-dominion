@@ -82,6 +82,8 @@ export function MapView() {
       const ui = useUI.getState();
       const g = ui.game;
       const dt = Math.min(0.1, (t - last) / 1000); last = t;
+      // the full-screen capital covers the map: draw nothing underneath it
+      if (ui.view === 'capital') { raf = requestAnimationFrame(draw); return; }
       if (g) {
         const { w, h, dpr } = size();
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -267,13 +269,13 @@ export function MapView() {
   return (
     <>
       <div className="map-layer"><canvas ref={glRef} aria-hidden /><canvas ref={sysRef} aria-hidden style={{ visibility: 'hidden' }} /><canvas ref={ref} aria-label="Galactic map" /></div>
-      <nav className="sys-crumb" aria-label="Location">
+      {view !== 'capital' && <nav className="sys-crumb" aria-label="Location">
         <button className="crumb" onClick={() => { set({ view: 'galaxy' }); showWholeGalaxy(); }}>{galaxyName}</button>
         {sector && <><span className="sep">›</span><button className="crumb" onClick={() => { set({ view: 'galaxy' }); focusSector(sector.id); }}>{sector.name}</button></>}
         {sys && game && isExplored(game.empires[game.playerId], sys.id) && <><span className="sep">›</span><button className={view === 'system' ? 'crumb on' : 'crumb'} onClick={() => set({ view: 'system' })}>{sys.name}</button></>}
         {planet && view !== 'galaxy' && <><span className="sep">›</span><button className={view === 'planet' ? 'crumb on' : 'crumb'} onClick={() => set({ view: 'planet' })}>{planet.name}</button></>}
         <span className="hint">{view === 'galaxy' ? 'Drag to pan · Shift-drag or middle-drag to tilt · scroll to zoom · WASD, Q/E · double-click a system to enter' : view === 'system' ? 'Drag to orbit · scroll to zoom · double-click a selected planet to land' : 'Drag to orbit · scroll to zoom'}</span>
-      </nav>
+      </nav>}
       {pending && (
         <div className="order-banner glass">
           <span>{pending.kind === 'move' ? 'Choose a destination system' : pending.kind === 'patrol' ? 'Choose the far end of the patrol route' : pending.kind === 'outpost' ? 'Choose an unclaimed system for the outpost' : 'Choose a system to blockade'}</span>

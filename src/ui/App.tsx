@@ -7,21 +7,24 @@ import { ContextPanel } from './components/ContextPanel';
 import { GameOver } from './screens/GameOver';
 import { EraDawn } from './components/Evolution';
 import { GuidanceStack } from './components/Guidance';
+import { CapitalScene } from './screens/CapitalScene';
 
 export function App() {
   const game = useUI((s) => s.game);
   const menuOpen = useUI((s) => s.menuOpen);
+  const capital = useUI((s) => s.view === 'capital');
   useHotkeys();
   if (!game) return <MainMenu />;
   return (
-    <div className="shell">
+    <div className={capital ? 'shell in-capital' : 'shell'}>
       <MapView />
+      {capital && <CapitalScene />}
       <LocationHud />
       <ResourceStrip />
       <Dispatches />
       <GuidanceStack />
       <ThroneDial />
-      <div className="right-col">
+      <div className="right-col" hidden={capital}>
         <ContextPanel />
         <Overview />
       </div>

@@ -17,6 +17,12 @@ const BUILDINGS: [string, number][] = [
 export function sampleCapital(): { state: GameState; empire: Empire } {
   const state = newGame({ seed: 11 });
   const empire = state.empires[state.playerId];
+  developCapital(empire);
+  return { state, empire };
+}
+
+/** Give an empire the sample's developed capital (also used by the dev hook for screenshots). */
+export function developCapital(empire: Empire) {
   empire.capital = { buildings: { citadel: { level: 14, plot: empire.capital!.buildings.citadel.plot } }, queue: [] };
   const plots = openPlots(empire).filter((p) => p !== empire.capital!.buildings.citadel.plot);
   BUILDINGS.forEach(([id, level], i) => {
@@ -25,7 +31,6 @@ export function sampleCapital(): { state: GameState; empire: Empire } {
   // an upgrade in progress and a new building rising on an open plot
   empire.capital.queue.push({ building: 'arcology', toLevel: 13, plot: empire.capital.buildings.arcology.plot, progress: 40, total: 120 });
   empire.capital.queue.push({ building: 'intelligence_bureau', toLevel: 1, plot: plots[BUILDINGS.length - 2], progress: 18, total: 60 });
-  return { state, empire };
 }
 
 /** The same labels the Capital screen builds. */
