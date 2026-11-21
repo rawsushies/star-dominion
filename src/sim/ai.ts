@@ -5,7 +5,7 @@
 import { BUILDINGS, BUILDABLE } from './data/buildings';
 import { SHIPS } from './data/ships';
 import { TECH_BY_ID, techCost } from './data/techs';
-import { execute, STATION_COST } from './commands';
+import { execute } from './commands';
 import { getLedger } from './engine';
 import { canBuild, buildingCost, shipCost } from './construction';
 import { availableTechs } from './research';
@@ -20,9 +20,9 @@ import { charactersOf, captivesHeldBy, canLearn, rosterLimit, recruitCost, recru
 import { SKILLS, ROLES } from './data/characters';
 import { COUNCIL_SEATS } from './data/council';
 import { canIssueDecree, canActOnHouse, inRevolt, maxDecrees } from './governance';
-import { PETITION_BY_ID, DECREE_BY_ID } from './data/governance';
+import { PETITION_BY_ID } from './data/governance';
 import { opsOf, OP_MAX_LEVEL } from './operations';
-import { canQueueCapital, openPlots, plotOccupant, capitalCost, plannedLevel, maxQueue } from './capital';
+import { canQueueCapital, openPlots, plotOccupant, capitalCost, plannedLevel } from './capital';
 import { CAPITAL_BUILDINGS } from './data/capital';
 import { next, chance } from './rng';
 import type { BuildingId, Empire, Fleet, GameState, PeaceTerm, Planet, ShipClass, TreatyType , OpMode } from './types';
@@ -136,11 +136,7 @@ function economy(state: GameState, e: Empire) {
   }
   // Orbital extractors on owned uncolonised bodies
   const Lops = getLedger(state, e);
-  // found an operation as soon as one is affordable with a small reserve: waiting for a large
-  // mineral surplus trapped mineral-poor realms, which never built the mines that would end it
-  if (e.stock.minerals >= STATION_COST.minerals + 60 && e.stock.credits >= STATION_COST.credits + 80 && Lops.logisticsUsed < Lops.logisticsCap) {
-    const short = Lops.net.minerals < 60 || e.stock.minerals < 300; // minerals hold the realm back
-    const sites: { pid: number; kind: 'research' | 'gas' | 'energy' | 'mining'; score: number }[] = [];
+  if (e.stock.minerals > 250 && e.stock.credits > 120 && Lops.logisticsUsed < Lops.logisticsCap) {
     for (const sid of ownedSystems(state, e.id)) {
       for (const pid of state.galaxy.systems[sid].planetIds) {
         const p = state.planets[pid];
@@ -148,11 +144,8 @@ function economy(state: GameState, e: Empire) {
         const habitable = planetHab(state, p, e, empireMods(state, e)) >= 0.5;
         if (habitable) continue; // reserve for colonisation
         const kind = p.deposits.research >= 3 ? 'research' : p.type === 'gas_giant' ? 'gas' : p.deposits.energy > p.deposits.minerals ? 'energy' : 'mining';
-        sites.push({ pid, kind, score: (kind === 'mining' && short ? 10 : 0) + (p.deposits.minerals ?? 0) + (p.deposits.energy ?? 0) + (p.deposits.research ?? 0) });
+        if (execute(state, e.id, { type: 'buildStation', planetId: pid, kind }).ok) return;
       }
-    }
-    for (const site of sites.sort((a, b) => b.score - a.score)) {
-      if (execute(state, e.id, { type: 'buildStation', planetId: site.pid, kind: site.kind }).ok) return;
     }
   }
   operationsAI(state, e);
@@ -283,12 +276,6 @@ function market(state: GameState, e: Empire) {
   for (const r of ['minerals', 'energy', 'food', 'alloys', 'electronics', 'rare'] as const) {
     if (e.stock[r] > L.cap[r] * 0.85) execute(state, e.id, { type: 'market', res: r, amount: -Math.round(e.stock[r] * 0.2) });
     else if (e.stock[r] < 30 && L.net[r] < 0 && e.stock.credits > 400) execute(state, e.id, { type: 'market', res: r, amount: 80 });
-  }
-  // a rich treasury over an empty mineral store buys minerals: buildings, the capital and new
-  // operations all need them
-  if (e.stock.minerals < 250 && e.stock.credits > 1200) {
-    const amount = Math.round(Math.min(250 - e.stock.minerals, ((e.stock.credits - 1200) * 0.25) / Math.max(0.5, state.market.price.minerals)));
-    if (amount > 10) execute(state, e.id, { type: 'market', res: 'minerals', amount });
   }
   // a hoarded treasury builds nothing: invest surplus credits in the goods great works and fleets need
   if (e.stock.credits > 4000) {
@@ -770,9 +757,7 @@ function governance(state: GameState, e: Empire) {
     }
   }
   // decrees
-  // a decree costs 20-50 influence; keep 40 back for outposts and colonies (waiting for 110, as
-  // before, meant most realms never issued one)
-  if ((e.decrees?.length ?? 0) >= maxDecrees(state, e) || e.stock.influence < 60) return;
+  if ((e.decrees?.length ?? 0) >= maxDecrees(state, e) || e.stock.influence < 110) return;
   const wants: string[] = [];
   const stab = e.stats?.avgStability ?? 50;
   if (stab < 40) wants.push('festival', 'martial_law', 'tax_relief');
@@ -784,7 +769,6 @@ function governance(state: GameState, e: Empire) {
   wants.push('building_programme', 'forge_quotas');
   for (const id of wants) {
     if (canIssueDecree(state, e, id)) continue;
-    if (e.stock.influence < (DECREE_BY_ID[id]?.cost.influence ?? 0) + 40) continue;
     execute(state, e.id, { type: 'issueDecree', decree: id });
     break;
   }
@@ -795,8 +779,7 @@ function governance(state: GameState, e: Empire) {
 /** Raise the capital: the Citadel when it can rise, otherwise the building the realm's temperament favours. */
 function capitalCity(state: GameState, e: Empire) {
   const cap = e.capital;
-  // one project at a time, or the whole builders' queue when the treasury can carry it
-  if (!cap || cap.queue.length >= (e.stock.credits > 1500 ? maxQueue(e) : 1)) return;
+  if (!cap || cap.queue.length >= 1) return;
   const pers = e.personality;
   const weight: Record<string, number> = {
     citadel: 3, throne_hall: 1.6, treasury: 1.5 + pers.mercantile, hall_of_heroes: 0.8, research_institute: 1 + pers.science * 1.5,
