@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { slotForName } from '../../persistence/slots';
 import { APP_VERSION } from '../../version';
 import { useUI, saveGame, loadGame, type ScreenId } from '../store';
 import { formatDate } from '../../sim/util';
@@ -124,7 +125,7 @@ export function GameMenu() {
   const refresh = () => listSaves().then(setSaves).catch(() => setMsg('Browser storage is unavailable; use export instead.'));
   useEffect(() => { refresh(); }, []);
   const doSave = async () => {
-    const slot = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'save';
+    const slot = slotForName(name);
     try { await saveGame(slot, name.trim() || 'Save'); setMsg(`Saved “${name}”.`); refresh(); } catch (err) { setMsg(String(err)); }
   };
   const exportFile = () => {

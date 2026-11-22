@@ -22,8 +22,8 @@ import { sendLetter } from './envoys';
 import { refusedUltimatum } from './strategy';
 import { computeLedger } from './economy';
 import { empireMods, hasTech, mod } from './modifiers';
-import { planetHab } from './economy';
-import { hasTreaty, isHostile, isExplored, warBetween } from './territory';
+import { planetHab, storageCap } from './economy';
+import { hasTreaty, hostileArmedPresence, isHostile, isExplored, warBetween } from './territory';
 import { canAfford, log, nextId, pay, refund } from './util';
 import { next } from './rng';
 import { charById, charactersOf, createCharacter, rosterLimit, recruitCost, canAssign, assign, unassign, describeAssignment, canLearn, equip, unequip, releaseCaptive, recruitChance, ransomPrice } from './characters';
@@ -97,10 +97,45 @@ export function marketFee(state: GameState, empireId: number): number {
   return Math.max(0.05, 0.2 * (1 + mod(empireMods(state, state.empires[empireId]), 'marketFee')));
 }
 
+/** Goods the galactic market trades (credits are the currency; influence cannot be bought). */
+export const MARKET_TRADABLE: readonly ResId[] = ['minerals', 'energy', 'food', 'alloys', 'electronics', 'components', 'rare'];
+/** Units that move a price by a factor of e (about 1/3000 of the price per unit for small trades). */
+export const MARKET_DEPTH = 3000;
+/** The most units one order may move. */
+export const MARKET_MAX_ORDER = 1_000_000;
+
+export function marketBounds(res: ResId): [number, number] {
+  return [MARKET_BASE[res] * 0.25, MARKET_BASE[res] * 4];
+}
+
+/**
+ * A trade of `amount` units (positive buys, negative sells), priced along the price it moves:
+ * every unit is traded at the price reached so far, and the price moves continuously by
+ * e^(units / MARKET_DEPTH), held inside the resource's bounds. Returns the credits the goods are
+ * worth before the fee, and the price afterwards. Because buying and selling walk the same price
+ * curve in opposite directions, any round trip costs at least the fees: there is no arbitrage
+ * within a day. (Before 1.0 a whole order traded at the opening price and the price moved only
+ * afterwards, so buying 3000 and selling them back made a profit.)
+ */
+export function marketImpact(state: GameState, res: ResId, amount: number): { value: number; price: number } {
+  const [lo, hi] = marketBounds(res);
+  const K = MARKET_DEPTH;
+  const p0 = Math.min(hi, Math.max(lo, state.market.price[res]));
+  if (amount > 0) {
+    const toCap = K * Math.log(hi / p0);
+    if (amount <= toCap) { const p1 = p0 * Math.exp(amount / K); return { value: K * (p1 - p0), price: p1 }; }
+    return { value: K * (hi - p0) + hi * (amount - toCap), price: hi };
+  }
+  const n = -amount;
+  const toFloor = K * Math.log(p0 / lo);
+  if (n <= toFloor) { const p1 = p0 * Math.exp(-n / K); return { value: K * (p0 - p1), price: p1 }; }
+  return { value: K * (p0 - lo) + lo * (n - toFloor), price: lo };
+}
+
 export function marketQuote(state: GameState, empireId: number, res: ResId, amount: number): number {
-  const p = state.market.price[res];
   const fee = marketFee(state, empireId);
-  return amount > 0 ? Math.ceil(p * amount * (1 + fee)) : Math.floor(p * -amount * (1 - fee));
+  const { value } = marketImpact(state, res, amount);
+  return amount > 0 ? Math.ceil(value * (1 + fee)) : Math.floor(value * (1 - fee));
 }
 
 export const STATION_COST = { minerals: 100, credits: 40 };
@@ -524,21 +559,26 @@ export function execute(state: GameState, empireId: number, cmd: Command): Comma
       return OK;
     }
     case 'market': {
-      if (cmd.res === 'influence' || cmd.res === 'credits') return fail('Not tradable');
+      const res = cmd.res;
+      if (typeof res !== 'string' || !MARKET_TRADABLE.includes(res)) return fail('Not tradable');
+      if (typeof cmd.amount !== 'number' || !Number.isFinite(cmd.amount)) return fail('Amount required');
       const amt = Math.round(cmd.amount);
       if (!amt) return fail('Amount required');
-      const value = marketQuote(state, empireId, cmd.res, amt);
+      if (Math.abs(amt) > MARKET_MAX_ORDER) return fail(`At most ${MARKET_MAX_ORDER.toLocaleString('en')} units per order`);
+      const value = marketQuote(state, empireId, res, amt);
       if (amt > 0) {
+        // goods beyond storage would be thrown away at the end of the day: do not sell them
+        const room = Math.floor(storageCap(state, e, empireMods(state, e))[res] - e.stock[res]);
+        if (amt > room) return fail(room > 0 ? `Storage has room for only ${room}` : 'Storage is full');
         if (!pay(e, { credits: value })) return fail(`Requires ${value} credits`);
-        e.stock[cmd.res] += amt;
+        e.stock[res] += amt;
       } else {
-        if (e.stock[cmd.res] < -amt) return fail('Not enough in storage');
-        e.stock[cmd.res] += amt;
+        if (e.stock[res] < -amt) return fail('Not enough in storage');
+        e.stock[res] += amt;
         e.stock.credits += value;
       }
-      const p = state.market.price;
-      p[cmd.res] = Math.max(MARKET_BASE[cmd.res] * 0.25, Math.min(MARKET_BASE[cmd.res] * 4, p[cmd.res] * (1 + amt / 3000)));
-      state.market.volume[cmd.res] += Math.abs(amt);
+      state.market.price[res] = marketImpact(state, res, amt).price;
+      state.market.volume[res] += Math.abs(amt);
       return { ok: true, message: `${amt > 0 ? 'Bought' : 'Sold'} ${Math.abs(amt)} for ${value} credits` };
     }
     case 'propose': {
@@ -666,6 +706,8 @@ export function execute(state: GameState, empireId: number, cmd: Command): Comma
       const sys = state.galaxy.systems[cmd.systemId];
       if (!def || !sys) return fail('Invalid project');
       if (sys.owner !== empireId) return fail('System not owned');
+      // the engine's blockade rule (as for operations, outposts, colonisation and repairs)
+      if (hostileArmedPresence(state, empireId, sys.id)) return fail('Hostile warships are in the system: clear them before starting a great project');
       if (!hasTech(e, def.tech)) return fail(`Requires research: ${TECH_BY_ID[def.tech!]?.name ?? def.tech}`);
       if (def.starReq && !def.starReq.includes(sys.star)) return fail('Unsuitable star');
       if (sys.megastructures.length >= 2) return fail('System can host at most two megastructures');

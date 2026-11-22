@@ -46,6 +46,14 @@ interface Unit {
 const ROUNDS_PER_DAY = 3;
 const MAX_REPORT_ROUNDS = 45;
 
+/** A structure at or past this damage no longer fights (and no longer counts as present). */
+const WRECKED = 0.99;
+/** Damage after a fight; a structure left with less than 1% of its hull is wrecked outright. */
+function structureDamage(u: { hull: number; maxHull: number }): number {
+  const d = Math.min(1, Math.max(0, 1 - u.hull / u.maxHull));
+  return d >= WRECKED ? 1 : d;
+}
+
 export function resolveCombat(state: GameState): Set<number> {
   const engaged = new Set<number>();
   const bySystem = new Map<number, Fleet[]>();
@@ -69,10 +77,10 @@ function fightAt(state: GameState, sid: number, fleets: Fleet[], engaged: Set<nu
   const sys = state.galaxy.systems[sid];
   const present = new Set<number>(fleets.map((f) => f.ownerId));
   const structOwners = new Set<number>();
-  if (sys.owner != null && sys.starbase > 0 && sys.starbaseDamage < 0.99) structOwners.add(sys.owner);
+  if (sys.owner != null && sys.starbase > 0 && sys.starbaseDamage < WRECKED) structOwners.add(sys.owner);
   for (const pid of sys.planetIds) {
     const c = state.planets[pid].colony;
-    if (c && (c.buildings.orbital_defense ?? 0) > 0 && c.defenseDamage < 0.99) structOwners.add(c.ownerId);
+    if (c && (c.buildings.orbital_defense ?? 0) > 0 && c.defenseDamage < WRECKED) structOwners.add(c.ownerId);
   }
   structOwners.forEach((o) => present.add(o));
   const owners = [...present].sort((a, b) => a - b);
@@ -84,6 +92,9 @@ function fightAt(state: GameState, sid: number, fleets: Fleet[], engaged: Set<nu
   if (!hostilePair) {
     const rep = state.battles.find((b) => b.ongoing && b.systemId === sid);
     if (rep) rep.ongoing = false;
+    // a starbase wrecked in an earlier fight (or in a save from before 1.0) no longer fights,
+    // but the system must still fall to the warships holding it
+    captureIfUndefended(state, sid);
     return;
   }
   // Build two sides around the first hostile pair, adding friends of each.
@@ -120,7 +131,7 @@ function fightAt(state: GameState, sid: number, fleets: Fleet[], engaged: Set<nu
     else if (side1.has(f.ownerId)) addFleet(f, 1);
   }
   // Structures
-  if (sys.owner != null && sys.starbase > 0 && sys.starbaseDamage < 0.99 && (side0.has(sys.owner) || side1.has(sys.owner))) {
+  if (sys.owner != null && sys.starbase > 0 && sys.starbaseDamage < WRECKED && (side0.has(sys.owner) || side1.has(sys.owner))) {
     const e = state.empires[sys.owner];
     const m = empireMods(state, e);
     const prof = STARBASE[sys.starbase]!;
@@ -137,7 +148,7 @@ function fightAt(state: GameState, sid: number, fleets: Fleet[], engaged: Set<nu
   for (const pid of sys.planetIds) {
     const p = state.planets[pid];
     const c = p.colony;
-    if (!c || !(c.buildings.orbital_defense ?? 0) || c.defenseDamage >= 0.99) continue;
+    if (!c || !(c.buildings.orbital_defense ?? 0) || c.defenseDamage >= WRECKED) continue;
     if (!side0.has(c.ownerId) && !side1.has(c.ownerId)) continue;
     const e = state.empires[c.ownerId];
     const m = empireMods(state, e);
@@ -268,11 +279,11 @@ function fightAt(state: GameState, sid: number, fleets: Fleet[], engaged: Set<nu
         u.ship.xp += 1;
       }
     } else if (u.kind === 'starbase') {
-      sys.starbaseDamage = Math.min(1, Math.max(0, 1 - u.hull / u.maxHull));
+      sys.starbaseDamage = structureDamage(u);
       sys.starbaseShieldDown = u.maxShields > 0 ? Math.min(1, Math.max(0, 1 - u.shields / u.maxShields)) : 0;
     } else if (u.kind === 'platform' && u.planetId != null) {
       const c = state.planets[u.planetId].colony!;
-      c.defenseDamage = Math.min(1, Math.max(0, 1 - u.hull / u.maxHull));
+      c.defenseDamage = structureDamage(u);
       c.shieldDown = u.maxShields > 0 ? Math.min(1, Math.max(0, 1 - u.shields / u.maxShields)) : 0;
     }
   }
@@ -318,8 +329,9 @@ function fightAt(state: GameState, sid: number, fleets: Fleet[], engaged: Set<nu
     }
   }
   // Conclusion
-  const left0 = units.some((u) => u.side === 0 && u.hull > 0 && (u.kind !== 'ship' || state.fleets[u.fleet!.id]?.systemId === sid));
-  const left1 = units.some((u) => u.side === 1 && u.hull > 0 && (u.kind !== 'ship' || state.fleets[u.fleet!.id]?.systemId === sid));
+  const fighting = (u: Unit) => u.kind === 'ship' ? u.hull > 0 && state.fleets[u.fleet!.id]?.systemId === sid : structureDamage(u) < WRECKED;
+  const left0 = units.some((u) => u.side === 0 && fighting(u));
+  const left1 = units.some((u) => u.side === 1 && fighting(u));
   if (!left0 || !left1) {
     rep.ongoing = false;
     rep.winner = left0 && !left1 ? 0 : left1 && !left0 ? 1 : -1;
@@ -373,7 +385,7 @@ function retreat(state: GameState, f: Fleet) {
 /** Starbase destroyed and no defender colonies: the system changes hands (wars only). */
 function captureIfUndefended(state: GameState, sid: number) {
   const sys = state.galaxy.systems[sid];
-  if (sys.owner == null || sys.starbaseDamage < 0.99) return;
+  if (sys.owner == null || sys.starbaseDamage < WRECKED) return;
   const holds = sys.planetIds.some((pid) => state.planets[pid].colony?.ownerId === sys.owner);
   if (holds) return;
   const victor = Object.values(state.fleets).find((f) => f.systemId === sid && f.progress === 0 && armed(f) && isHostile(state, f.ownerId, sys.owner!) && state.empires[f.ownerId].kind === 'major');

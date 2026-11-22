@@ -45,18 +45,7 @@ The game works fully offline. To let players keep their reign in their Google ac
 
 1. Create a project at console.firebase.google.com. The free Spark plan is enough.
 2. **Authentication → Sign-in method:** enable **Google**. Under **Authentication → Settings → Authorized domains**, add the domain you deploy to.
-3. **Firestore Database:** create a database in production mode, then set these rules:
-
-   ```
-   rules_version = '2';
-   service cloud.firestore {
-     match /databases/{db}/documents {
-       match /users/{uid}/{document=**} {
-         allow read, write: if request.auth != null && request.auth.uid == uid;
-       }
-     }
-   }
-   ```
+3. **Firestore Database:** create a database in production mode, then publish the rules in [`firestore.rules`](firestore.rules) (paste them in the console's Rules tab, or run `firebase deploy --only firestore:rules`). They let each signed-in player read and write only their own saves under `users/{uid}/saves/{slot}`, and accept only the slot ids the game itself produces. These rules are not exercised by the automated tests (which use an in-memory stand-in for Firestore); check them in the Firebase console's Rules Playground or the emulator after changing them.
 
 4. **Project settings → Your apps → Web app:** copy the config into `.env.local`, using `.env.example` as the template:
 
