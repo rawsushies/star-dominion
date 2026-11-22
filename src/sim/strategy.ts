@@ -177,6 +177,20 @@ export function refusedUltimatum(state: GameState, e: Empire, target: number) {
   plan.review = state.tick + 120;
 }
 
+export type VictoryAim = 'domination' | 'supremacy' | 'ascension';
+export const AIM_TEXT: Record<VictoryAim, string> = {
+  domination: 'Wants to rule by conquest: takes land in its wars.',
+  supremacy: 'Wants every realm to kneel: presses weaker neighbours to swear fealty and makes vassals of the defeated.',
+  ascension: 'Wants to transcend: pours its wealth into research and the eras, and keeps a smaller fleet.',
+};
+/** The road to victory a realm's temperament inclines it toward. */
+export function victoryAim(e: Empire): VictoryAim {
+  const p = e.personality;
+  if (p.science >= 0.7) return 'ascension';
+  if (p.diplomacy >= 0.65 && p.aggression < 0.5) return 'supremacy';
+  return 'domination';
+}
+
 /** The strategic review: pick the realm's goal for the coming months. */
 export function reviewStrategy(state: GameState, e: Empire) {
   const plan = planOf(e);
@@ -242,7 +256,7 @@ export function reviewStrategy(state: GameState, e: Empire) {
   }
   // 4) Peaceful goals.
   if (freeSystemsNear(state, e) > 0 && e.stats.systems < (L.adminCap ?? 0) + 3 + pers.expansion * 4) setGoal(state, e, 'expand');
-  else if ((e.era ?? 0) >= 2 || (e.era ?? 0) >= 1 && e.research.done.length >= 24) setGoal(state, e, 'ascend');
+  else if ((e.era ?? 0) >= 2 || (e.era ?? 0) >= 1 && e.research.done.length >= (victoryAim(e) === 'ascension' ? 14 : 24)) setGoal(state, e, 'ascend');
   else setGoal(state, e, 'develop');
 }
 
@@ -280,7 +294,7 @@ export function militaryFill(state: GameState, e: Empire): number {
     case 'war': fill = 1.05; break;
     case 'arm': fill = 1.0; break;
     case 'recover': fill = threatened ? 0.9 : 0.35; break;
-    case 'ascend': fill = 0.45 + a * 0.3; break;
+    case 'ascend': fill = (victoryAim(e) === 'ascension' ? 0.35 : 0.45) + a * 0.3; break;
     default: fill = 0.4 + a * 0.4;
   }
   // a runaway neighbour is cause for more ships

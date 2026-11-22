@@ -36,7 +36,7 @@ import { isAtWarWith } from './economy';
 import type { CovertKind } from './types';
 import { MEGA_BY_ID } from './data/megastructures';
 import { megaInstalment } from './construction';
-import { aiPreset, coalitionWanted, estimatePower, militaryFill, planOf, reviewStrategy } from './strategy';
+import { aiPreset, coalitionWanted, estimatePower, militaryFill, planOf, reviewStrategy, victoryAim } from './strategy';
 import { hegemon } from './victory';
 import { orbitSecured } from './fleets';
 
@@ -743,7 +743,7 @@ function diplomacy(state: GameState, e: Empire) {
     // a winning side presses on while it still has worlds to take and the people will bear it
     const pressOn = myScore > 0 && myScore < 85 && e.warExhaustion < 55 && years < 8 && !losing && canStillTake(state, e, foes);
     if (pressOn) term = null;
-    else if (myScore > 70 && years > 1) { const ratio = (e.stats.militaryPower || 1) / (state.empires[other].stats.militaryPower || 1); term = !otherMajor || (myScore > 75 && (ratio >= 3 || (ratio >= 2 && e.personality.diplomacy >= 0.45))) ? 'vassalize' : 'cede'; }
+    else if (myScore > 70 && years > 1) { const ratio = (e.stats.militaryPower || 1) / (state.empires[other].stats.militaryPower || 1); term = !otherMajor || (myScore > 75 && (ratio >= 3 || (ratio >= 2 && (e.personality.diplomacy >= 0.45 || victoryAim(e) === 'supremacy')))) ? 'vassalize' : 'cede'; }
     else if (myScore > 40 && years > 1) term = 'cede';
     else if (myScore > 25 && years > 1.5) term = 'tribute';
     else if (e.warExhaustion > 50 || myScore < -25 || (losing && myScore < 5) || years > 6) term = 'status_quo';    if (!term) continue;
@@ -811,7 +811,7 @@ function diplomacy(state: GameState, e: Empire) {
   }
   // Demands of fealty: a much stronger realm offers a weak neighbour protection for its submission.
   // This is the diplomatic road to supremacy, distinct from conquest (vassal space is not your own).
-  if (planOf(e).goal !== 'war' && chance(state.rng, 0.08 + e.personality.diplomacy * 0.08)) {
+  if (planOf(e).goal !== 'war' && chance(state.rng, (0.08 + e.personality.diplomacy * 0.08) * (victoryAim(e) === 'supremacy' ? 2 : 1))) {
     for (const o of majors) {
       if (o.kind !== 'major' || !bordering(state, e.id, o.id) || warBetween(state, e.id, o.id)) continue;
       if (state.treaties.some((t) => t.type === 'vassal' && (t.b === o.id || t.b === e.id))) continue;

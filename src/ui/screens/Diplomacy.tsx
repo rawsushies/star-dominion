@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { AIM_TEXT, victoryAim } from '../../sim/strategy';
 import { Term } from '../components/Guidance';
 import { HeroView3D } from '../render/hero3d';
 import type { Character } from '../../sim/types';
@@ -129,6 +130,7 @@ function EmpirePanel({ id }: { id: number }) {
           <h1 className="serif" style={{ margin: 0, fontSize: 32, fontWeight: 600, lineHeight: 1 }}>{e.name}</h1>
           <div className="subtitle">{e.ruler ? `${e.ruler} · ` : ''}{GOVERNMENTS[e.government].label}{bordering(g, id, g.playerId) ? ' · shares a border with you' : ''}</div>
           {lore && <div className="hint" style={{ marginTop: 4 }}>{lore}</div>}
+          {e.kind === 'major' && <div className="hint" style={{ marginTop: 4 }} data-testid="rival-aim"><b>Ambition:</b> {AIM_TEXT[victoryAim(e)]}</div>}
         </div>
         <div style={{ textAlign: 'right' }}>
           <div className={cls('num', op >= 20 ? 'pos' : op <= -20 ? 'neg' : '')} style={{ fontSize: 30, lineHeight: 1 }}>{signed(op, 0)}</div>
