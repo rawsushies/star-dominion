@@ -44,12 +44,14 @@ export interface AIPreset {
   sloppiness: number;
   /** spends with a smaller safety margin (better economic tempo) */
   tightReserves: boolean;
+  /** extra strength ratio wanted before going to war with the player (negative: presses the player harder) */
+  playerBias: number;
 }
 
 export const AI_PRESETS: Record<GameState['settings']['difficulty'], AIPreset> = {
-  relaxed: { turnDays: 8, reviewDays: 180, warRatio: 2.0, maxWars: 1, playerGraceYears: 15, betrayal: false, renounce: false, battleGroups: 1, coalition: 0.5, militaryFill: 0.8, sloppiness: 0.35, tightReserves: false },
-  standard: { turnDays: 5, reviewDays: 120, warRatio: 1.5, maxWars: 1, playerGraceYears: 8, betrayal: false, renounce: true, battleGroups: 2, coalition: 0.8, militaryFill: 1, sloppiness: 0.1, tightReserves: false },
-  hard: { turnDays: 3, reviewDays: 90, warRatio: 1.25, maxWars: 2, playerGraceYears: 4, betrayal: true, renounce: true, battleGroups: 3, coalition: 1, militaryFill: 1.15, sloppiness: 0, tightReserves: true },
+  relaxed: { playerBias: 0.6, turnDays: 8, reviewDays: 180, warRatio: 1.6, maxWars: 1, playerGraceYears: 15, betrayal: false, renounce: false, battleGroups: 1, coalition: 0.5, militaryFill: 0.8, sloppiness: 0.35, tightReserves: false },
+  standard: { playerBias: 0, turnDays: 5, reviewDays: 120, warRatio: 1.5, maxWars: 1, playerGraceYears: 8, betrayal: false, renounce: true, battleGroups: 2, coalition: 0.8, militaryFill: 1, sloppiness: 0.1, tightReserves: false },
+  hard: { playerBias: -0.2, turnDays: 3, reviewDays: 90, warRatio: 1.25, maxWars: 2, playerGraceYears: 4, betrayal: true, renounce: true, battleGroups: 3, coalition: 1, militaryFill: 1.15, sloppiness: 0, tightReserves: true },
 };
 
 export const DIFFICULTY_TEXT: Record<GameState['settings']['difficulty'], string> = {
@@ -228,7 +230,7 @@ export function reviewStrategy(state: GameState, e: Empire) {
     const c = warCandidates(state, e).find((x) => x.id === plan.target);
     const ready = state.tick - plan.since >= 180 && (L.navalUsed >= L.navalCap * 0.85 || (c && c.ratio >= preset.warRatio + 0.4));
     const leadNow = hegemon(state);
-    const needRatio = preset.warRatio - pers.aggression * 0.3 - (leadNow && leadNow.id === plan.target ? 0.6 * leadNow.fear * preset.coalition : 0);
+    const needRatio = preset.warRatio + (plan.target === state.playerId ? preset.playerBias : 0) - pers.aggression * 0.3 - (leadNow && leadNow.id === plan.target ? 0.6 * leadNow.fear * preset.coalition : 0);
     if (c && c.ratio >= needRatio && ready && atWarCount(state, e.id, true) < preset.maxWars) {
       startWar(state, e, plan.target);
       return;
@@ -242,7 +244,7 @@ export function reviewStrategy(state: GameState, e: Empire) {
     const appetite = pers.aggression * 0.7 + pers.expansion * 0.3 + (freeSystemsNear(state, e) === 0 ? 0.25 : 0);
     // against a runaway leader the bar is lower: everyone else is a potential ally
     const lead = hegemon(state);
-    const minRatio = lead && best && lead.id === best.id ? 0.8 - 0.35 * lead.fear * preset.coalition : 0.8;
+    const minRatio = (lead && best && lead.id === best.id ? 0.8 - 0.35 * lead.fear * preset.coalition : 0.8) + (best?.id === state.playerId ? preset.playerBias * 0.5 : 0);
     if (best && best.score > 2 - appetite * 1.5 && best.ratio > minRatio) {
       const betray = preset.betrayal && pers.diplomacy < 0.4 && pers.aggression > 0.6;
       if (hasTreaty(state, e.id, best.id, 'nap') && !betray) {
