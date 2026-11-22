@@ -708,3 +708,29 @@ table.t tr.sel td { background: var(--ice-dim); }
 @keyframes relic-flip { from { opacity: 0; transform: rotateY(90deg) scale(0.9); } to { opacity: 1; transform: none; } }
 @keyframes relic-shine { 0% { transform: translateX(-120%); } 60%, 100% { transform: translateX(120%); } }
 @media (prefers-reduced-motion: reduce) { .relic-card, .relic-card.legendary::after { animation: none; } }
+
+/* ---------- phone layout: one thing at a time, nothing off screen ---------- */
+@media (max-width: 640px) {
+  .loc-hud { width: calc(100vw - var(--neo) - 24px); left: calc(var(--neo) + 10px); top: 6px; }
+  .loc-hud .fold, .loc-hud .loc-sys, .loc-hud .loc-gov, .loc-hud .era-badge { display: none; }
+  .loc-hud .loc-name { font-size: 17px; }
+  .loc-hud .quest { padding: 5px 8px; margin: 4px 0 0; }
+  .loc-hud .quest-g, .loc-hud .quest-r, .loc-hud .quest-bar { display: none; }
+  .res-strip { left: calc(var(--neo) + 8px); right: 8px; top: 132px; bottom: auto; flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; gap: 3px; scrollbar-width: none; }
+  .overview { display: none; }
+  .right-col { left: calc(var(--neo) + 8px); right: 8px; width: auto; top: 176px; bottom: auto; max-height: 28vh; }
+  .right-col .ctx { max-height: 28vh; }
+  .guide-stack { left: calc(var(--neo) + 8px); right: 8px; width: auto; bottom: 8px; max-height: 36vh; }
+  .lesson-body { max-height: 28vh; }
+  .advisor-quote { font-size: 12.5px; }
+  .advisor-portrait { width: 34px; height: 34px; }
+  .dial-slots, .dispatch { display: none; }
+  .dial-wrap { left: auto; right: 6px; transform: scale(0.62); transform-origin: right bottom; bottom: calc(var(--guide-h, 0px) + 12px); }
+  .sheet-head { flex-wrap: wrap; gap: 4px 10px; }
+  .sheet-head .actions { margin-left: 0; }
+  .first-visit { flex-wrap: wrap; }
+  .planet-head { flex-direction: column; align-items: flex-start !important; }
+  .planet-head canvas, .planet-head .planet-hero { width: 96px !important; height: 96px !important; }
+  .cols, .cols.side, .cols.side-r { grid-template-columns: 1fr !important; }
+  .win { left: calc(var(--neo) + 4px) !important; right: 4px !important; top: 4px !important; bottom: 4px !important; width: auto !important; height: auto !important; min-width: 0; z-index: 900 !important; }
+}

@@ -70,7 +70,7 @@ function PlanetDetail({ p }: { p: Planet }) {
   buildings.sort((a, b) => order(a[0]) - order(b[0]));
   return (
     <div style={{ minWidth: 0 }}>
-      <div className="row" style={{ gap: 18, alignItems: 'center' }}>
+      <div className="row planet-head" style={{ gap: 18, alignItems: 'center' }}>
         <PlanetThumb planet={p} size={150} />
         <div className="grow">
           <h1 className="serif" style={{ fontSize: 36, margin: 0, fontWeight: 600, lineHeight: 1 }}>{p.name}</h1>
