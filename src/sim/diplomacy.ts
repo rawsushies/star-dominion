@@ -183,6 +183,8 @@ function treatyAppetite(state: GameState, ai: number, other: number, t: TreatyTy
   const powerRatio = (o.stats.militaryPower || 1) / (e.stats.militaryPower || 1);
   if (hasTreaty(state, ai, other, t)) return ['Treaty already in force', -1000];
   if (warBetween(state, ai, other)) return ['We are at war', -1000];
+  // a realm preparing war on the proposer will not tie its own hands
+  if (e.aiPlan && (e.aiPlan.goal === 'arm' || e.aiPlan.goal === 'war') && e.aiPlan.target === other && (t === 'nap' || t === 'defense' || t === 'alliance')) return ['We have other plans for you', -1000];
   switch (t) {
     case 'nap': return ['Non-aggression appetite', Math.round(-5 + pers.diplomacy * 15 - pers.aggression * 20 + (powerRatio > 1.2 ? 15 : 0))];
     case 'trade': return ['Commercial interest', Math.round(-10 + pers.mercantile * 30 + (op > 0 ? 5 : -10))];

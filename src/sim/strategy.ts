@@ -88,6 +88,12 @@ export function estimateBloc(state: GameState, viewer: number, target: number, e
 /** Our strength plus allies who are already fighting the same enemy or are bound to us by alliance. */
 function ownBloc(state: GameState, e: Empire, against: number): number {
   let p = e.stats.militaryPower || 1;
+  // the enemy of my enemy: realms already at war with the target fight beside us in all but name
+  for (const w of state.wars) {
+    const side = w.attackers.includes(against) ? w.defenders : w.defenders.includes(against) ? w.attackers : null;
+    if (!side) continue;
+    for (const id of side) if (id !== e.id && state.empires[id]?.alive) p += (estimatePower(state, e.id, id) ?? state.empires[id].stats.militaryPower) * 0.5;
+  }
   for (const t of state.treaties) {
     if (t.type !== 'alliance' || (t.a !== e.id && t.b !== e.id)) continue;
     const ally = t.a === e.id ? t.b : t.a;
@@ -189,7 +195,9 @@ export function reviewStrategy(state: GameState, e: Empire) {
   if (plan.goal === 'arm' && plan.target != null) {
     const c = warCandidates(state, e).find((x) => x.id === plan.target);
     const ready = state.tick - plan.since >= 180 && (L.navalUsed >= L.navalCap * 0.85 || (c && c.ratio >= preset.warRatio + 0.4));
-    if (c && c.ratio >= preset.warRatio - pers.aggression * 0.3 && ready && atWarCount(state, e.id, true) < preset.maxWars) {
+    const leadNow = hegemon(state);
+    const needRatio = preset.warRatio - pers.aggression * 0.3 - (leadNow && leadNow.id === plan.target ? 0.6 * leadNow.fear * preset.coalition : 0);
+    if (c && c.ratio >= needRatio && ready && atWarCount(state, e.id, true) < preset.maxWars) {
       startWar(state, e, plan.target);
       return;
     }
@@ -200,7 +208,10 @@ export function reviewStrategy(state: GameState, e: Empire) {
   if (e.kind === 'major' && state.tick > 360 * 4 && e.warExhaustion < 20 && atWarCount(state, e.id, true) < preset.maxWars) {
     const best = warCandidates(state, e)[0];
     const appetite = pers.aggression * 0.7 + pers.expansion * 0.3 + (freeSystemsNear(state, e) === 0 ? 0.25 : 0);
-    if (best && best.score > 2 - appetite * 1.5 && best.ratio > 0.8) {
+    // against a runaway leader the bar is lower: everyone else is a potential ally
+    const lead = hegemon(state);
+    const minRatio = lead && best && lead.id === best.id ? 0.8 - 0.35 * lead.fear * preset.coalition : 0.8;
+    if (best && best.score > 2 - appetite * 1.5 && best.ratio > minRatio) {
       const betray = preset.betrayal && pers.diplomacy < 0.4 && pers.aggression > 0.6;
       if (hasTreaty(state, e.id, best.id, 'nap') && !betray) {
         // the honest road to war: renounce the pact openly, then arm
