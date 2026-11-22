@@ -98,7 +98,11 @@ export function supplyNetwork(state: GameState, empireId: number): Set<number> {
 
 function ownershipSig(state: GameState): string {
   ownerMap(state);
-  return `${state.tick}:${ownershipEpoch}:${state.treaties.length}:${state.treaties.reduce((a, t) => a + t.a * 7 + t.b, 0)}`;
+  // only alliances and vassalage change who counts as a friend (see friends()); they are listed
+  // exactly, so swapping one pact for another the same day cannot reuse a stale network
+  let friendsSig = '';
+  for (const t of state.treaties) if (t.type === 'alliance' || t.type === 'vassal') friendsSig += `${t.type[0]}${t.a}-${t.b},`;
+  return `${state.tick}:${ownershipEpoch}:${friendsSig}`;
 }
 
 export function armed(f: { ships: { cls: string }[] }): boolean {

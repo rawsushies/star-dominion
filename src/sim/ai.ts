@@ -373,8 +373,11 @@ function military(state: GameState, e: Empire) {
   if ((war || planOf(e).goal === 'arm') && e.kind === 'major') {
     const troops = Object.values(state.fleets).filter((f) => f.ownerId === e.id).reduce((a, f) => a + f.troops, 0);
     const queuedT = yards.reduce((a, p) => a + p.colony!.shipQueue.filter((q) => q.id === 'transport').length, 0);
-    const wanted = Math.min(96, Math.max(24, planOf(e).troopsWanted ?? 0) + (aiPreset(state, e).battleGroups - 1) * 8);
-    if (troops + queuedT * 8 < wanted && yards.reduce((a, p) => a + p.colony!.shipQueue.length, 0) < yards.length * 3 && canAfford(e, withReserve(shipCost(state, e, 'transport')))) {
+    // enough soldiers for the world the battle group is going for (it waits in orbit until then),
+    // up to TROOP_CEILING; worlds needing more are never chosen as targets
+    const wanted = Math.min(TROOP_CEILING, Math.max(24, planOf(e).troopsWanted ?? 0) + (aiPreset(state, e).battleGroups - 1) * 8);
+    // transports have their own queue allowance, so colony ships and constructors cannot starve them
+    if (troops + queuedT * 8 < wanted && queuedT < yards.length * 2 && canAfford(e, withReserve(shipCost(state, e, 'transport')))) {
       execute(state, e.id, { type: 'queueShip', planetId: yards[0].id, cls: 'transport' });
     }
   }
@@ -552,6 +555,14 @@ function nearestHaven(state: GameState, e: Empire, from: number): number | null 
 }
 
 /** Estimated garrison of a hostile world, through the realm's intelligence on its owner. */
+export function garrisonEstimateForTest(state: GameState, e: Empire, p: Planet): number { return garrisonEstimate(state, e, p); }
+/**
+ * The most soldiers an AI realm gathers for one landing (30 transports). It was 96, below what a
+ * shielded, garrisoned capital can need (200+): the battle group then waited in orbit for troops
+ * that were never built, and the war stalled until peace.
+ */
+export const TROOP_CEILING = 240;
+
 function garrisonEstimate(state: GameState, e: Empire, p: Planet): number {
   const owner = state.empires[p.colony!.ownerId];
   const real = getLedger(state, owner).planets[p.id]?.garrison ?? 4;
@@ -632,9 +643,9 @@ function operations(state: GameState, e: Empire) {
         // worth: people and the enemy capital; cost: distance and the troops a landing would take
         const troopsHave = Object.values(state.fleets).reduce((a, f) => a + (f.ownerId === e.id ? f.troops : 0), 0);
         const need = garrisonEstimate(state, e, p);
-        return { p, s, v: (p.colony!.pops * 2 + 10 + (cap ? 30 : 0)) * (near ? 1.4 : 1) / (1 + d[p.systemId]) / (need > troopsHave ? 1 + (need - troopsHave) / 16 : 1) };
+        return { p, s, need, v: (p.colony!.pops * 2 + 10 + (cap ? 30 : 0)) * (near ? 1.4 : 1) / (1 + d[p.systemId]) / (need > troopsHave ? 1 + (need - troopsHave) / 16 : 1) };
       })
-      .filter((x) => mainP > x.s * margin)
+      .filter((x) => mainP > x.s * margin && x.need <= TROOP_CEILING)
       .sort((a, b) => b.v - a.v || a.p.id - b.p.id);
     const here = enemyStrengthAt(state, e, main.systemId);
     if (here > mainP * 1.1 && !owned.has(main.systemId)) {

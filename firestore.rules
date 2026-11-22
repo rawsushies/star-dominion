@@ -1,0 +1,28 @@
+rules_version = '2';
+// Cloud saves (src/persistence/cloud.ts). Each signed-in player can read and write only their own
+// saves, under users/{uid}/saves/{slot} and its chunks. Slot ids must match the format the game
+// itself enforces (src/persistence/slots.ts). Deploy with: firebase deploy --only firestore:rules
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function owner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+    function validSlot(slot) {
+      return slot.matches('^[a-z0-9_-]{1,200}$') && !slot.matches('^__.*__$');
+    }
+    match /users/{uid}/saves/{slot} {
+      allow read, delete: if owner(uid) && validSlot(slot);
+      allow create, update: if owner(uid) && validSlot(slot)
+        && request.resource.data.parts is int && request.resource.data.parts >= 1 && request.resource.data.parts <= 450;
+      match /chunks/{chunk} {
+        allow read, delete: if owner(uid) && validSlot(slot);
+        allow create, update: if owner(uid) && validSlot(slot) && chunk.matches('^[A-Za-z0-9-]{1,64}$')
+          && request.resource.data.b is bytes;
+      }
+    }
+    // nothing else is readable or writable
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

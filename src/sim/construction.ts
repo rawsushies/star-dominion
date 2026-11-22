@@ -131,6 +131,9 @@ export function progressConstruction(state: GameState) {
       if (!m.building) continue;
       const def = MEGA_BY_ID[m.id];
       const e = state.empires[m.ownerId];
+      // blockaded: hostile warships in the system stop the work (and its instalments), as they
+      // stop shipments, outposts, colonisation and repairs
+      if (hostileArmedPresence(state, m.ownerId, sys.id)) continue;
       // stages are paid in daily instalments, so great works fit within normal storage;
       // a day the realm cannot pay, the work waits
       if (!pay(e, megaInstalment(def))) continue;
