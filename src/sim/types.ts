@@ -275,6 +275,8 @@ export interface Empire {
   color: string;
   isPlayer: boolean;
   kind: 'major' | 'minor' | 'guardian' | 'raiders' | 'rebels';
+  /** a scripted realm (the Prologue's Pretender) */
+  role?: 'pretender';
   alive: boolean;
   capitalPlanetId: number | null;
   capitalSystemId: number | null;
@@ -450,6 +452,8 @@ export interface GameSettings {
   playerGovernment: GovernmentId;
   playerClimate: Climate;
   difficulty: 'relaxed' | 'standard' | 'hard';
+  /** start with the Prologue starter quest (a weak Pretender to defeat) */
+  prologue?: boolean;
 }
 
 export interface GameState {
@@ -480,6 +484,8 @@ export interface GameState {
   patrolled: Record<string, number>; // `${empire}:${system}` -> tick last patrolled
   disruptedRoutes: Record<string, number>; // colony planet id -> tick disrupted (for event dedupe)
   playerId: number;
+  /** the Prologue starter quest (src/sim/prologue.ts) */
+  prologue?: { pretenderId: number; stage: number; done: boolean; startBuildings?: number; doneTick?: number };
   gameOver: null | { won: boolean; reason: string; kind?: 'domination' | 'supremacy' | 'ascension'; winner?: number };
   /** @deprecated legacy guided first-reign progress; migrated to `guidance` on load */
   tutorial?: { step: number; base: { explored: number; buildings: number; ships: number } } | null;

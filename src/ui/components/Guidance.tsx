@@ -14,6 +14,8 @@ import { SCREEN_INFO } from '../../guidance/screens';
 import { codexEntry } from '../../guidance/codex';
 import { currentMoment, dismissMoment, type Moment } from '../../guidance/moments';
 import { isSimple, setSimple, visibleScreens } from '../../guidance/path';
+import { speakOnce } from '../../guidance/advisor';
+import { AdvisorHead } from './Advisor';
 
 export function usePrefs() {
   const [, setN] = useState(0);
@@ -110,6 +112,8 @@ function LessonPanel() {
   const step = activeStep(g);
   useHighlight(step, !!chapter && !s.paused);
   const [note, setNote] = useState<{ step: LessonStep; text: string } | null>(null);
+  const live = !!chapter && !!step && !s.paused;
+  useEffect(() => { if (live && step?.voice) speakOnce(g, step.voice); }, [live, step]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!chapter || !step) return prefs.lessons ? <LessonOffer /> : null;
   const bump = () => ui.bump();
   if (s.paused) {
@@ -142,6 +146,7 @@ function LessonPanel() {
       </div>
       <div className="lesson-body">
         <div className="lesson-steps" aria-hidden>{chapter.steps.map((_, i) => <i key={i} className={i < s.step ? 'done' : i === s.step ? 'now' : ''} />)}</div>
+        <AdvisorHead voice={step.voice} />
         <div className="lesson-title">{step.title}</div>
         <p>{text}</p>
         {step.goal && (
@@ -205,7 +210,10 @@ function MomentCard() {
   const m = momentCache.m;
   const id = m?.id;
   // danger stops the clock so there is time to read and act
-  useEffect(() => { if (m?.pause && useUI.getState().speed > 0) useUI.getState().setSpeed(0); }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (m?.pause && useUI.getState().speed > 0) useUI.getState().setSpeed(0);
+    if (m?.voice) speakOnce(g, m.voice);
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!m) return null;
   const close = () => { dismissMoment(g, m); momentCache.rev = -1; ui.bump(); };
   const act = () => {
@@ -218,7 +226,8 @@ function MomentCard() {
   };
   return (
     <aside className={cls('moment glass', m.danger && 'danger')} aria-label="What just happened" data-testid="moment">
-      <div className="moment-k">{m.danger ? 'Important' : 'Something new'}</div>
+      <div className="moment-k">{m.danger ? 'Important' : id?.startsWith('quest-') ? 'Quest' : 'Something new'}</div>
+      <AdvisorHead voice={m.voice} />
       <div className="lesson-title">{m.title}</div>
       <p>{m.text}</p>
       <div className="row" style={{ gap: 6, marginTop: 8 }}>

@@ -7,7 +7,12 @@ const lesson = (page: Page) => page.getByRole('complementary', { name: 'Lesson',
 
 test('a new player completes the first lesson by doing what it asks, and progress survives save and reload', async ({ page }) => {
   const errors = watchErrors(page);
+  const voice = page.waitForResponse((r) => /\/assets\/audio\/voice\/welcome\.(ogg|m4a)$/.test(r.url()));
   await startReign(page); // "Guided first reign" is on by default
+  // the Lord Admiral introduces herself aloud, once, and her words are on screen
+  expect((await voice).status()).toBe(200);
+  await expect(page.getByTestId('advisor-quote').first()).toContainText("I'm Fiona MacLeod");
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __sd: { getState(): { game: { guidance: { seen: string[] } } } } }).__sd.getState().game.guidance.seen.includes('said:welcome'))).toBe(true);
   // a beginner starts with a few screens; the rest join the bar as they matter
   await expect(page.locator('.neo-btn[aria-label="Research"]')).toBeVisible();
   await expect(page.locator('.neo-btn[aria-label="Hall of Heroes"]')).toHaveCount(0);
@@ -167,7 +172,8 @@ test('the Next steps panel states the goal and the useful next actions, and a pa
   await startReign(page);
   await lesson(page).getByRole('button', { name: 'Leave the lesson' }).click();
   const next = page.getByRole('complementary', { name: 'Next steps' });
-  await expect(page.getByTestId('reign-goal')).toContainText('Make your realm bigger');
+  await expect(page.getByTestId('reign-goal')).toContainText('Quest: Put the realm in order');
+  await expect(page.getByTestId('quest')).toContainText('quest 1 of 5');
   await expect(next.getByTestId('hint').first()).toBeVisible();
   // regression: releasing the mouse over a side-panel button must not also click the star behind it
   await page.evaluate(() => {

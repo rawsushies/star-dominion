@@ -15,6 +15,7 @@ import { charactersOf } from '../sim/characters';
 import { CITADEL_MAX } from '../sim/data/capital';
 import { DESIGNATION_COST } from '../sim/data/designations';
 import type { Command } from '../sim/commands';
+import type { VoiceId } from './advisor';
 import { TECH_BY_ID, techCost } from '../sim/data/techs';
 import { availableTechs } from '../sim/research';
 import { canBuild } from '../sim/construction';
@@ -47,6 +48,8 @@ export interface LessonStep {
   open?: ScreenId;
   /** "Show me" selects these on the map (and opens a screen), when the step is about one thing */
   show?: (g: GameState) => { screen?: ScreenId; systemId?: number; planetId?: number; fleetId?: number } | null;
+  /** the advisor's recorded line, spoken once when the step first appears */
+  voice?: VoiceId;
   /** "Do it for me": the orders that carry out the step (run in order) */
   auto?: (g: GameState) => Command[];
   /** stop at the first order that succeeds (alternatives, e.g. peace terms from best to least) */
@@ -119,11 +122,11 @@ export const CHAPTERS: Chapter[] = [
     unlock: () => true, unlockText: 'Available from the start.', codex: ['mech.sovereign', 'mech.time'],
     steps: [
       {
-        title: 'Welcome, ruler',
+        title: 'Welcome, ruler', voice: 'welcome',
         text: (c) => `You rule the ${me(c.g).name}, a small kingdom in space. Right now it is one planet, a few ships and a lot of empty stars. Your job is to make it bigger and stronger. You do not need to understand everything. This lesson shows you three things: the clock, inventing and building. Everything else comes later, one piece at a time.`,
       },
       {
-        title: 'Start and stop the clock',
+        title: 'Start and stop the clock', voice: 'clock',
         text: 'The game is stopped. Nothing happens until you start the clock. Press Space, or the round button at the bottom of the screen, to start time. Press it again to stop. Stop whenever you want to think: you can give orders while the clock is stopped.',
         goal: 'Start the clock, then stop it',
         done: (c) => c.has('ran') && c.ui.speed === 0,
@@ -166,7 +169,7 @@ export const CHAPTERS: Chapter[] = [
     unlock: (_g, d) => d.includes('welcome'), unlockText: 'After "The Basics".', codex: ['mech.galaxy', 'mech.fog', 'mech.outpost'],
     steps: [
       {
-        title: 'Stars are places',
+        title: 'Stars are places', voice: 'grow',
         text: 'Each dot of light on the map is a star system: a sun with planets around it. The coloured area around your home is your territory. Stars nobody has coloured are free. Owning more systems means more resources and more room. Two of your ships help you grow: a scout, to look around, and a construction ship, to claim.',
       },
       {
@@ -210,7 +213,7 @@ export const CHAPTERS: Chapter[] = [
     unlock: (g, d) => d.includes('grow') && (pickTarget(g) != null || g.tick >= 360 * 2), unlockText: 'After "Getting Bigger", once you have met a neighbour.', codex: ['mech.war', 'mech.combat', 'mech.invasion'],
     steps: [
       {
-        title: 'How taking a planet works',
+        title: 'How taking a planet works', voice: 'conquest',
         text: 'Conquering is a recipe with five parts. 1) Warships, to beat the enemy\'s ships and space station. 2) Troop transports, ships that carry soldiers. 3) A declaration of war: you cannot attack a realm you are at peace with. 4) Your ships fly there and win the fight above the planet. 5) The soldiers land and take it. This lesson does it with you, one part at a time, against an easy target it picks for you.',
       },
       {

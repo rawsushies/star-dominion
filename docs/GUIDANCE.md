@@ -2,6 +2,12 @@
 
 The audit behind this work is in `docs/GUIDANCE_AUDIT.md`. All guidance is UI-side (`src/guidance`); the simulation never reads it.
 
+## The advisor and the Prologue
+
+- **Lord Admiral Fiona MacLeod** presents the tutorial: lessons and "what just happened?" cards show her portrait and name (`src/ui/components/Advisor.tsx`). She speaks a recorded line, in a Scottish voice, only at about 25 important moments: the welcome, each Prologue quest, your first war, the fight in orbit, a captured or lost world, peace, a war on you, enemy ships in your space, and victory warnings. Each line is spoken once per reign and always shown as a quote, with a replay button. Lines: `src/guidance/voice-lines.json`; recording and licence: `docs/AUDIO.md`.
+- **The Prologue** (`src/sim/prologue.ts`, on for guided reigns). A weak Pretender (one world, one corvette, about 5 defenders, no defence platforms) sits two or three jumps away. Five quests lead to taking his world: put the realm in order; own 3 systems; find the Pretender; raise a fleet with soldiers; take the crown world. Each pays a reward (mostly alloys, so the quest funds the fleet). The tracker is at the top left and the Next step goal follows it. While it runs (at most 6 years) the great realms do not choose the player as a war target and leave the Pretender alone; when it ends, a card says the real game begins. The war lesson targets the Pretender.
+- **Pacing, measured** (a scripted player following the lessons and pressing "Do it for me" once a month, no extra resources, six maps): the whole Prologue takes 1.2 to 1.3 game years, about 30 to 90 seconds of real time depending on speed.
+
 ## Built for a complete beginner
 
 A guided reign assumes the player knows nothing about strategy games. It teaches one thing at a time and only when it matters:

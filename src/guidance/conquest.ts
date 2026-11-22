@@ -11,6 +11,7 @@ import { fleetPower, isCivilianFleet, orbitSecured } from '../sim/fleets';
 import { findPath } from '../sim/galaxy';
 import { SHIPS } from '../sim/data/ships';
 import { guidanceOf } from './state';
+import { pretenderOf } from '../sim/prologue';
 
 export interface Focus { empireId: number; planetId: number }
 
@@ -59,6 +60,9 @@ export function pickTarget(g: GameState): Focus | null {
   const me = g.empires[g.playerId];
   const home = me.capitalSystemId;
   if (home == null) return null;
+  // during the Prologue the lesson is about the Pretender
+  const pr = pretenderOf(g);
+  if (pr?.alive && pr.capitalPlanetId != null && hasContact(g, g.playerId, pr.id) && g.planets[pr.capitalPlanetId].colony?.ownerId === pr.id) return { empireId: pr.id, planetId: pr.capitalPlanetId };
   let best: { f: Focus; score: number } | null = null;
   for (const p of g.planets) {
     const c = p.colony;
@@ -104,11 +108,17 @@ export function bestWarship(g: GameState): ShipClass {
   return (['destroyer', 'frigate', 'corvette'] as ShipClass[]).find((c) => !SHIPS[c].tech || done.includes(SHIPS[c].tech!)) ?? 'corvette';
 }
 
-export function orderWarships(g: GameState): Command[] {
+/** Warships still to order: what the target needs, less what is built and already queued. */
+export function orderWarships(g: GameState, f: Focus | null = conquestFocus(g)): Command[] {
   const yard = shipyard(g);
   if (!yard) return [];
   const free = Math.max(0, 8 - yard.colony!.shipQueue.length);
-  return Array.from({ length: Math.min(3, free) }, () => ({ type: 'queueShip', planetId: yard.id, cls: bestWarship(g) }) as Command);
+  const fleets = myWarFleets(g);
+  const hulls = fleets.reduce((a, x) => a + x.ships.filter((s) => !SHIPS[s.cls].civilian && s.cls !== 'transport').length, 0);
+  const per = hulls ? Math.max(8, myWarPower(g) / hulls) : 15;
+  const missing = f ? fleetNeeded(g, f) - myWarPower(g) - queuedWarships(g) * per : per * 3;
+  const n = Math.min(3, free, Math.max(0, Math.ceil(missing / per)));
+  return Array.from({ length: n }, () => ({ type: 'queueShip', planetId: yard.id, cls: bestWarship(g) }) as Command);
 }
 
 export function orderTransports(g: GameState, f: Focus | null): Command[] {
@@ -136,6 +146,8 @@ export function orderAttack(g: GameState, f: Focus | null): Command[] {
 export function orderInvade(g: GameState, f: Focus | null): Command[] {
   if (!f) return [];
   const sid = g.planets[f.planetId].systemId;
-  return Object.values(g.fleets).filter((x) => x.ownerId === g.playerId && x.troops > 0 && x.systemId === sid && !x.path.length)
-    .map((x) => ({ type: 'fleetOrder', fleetId: x.id, order: { type: 'invade', planetId: f.planetId } }) as Command);
+  const here = Object.values(g.fleets).filter((x) => x.ownerId === g.playerId && x.troops > 0 && x.systemId === sid && !x.path.length);
+  // never throw soldiers away: land only with enough to win
+  if (here.reduce((a, x) => a + x.troops, 0) < troopsNeeded(g, f.planetId)) return [];
+  return here.map((x) => ({ type: 'fleetOrder', fleetId: x.id, order: { type: 'invade', planetId: f.planetId } }) as Command);
 }

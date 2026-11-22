@@ -107,3 +107,12 @@ No commercial or extracted game audio is used. No paid assets or services are us
 | `amb.industry` | spaceEngineLarge_002.ogg | Sci-fi Sounds | loop |
 | `amb.machines` | computerNoise_001.ogg | Sci-fi Sounds | loop |
 | `amb.metal` | impactMetal_000.ogg, impactMetal_003.ogg | Sci-fi Sounds | one-shot |
+
+## The advisor's voice
+
+Lord Admiral Fiona MacLeod speaks recorded lines at important moments only: the start of the reign, each Prologue quest stage, a war declared on you, enemy ships in your space, your first battle, a peace offer, a shortage, a lost world and victory warnings. Each line is spoken once per reign; the words are always shown on screen too.
+
+- Lines: `src/guidance/voice-lines.json` (one place for the text shown and the text spoken).
+- Recording: `python3 scripts/build_voice.py` runs [Piper](https://github.com/rhasspy/piper), an open-source speech engine, locally with the **Alba** voice (`en_GB-alba-medium`, a Scottish speaker). It writes `public/assets/audio/voice/<id>.ogg` and `.m4a` and skips lines that have not changed.
+- Licence: the Alba voice model is trained on the University of Edinburgh "Alba" dataset, licensed **CC BY 4.0** (https://datashare.ed.ac.uk/handle/10283/3270). Credited in the audio settings and here.
+- Playback: `audio.say(id)` on its own volume (Settings → Advisor voice); music dips while she speaks; a new line cuts off the last. At volume 0 she is text only.

@@ -4,6 +4,7 @@
 // what the realm could not know (rival strength comes through the same fuzzed intelligence the
 // player sees).
 
+import { prologueActive, protectedPrey } from './prologue';
 import { fuzz, intelLevel, opinion, systemValue, hasContact, canDeclareWar } from './diplomacy';
 import { bordering, hasTreaty, ownedSystems, warBetween } from './territory';
 import { adjacency, jumpDistances } from './galaxy';
@@ -139,7 +140,8 @@ export function warCandidates(state: GameState, e: Empire): WarCandidate[] {
   for (const o of state.empires) {
     if (!o.alive || o.id === e.id || !(o.kind === 'major' || o.kind === 'minor' || o.kind === 'rebels')) continue;
     if (!hasContact(state, e.id, o.id) || warBetween(state, e.id, o.id)) continue;
-    if (o.id === state.playerId && years < preset.playerGraceYears) continue;
+    if (o.id === state.playerId && (years < preset.playerGraceYears || prologueActive(state))) continue;
+    if (protectedPrey(state, o.id)) continue;
     if (hasTreaty(state, e.id, o.id, 'alliance') || hasTreaty(state, e.id, o.id, 'defense') || hasTreaty(state, e.id, o.id, 'vassal')) continue;
     const nap = hasTreaty(state, e.id, o.id, 'nap');
     if (nap && !preset.renounce && !(preset.betrayal && pers.diplomacy < 0.4 && pers.aggression > 0.6)) continue;

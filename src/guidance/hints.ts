@@ -24,6 +24,7 @@ import { eraRequirements } from '../sim/eras';
 import { ERAS, MAX_ERA } from '../sim/data/eras';
 import { ambitionList, phaseOf, type Phase } from '../sim/ambitions';
 import { SHIPS } from '../sim/data/ships';
+import { currentStage } from '../sim/prologue';
 
 export type HintSeverity = 'info' | 'warn' | 'danger';
 
@@ -159,6 +160,8 @@ export const PHASE_GOAL: Record<Phase, string> = {
 };
 export function reignGoal(g: GameState): { phase: Phase; text: string } {
   const phase = phaseOf(g.empires[g.playerId]);
+  const q = currentStage(g);
+  if (q) return { phase, text: `Quest: ${q.title}. ${q.goal}` };
   return { phase, text: PHASE_GOAL[phase] };
 }
 
