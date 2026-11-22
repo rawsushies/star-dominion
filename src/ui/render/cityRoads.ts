@@ -452,14 +452,14 @@ export class SquareCrowd {
   walkers: Walker[] = [];
   private rng: () => number;
   private target: { x: number; z: number }[] = [];
-  constructor(readonly squares: Square[], perSquare: number, variants: number, seed = 13, idOffset = 10000) {
+  constructor(readonly squares: Square[], perSquare: number, variants: number, seed = 13, idOffset = 10000, fixedVariant?: number) {
     let s = seed;
     this.rng = () => { s = (s * 48271) % 2147483647; return (s - 1) / 2147483646; };
     squares.forEach((sq, si) => {
       for (let i = 0; i < perSquare; i++) {
         const p = this.freePoint(sq);
         const corner: Corner = { node: si, sx: 1, sz: 1 }; // unused for squares
-        const w: Walker = { id: idOffset + si * 1000 + i, variant: (i + si) % variants, from: p, to: p, t: 0, len: 0, at: corner, next: null, crossing: null, wait: this.rng() * 6, speed: 1.1 * M * (0.8 + this.rng() * 0.3), x: p.x, z: p.z, ry: this.rng() * Math.PI * 2, walking: false };
+        const w: Walker = { id: idOffset + si * 1000 + i, variant: fixedVariant ?? (i + si) % variants, from: p, to: p, t: 0, len: 0, at: corner, next: null, crossing: null, wait: this.rng() * 6, speed: 1.1 * M * (0.8 + this.rng() * 0.3), x: p.x, z: p.z, ry: this.rng() * Math.PI * 2, walking: false };
         this.walkers.push(w); this.target.push(p);
         (w as Walker & { sq: number }).sq = si;
       }

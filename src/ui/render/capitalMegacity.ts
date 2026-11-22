@@ -438,6 +438,8 @@ export class MegacityCapitalView3D {
     const open = new Set(openPlots(e));
     for (const [, b] of Object.entries(cap.buildings)) this.occupied.add(b.plot);
     // what the realm's state drives: cranes and drones at building sites, fighters by readiness
+    const sites = cap.queue.map((j) => this.slotByPlot.get(j.plot)).filter((x): x is MegaSlot => !!x).map((sl) => ({ x: sl.x, z: sl.z }));
+    this.life?.setSites(sites);
     this.activity?.setActivity({
       sites: cap.queue.map((j) => this.slotByPlot.get(j.plot)).filter((x): x is MegaSlot => !!x).map((sl) => ({ x: sl.x, z: sl.z })),
       readiness: e.stats.navalCap ? Math.min(1, e.stats.navalUsed / e.stats.navalCap) : 0.3,

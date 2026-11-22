@@ -44,6 +44,11 @@ export class CapitalLife {
   traffic: Traffic | null = null;
   crowd: Crowd | null = null;
   squares: SquareCrowd | null = null;
+  /** work crews (road-worker): at building sites, the port, the shipyard and the industrial yards */
+  workers: SquareCrowd | null = null;
+  private siteKey = '';
+  private fixedCrews: Square[] = [];
+  private lastSites: { x: number; z: number }[] = [];
   /** more people to draw with the crowd (metro passengers on the platforms) */
   extraWalkers: () => Walker[] = () => [];
   ready: Promise<void>;
@@ -236,9 +241,17 @@ export class CapitalLife {
     // public squares: market furniture, and a crowd that strolls, gathers and idles
     const squares = this.buildSquares();
     this.squares = new SquareCrowd(squares, P.squareCrowd, PEOPLE.length, 17);
+    // standing crews on the aprons beyond the walls (spaceport dock, shipyard slips, industry yards)
+    this.fixedCrews = [
+      { x: -176, z: 44, half: 9, obstacles: [], gather: [{ x: -176, z: 40 }] },
+      { x: 0, z: 130, half: 10, obstacles: [], gather: [{ x: 0, z: 128 }] },
+      { x: 232, z: 70, half: 9, obstacles: [], gather: [] },
+    ];
+    this.siteKey = '#'; // rebuild with the fixed crews now that they exist
+    this.setSites(this.lastSites);
     // pedestrians
     this.crowd = new Crowd(net, P.walkers, PEOPLE.length, 9);
-    this.crowdMeshes = PEOPLE.map((slug) => this.bakeWalk(slug, P.walkers + P.squareCrowd * squares.length + 48));
+    this.crowdMeshes = PEOPLE.map((slug) => this.bakeWalk(slug, P.walkers + P.squareCrowd * squares.length + 96));
     for (let i = 0; i < P.nearPeople; i++) {
       const variant = i % PEOPLE.length;
       const g = this.models.get(`${PEOPLE[variant]}:near`);
@@ -254,6 +267,18 @@ export class CapitalLife {
       this.group.add(root);
       this.near.push({ root, mixer, walk, idle, variant, walker: -1 });
     }
+  }
+
+  /** Work crews walk round every building under construction (and stand on the outer aprons). */
+  setSites(sites: { x: number; z: number }[]) {
+    this.lastSites = sites;
+    const key = sites.map((s) => `${s.x},${s.z}`).join(';');
+    if (key === this.siteKey && this.workers) return;
+    this.siteKey = key;
+    const P = LIFE_PROFILE[this.opts.quality];
+    // a site's crew keeps to the lot's margin, round the rising building
+    const crews: Square[] = [...sites.slice(0, 4).map((s) => ({ x: s.x, z: s.z, half: 5.3, obstacles: [{ x: s.x, z: s.z, r: 3.9 }], gather: [] })), ...this.fixedCrews];
+    this.workers = new SquareCrowd(crews, P.squareCrowd > 20 ? 6 : 4, PEOPLE.length, 41, 30000, PEOPLE.indexOf('road-worker'));
   }
 
   /** Furnish each public square (tevy kiosks, stalls, screen, signs, planters, benches, tables). */
@@ -352,7 +377,7 @@ export class CapitalLife {
   update(dt: number, time: number, focus: THREE.Vector3) {
     if (!this.traffic || !this.crowd) return;
     const step = this.opts.still ? 0 : Math.min(dt, 0.1);
-    if (step > 0) { this.traffic.step(step, time); this.crowd.step(step, time); this.squares?.step(step); }
+    if (step > 0) { this.traffic.step(step, time); this.crowd.step(step, time); this.squares?.step(step); this.workers?.step(step); }
     // vehicles
     const byKind = new Map<VehicleKind, number>();
     for (const v of this.traffic.vehicles) {
@@ -373,7 +398,7 @@ export class CapitalLife {
       this.signalLamps.mesh.instanceColor!.needsUpdate = true;
     }
     // pedestrians: the nearest ones as skinned meshes, the rest as baked instanced poses
-    const ws: Walker[] = [...this.crowd.walkers, ...(this.squares?.walkers ?? []), ...this.extraWalkers().filter((w) => !w.hidden)];
+    const ws: Walker[] = [...this.crowd.walkers, ...(this.squares?.walkers ?? []), ...(this.workers?.walkers ?? []), ...this.extraWalkers().filter((w) => !w.hidden)];
     const nearIds = new Set<number>();
     if (this.near.length) {
       const order = ws.map((w, i) => ({ i, d: (w.x - focus.x) ** 2 + (w.z - focus.z) ** 2 })).filter((o) => o.d < 45 * 45).sort((a, b) => a.d - b.d);
