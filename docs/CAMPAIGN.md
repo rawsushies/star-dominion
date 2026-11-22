@@ -190,3 +190,53 @@ P is the player's realm (AI-played at standard skill), AI is a rival.
   The player's realm survived every run.
 - **Vassals are now common** (2.3 to 4.5 per campaign at year 100). Wars per century fell to 14–24 because vassals cannot attack their overlords.
 - **Passive rival-years remain high on relaxed** (35 per campaign, 104 on seed 202) and on one standard seed (62). See the diagnosis below.
+
+### Diagnosis and fix for passive rivals
+
+Running the seed-202 relaxed campaign with vassals counted apart showed 67 idle years for independent realms. The idle realms had targets, but their strength ratio against every neighbour was 0.14–0.78, below the 0.8 needed to plan a war. One realm armed for decades at 1.03 without reaching relaxed's threshold of about 1.4. It was a balance-of-power stalemate.
+
+**Restlessness.** A realm that has not gained a system for more than four years grows restless: 0 to 0.6, rising 0.08 a year, and only 40% as much for realms aiming at Ascension. Restlessness raises its appetite for war and lowers the strength margin it demands before fighting. The harness now also counts reaching a new era or building a megastructure stage as activity: a realm racing to Ascension is not passive.
+
+### Final suite (all changes in)
+
+Four seeds (101–404), medium galaxy, 100 years.
+
+| Difficulty | Year | Wars | On the player | Falls | Vassals | Player rank | Top share | Passive | Victories |
+|---|---|---|---|---|---|---|---|---|---|
+| Relaxed | 30 | 8.8 | 0.3 | 1.3 | 2.3 | 2.0 | 32% | 1.3 | none |
+| Relaxed | 60 | 14.3 | 0.8 | 1.5 | 4.3 | 1.8 | 34% | 1.3 | ascension at 49 and 59 (AI) |
+| Relaxed | 100 | 17.3 | 1.3 | 1.5 | 4.3 | 1.8 | 34% | 1.3 | the above, plus ascension at 63 and 67 (P) |
+| Standard | 30 | 8.0 | 0.5 | 1.8 | 2.5 | 1.5 | 33% | 2.3 | none |
+| Standard | 60 | 15.0 | 1.8 | 1.8 | 3.3 | 1.8 | 36% | 2.3 | supremacy at 44 (AI), domination at 48 (P) |
+| Standard | 100 | 21.3 | 2.0 | 1.8 | 5.0 | 1.5 | 43% | 2.3 | the above, plus domination at 76 (P), ascension at 81 (AI) |
+| Hard | 30 | 8.0 | 0.5 | 2.3 | 2.5 | 1.0 | 38% | 0.3 | none |
+| Hard | 60 | 16.5 | 2.5 | 3.0 | 4.5 | 1.3 | 42% | 0.3 | ascension at 55 and 56 (AI), supremacy at 49 (P) |
+| Hard | 100 | 23.3 | 5.3 | 3.0 | 4.8 | 1.8 | 45% | 0.3 | the above, plus ascension at 79 (AI) |
+
+P is the player's realm (AI-played at standard skill), AI is a rival.
+
+- **Passive rival-years fell from 35 to 1.3 on relaxed.** They are 2.3 on standard and 0.3 on hard.
+- **Runaway leaders are checked.** The leader's share of all systems is 34–45%, against 44–56% before; the median realm is not crushed (snowball 1.9–3.1×).
+- **Every campaign ended in a victory, by all three roads.**
+  - Ascension: 8.
+  - Domination: 2.
+  - Supremacy: 2, one by the player's realm and one by an AI realm.
+- **Pressure on the player is a clean gradient.** Wars declared on the player per century: 1.3, 2.0 and 5.3.
+- **The win gradient is weaker.**
+
+  | Difficulty | Player's realm wins | AI wins |
+  |---|---|---|
+  | Relaxed | 2 of 4 | 2 |
+  | Standard | 2 of 4 | 2 |
+  | Hard | 1 of 4 | 3 |
+
+  On relaxed, two AI realms ascended (at years 49 and 59) before the AI-played player's realm. A human using the warnings ("a rival nears Ascension"), coalitions or war could stop them; the stand-in does not.
+
+### Known limits
+
+- **Ascension is now the most common victory** (8 of 12). Every relaxed campaign ended in Ascension, so relaxed outcomes are repetitive.
+  - Its pace is set by the era requirements, not by the AI's aim: halving or restoring the "aim for Ascension" research threshold changed nothing.
+  - Domination is rarer than before because vassals' land does not count and coalitions now also form against realms gathering vassals.
+  - Rebalancing the era requirements is the next lever; it is not done here.
+- **Twelve campaigns on one galaxy size.** Small galaxies were sampled for 60 years (18 runs, earlier in this milestone), and large galaxies were not balance-tested.
+- **The human-like proxy** (`scripts/human-proxy.ts`) uses only the guidance's "Do it for me", stewards and the Prologue. It survived all six 25-year games on all difficulties once "Do it for me" reached the Next step advice, but it reaches only era 1 and Kardashev 0.8–0.96 in 25 years. A beginner who only follows the prompts falls behind the AI, as expected; this is not tuned further.
