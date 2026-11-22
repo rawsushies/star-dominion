@@ -193,6 +193,12 @@ export function victoryAim(e: Empire): VictoryAim {
   return 'domination';
 }
 
+/** 0..0.6: a realm that has stopped growing grows restless and takes closer fights (scholars less so). */
+export function restlessness(state: GameState, e: Empire): number {
+  const stalledYears = (state.tick - (planOf(e).grewTick ?? state.tick)) / 360;
+  return Math.min(0.6, Math.max(0, stalledYears - 4) * 0.08) * (victoryAim(e) === 'ascension' ? 0.4 : 1);
+}
+
 /** The strategic review: pick the realm's goal for the coming months. */
 export function reviewStrategy(state: GameState, e: Empire) {
   const plan = planOf(e);
@@ -231,7 +237,7 @@ export function reviewStrategy(state: GameState, e: Empire) {
     const c = warCandidates(state, e).find((x) => x.id === plan.target);
     const ready = state.tick - plan.since >= 180 && (L.navalUsed >= L.navalCap * 0.85 || (c && c.ratio >= preset.warRatio + 0.4));
     const leadNow = hegemon(state);
-    const needRatio = preset.warRatio + (plan.target === state.playerId ? preset.playerBias : 0) - pers.aggression * 0.3 - (leadNow && leadNow.id === plan.target ? 0.6 * leadNow.fear * preset.coalition : 0);
+    const needRatio = preset.warRatio + (plan.target === state.playerId ? preset.playerBias : 0) - pers.aggression * 0.3 - restlessness(state, e) * 0.6 - (leadNow && leadNow.id === plan.target ? 0.6 * leadNow.fear * preset.coalition : 0);
     if (c && c.ratio >= needRatio && ready && atWarCount(state, e.id, true) < preset.maxWars) {
       startWar(state, e, plan.target);
       return;
@@ -243,12 +249,11 @@ export function reviewStrategy(state: GameState, e: Empire) {
   if (e.kind === 'major' && state.tick > 360 * 4 && e.warExhaustion < 20 && atWarCount(state, e.id, true) < preset.maxWars) {
     const best = warCandidates(state, e)[0];
     // restlessness: a realm that has stopped growing looks outward (scholars find other outlets)
-    const stalledYears = (state.tick - (planOf(e).grewTick ?? state.tick)) / 360;
-    const restless = Math.min(0.6, Math.max(0, stalledYears - 4) * 0.08) * (victoryAim(e) === 'ascension' ? 0.4 : 1);
+    const restless = restlessness(state, e);
     const appetite = pers.aggression * 0.7 + pers.expansion * 0.3 + (freeSystemsNear(state, e) === 0 ? 0.25 : 0) + restless;
     // against a runaway leader the bar is lower: everyone else is a potential ally
     const lead = hegemon(state);
-    const minRatio = (lead && best && lead.id === best.id ? 0.8 - 0.35 * lead.fear * preset.coalition : 0.8) + (best?.id === state.playerId ? preset.playerBias * 0.5 : 0);
+    const minRatio = (lead && best && lead.id === best.id ? 0.8 - 0.35 * lead.fear * preset.coalition : 0.8) + (best?.id === state.playerId ? preset.playerBias * 0.5 : 0) - restless * 0.4;
     if (best && best.score > 2 - appetite * 1.5 && best.ratio > minRatio) {
       const betray = preset.betrayal && pers.diplomacy < 0.4 && pers.aggression > 0.6;
       if (hasTreaty(state, e.id, best.id, 'nap') && !betray) {
