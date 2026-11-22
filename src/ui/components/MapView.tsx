@@ -5,6 +5,7 @@ import { SystemView3D, orbitCam, type SysHit } from '../render/system3d';
 import { PlanetView3D, planetCam } from '../render/planetScene';
 import { getLedger } from '../../sim/engine';
 import { isExplored } from '../../sim/territory';
+import { FrameGate, currentViewQuality } from '../graphics';
 
 let cameraForGame: unknown = null;
 
@@ -65,7 +66,7 @@ export function MapView() {
 
     const size = () => {
       const r = cv.getBoundingClientRect();
-      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      const dpr = Math.min(currentViewQuality().tier === 'desktop' ? 2 : 1.5, window.devicePixelRatio || 1);
       if (cv.width !== Math.round(r.width * dpr) || cv.height !== Math.round(r.height * dpr)) {
         cv.width = Math.round(r.width * dpr);
         cv.height = Math.round(r.height * dpr);
@@ -78,32 +79,41 @@ export function MapView() {
     };
 
     let last = performance.now();
+    // render only as often as needed: full rate while the player handles the map, less when idle
+    const gate = new FrameGate();
+    let seenTick = -1;
+    const unsub = useUI.subscribe((st, prev) => {
+      if (st.view !== prev.view || st.systemId !== prev.systemId || st.planetId !== prev.planetId || st.fleetId !== prev.fleetId || st.mapMode !== prev.mapMode || st.pendingOrder !== prev.pendingOrder) gate.poke(400);
+    });
     const draw = (t: number) => {
       const ui = useUI.getState();
       const g = ui.game;
-      const dt = Math.min(0.1, (t - last) / 1000); last = t;
       // the full-screen capital covers the map: draw nothing underneath it
       if (ui.view === 'capital') { raf = requestAnimationFrame(draw); return; }
+      if (keys.size) gate.poke(200);
+      if (g && g.tick !== seenTick && ui.speed === 0) { seenTick = g.tick; gate.invalidate(); }
+      if (!gate.due(t, ui.speed > 0)) { raf = requestAnimationFrame(draw); return; }
+      const dt = Math.min(0.1, (t - last) / 1000); last = t;
       if (g) {
         const { w, h, dpr } = size();
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         if (ui.view === 'planet' && ui.planetId != null) {
           show('planet');
           if (sys3d) { sys3d.dispose(); sys3d = null; }
-          if (!planet3d) { try { planet3d = new PlanetView3D(sysRef.current!); } catch { planet3d = null; } }
+          if (!planet3d) { try { planet3d = new PlanetView3D(sysRef.current!, currentViewQuality()); } catch { planet3d = null; } }
           ctx.clearRect(0, 0, w, h);
           planet3d?.frame(g, g.planets[ui.planetId], w, h, dpr, t);
           hits = []; marks = [];
         } else if (ui.view === 'system' && ui.systemId != null) {
           show('system');
           if (planet3d) { planet3d.dispose(); planet3d = null; }
-          if (!sys3d) { try { sys3d = new SystemView3D(sysRef.current!); } catch { sys3d = null; } }
+          if (!sys3d) { try { sys3d = new SystemView3D(sysRef.current!, currentViewQuality()); } catch { sys3d = null; } }
           ctx.clearRect(0, 0, w, h);
           hits = sys3d ? sys3d.frame(g, g.galaxy.systems[ui.systemId], w, h, dpr, t, ui.planetId, ui.fleetId, ctx) : [];
           marks = [];
         } else {
           show('galaxy');
-          if (!gal) { try { gal = new GalaxyView3D(glRef.current!); } catch { gal = null; } }
+          if (!gal) { try { gal = new GalaxyView3D(glRef.current!, currentViewQuality()); } catch { gal = null; } }
           // keyboard panning and rotation
           const panSpeed = galaxyCam.dist * 0.9 * dt;
           const fx = -Math.cos(galaxyCam.yaw), fz = -Math.sin(galaxyCam.yaw);
@@ -132,12 +142,14 @@ export function MapView() {
     };
 
     const onDown = (e: MouseEvent) => {
+      gate.poke();
       if (e.button !== 0 && e.button !== 1) return;
       const orbit = e.button === 1 || e.shiftKey || e.altKey || useUI.getState().view !== 'galaxy';
       drag = { x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, moved: false, orbit };
       if (e.button === 1) e.preventDefault();
     };
     const onMove = (e: MouseEvent) => {
+      if (e.target === cv || drag) gate.poke(300);
       const ui = useUI.getState();
       if (drag) {
         const dx = e.clientX - drag.lx, dy = e.clientY - drag.ly;
@@ -192,6 +204,7 @@ export function MapView() {
       ui.selectSystem(sys);
     };
     const onDbl = (e: MouseEvent) => {
+      gate.poke();
       const ui = useUI.getState();
       if (!ui.game) return;
       if (ui.view === 'system' && ui.planetId != null) { ui.set({ view: 'planet' }); return; }
@@ -201,6 +214,7 @@ export function MapView() {
       if (sys != null && isExplored(ui.game.empires[ui.game.playerId], sys)) ui.set({ view: 'system', systemId: sys, planetId: null });
     };
     const onContext = (e: MouseEvent) => {
+      gate.poke();
       e.preventDefault();
       const ui = useUI.getState();
       const g = ui.game;
@@ -215,6 +229,7 @@ export function MapView() {
       if (target != null) ui.cmd({ type: 'moveFleet', fleetId: f.id, target });
     };
     const onWheel = (e: WheelEvent) => {
+      gate.poke();
       e.preventDefault();
       const view = useUI.getState().view;
       if (view === 'system') { orbitCam.dist = Math.max(8, Math.min(160, orbitCam.dist * Math.exp(e.deltaY * 0.0012))); return; }
@@ -234,6 +249,7 @@ export function MapView() {
       }
     };
     const onKey = (e: KeyboardEvent) => {
+      gate.poke();
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
       const k = e.key.toLowerCase();
@@ -248,6 +264,7 @@ export function MapView() {
     window.addEventListener('keydown', onKey);
     window.addEventListener('keyup', onKey);
     return () => {
+      unsub();
       cancelAnimationFrame(raf);
       cv.removeEventListener('mousedown', onDown);
       window.removeEventListener('mousemove', onMove);

@@ -9,6 +9,7 @@ import { loadAsset, instance, normalised } from './assets/loader';
 import { releaseView } from './assets/release';
 import { Human, readyHumans } from './characters/humanKit';
 import { humanSpec, type Archetype } from './characters/archetypes';
+import { FrameGate, currentViewQuality } from '../graphics';
 
 /** Base poses hold; now and then a figure makes a gesture and returns to it. */
 const GESTURES: Partial<Record<Archetype, string[]>> = {
@@ -48,6 +49,9 @@ export class HeroView3D {
   private dragging = false;
   private raf = 0;
   private disposed = false;
+  private visible = true;
+  private unobserve: () => void = () => {};
+  private gate = new FrameGate(() => ({ ...currentViewQuality(), runFps: Math.min(30, currentViewQuality().runFps), idleFps: Math.min(30, currentViewQuality().runFps) }));
   private key = '';
   private mixer: THREE.AnimationMixer | null = null;
   private clock = new THREE.Clock();
@@ -59,18 +63,27 @@ export class HeroView3D {
   private nextGesture = 0;
 
   constructor(private canvas: HTMLCanvasElement) {
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
-    this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    const q = currentViewQuality();
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: q.antialias, alpha: false, powerPreference: 'high-performance' });
+    this.renderer.setPixelRatio(Math.min(q.maxDpr, window.devicePixelRatio || 1));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.enabled = q.shadows;
     this.stage();
     this.scene.add(this.figure);
     let lastX = 0;
-    canvas.addEventListener('pointerdown', (e) => { this.dragging = true; lastX = e.clientX; canvas.setPointerCapture(e.pointerId); });
-    canvas.addEventListener('pointermove', (e) => { if (this.dragging) { this.yaw += (e.clientX - lastX) * 0.01; lastX = e.clientX; } });
+    canvas.addEventListener('pointerdown', (e) => { this.dragging = true; lastX = e.clientX; canvas.setPointerCapture(e.pointerId); this.gate.poke(); });
+    canvas.addEventListener('pointermove', (e) => { if (this.dragging) { this.yaw += (e.clientX - lastX) * 0.01; lastX = e.clientX; this.gate.poke(); } });
     canvas.addEventListener('pointerup', () => { this.dragging = false; });
-    const loop = (t: number) => { if (this.disposed) return; this.frame(t); this.raf = requestAnimationFrame(loop); };
+    // a portrait is scenery: render it gently, and not at all while it is scrolled out of sight
+    const io = typeof IntersectionObserver !== 'undefined' ? new IntersectionObserver((es) => { this.visible = es.some((x) => x.isIntersecting); if (this.visible) this.gate.invalidate(); }) : null;
+    io?.observe(canvas);
+    this.unobserve = () => io?.disconnect();
+    const loop = (t: number) => {
+      if (this.disposed) return;
+      if (this.visible && this.gate.due(t, true)) this.frame(t);
+      this.raf = requestAnimationFrame(loop);
+    };
     this.raf = requestAnimationFrame(loop);
   }
 
@@ -290,6 +303,7 @@ export class HeroView3D {
 
   dispose() {
     this.disposed = true;
+    this.unobserve();
     this.human?.dispose();
     this.human = null;
     cancelAnimationFrame(this.raf);

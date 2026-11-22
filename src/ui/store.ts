@@ -240,7 +240,7 @@ export function startLoop() {
       if (acc > 3) acc = 3; // don't spiral if the machine can't keep up
       if (steps) {
         surfaceEvents(g);
-        if (now - lastBump > 110) { lastBump = now; useUI.setState({ rev: useUI.getState().rev + 1 }); }
+        if (now - lastBump > 180) { lastBump = now; useUI.setState({ rev: useUI.getState().rev + 1 }); }
         if (g.tick - lastAutosave >= 360) {
           lastAutosave = g.tick;
           autosave(g);

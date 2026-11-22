@@ -128,8 +128,10 @@ export class GalaxyView3D {
   private projOk = new Uint8Array(0);
   private vp = new THREE.Matrix4();
 
-  constructor(canvas: HTMLCanvasElement) {
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+  private q: { antialias: boolean; maxDpr: number; stars: number };
+  constructor(canvas: HTMLCanvasElement, q: { antialias: boolean; maxDpr: number; stars: number } = { antialias: true, maxDpr: 2, stars: 1 }) {
+    this.q = q;
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: q.antialias, alpha: false, powerPreference: 'high-performance' });
     this.renderer.setClearColor(0x020305, 1);
   }
 
@@ -155,7 +157,7 @@ export class GalaxyView3D {
 
     // distant background stars
     {
-      const N = 4000, p = new Float32Array(N * 3), c = new Float32Array(N * 3), sz = new Float32Array(N);
+      const N = Math.round(4000 * this.q.stars), p = new Float32Array(N * 3), c = new Float32Array(N * 3), sz = new Float32Array(N);
       const rng = makeRng(77);
       for (let i = 0; i < N; i++) {
         const u = rngf(rng) * 2 - 1, a = rngf(rng) * Math.PI * 2, k = Math.sqrt(1 - u * u), rr = 60000;
@@ -168,7 +170,7 @@ export class GalaxyView3D {
     }
     // visual starfield from the galaxy's own density model (scenery, not simulated)
     {
-      const N = Math.min(140000, Math.max(20000, n * 14));
+      const N = Math.round(Math.min(140000, Math.max(20000, n * 14)) * this.q.stars);
       const p = new Float32Array(N * 3), c = new Float32Array(N * 3), sz = new Float32Array(N);
       const rng = makeRng((g.shape?.seed ?? 1) + 991);
       const shape = { ...galaxyShape(Math.max(n, 30), makeRng(1)), R, barAngle: g.shape?.barAngle ?? 0 };
@@ -362,8 +364,9 @@ export class GalaxyView3D {
     let t0 = performance.now();
     this.buildDynamic(state, !!o.preview);
     renderStats.dynamic = performance.now() - t0;
-    const { w, h, dpr } = o;
-    this.renderer.setPixelRatio(dpr);
+    const { w, h } = o;
+    const dpr = Math.min(o.dpr, this.q.maxDpr);
+    if (this.renderer.getPixelRatio() !== dpr) this.renderer.setPixelRatio(dpr);
     const cv = this.renderer.domElement;
     if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) this.renderer.setSize(w, h, false);
     this.placeCamera(w, h);

@@ -4,6 +4,7 @@
 // work in progress shows scaffolding. Name/level tags and countdowns are
 // HTML elements positioned over the canvas each frame.
 
+import { currentViewQuality } from '../graphics';
 import * as THREE from 'three';
 import { CAPITAL_BY_ID, PLOT_COLS, PLOT_ROWS, type CapitalBuildingDef } from '../../sim/data/capital';
 import { openPlots, plotOccupant } from '../../sim/capital';
@@ -242,10 +243,11 @@ export class CapitalView3D {
   private frames: number[] = [];
 
   constructor(private canvas: HTMLCanvasElement, private overlay: HTMLDivElement, color: string, private onPick: (plot: number | null) => void, opts: { quality?: QualityTier; passes?: PassToggles } = {}) {
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-    this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    const vq = currentViewQuality();
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: opts.quality ? true : vq.antialias });
+    this.renderer.setPixelRatio(Math.min(opts.quality ? 2 : vq.maxDpr, window.devicePixelRatio || 1));
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.type = opts.quality || vq.shadows ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.mats = makeMats(color);
