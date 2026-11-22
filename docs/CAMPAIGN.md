@@ -118,3 +118,27 @@ All fixes are in: decisive wars, lapsing and renounced pacts, vassal risings, co
 - The player's realm is AI-driven. A human will play differently, especially in using the warnings: rivals arming, a domination hold starting.
 - The numbers move between seeds. Read the trends, not the exact values.
 
+
+## After the rival changes (letters, ultimatums, calls to arms, opportunism)
+
+Three seeds (101–303), 60 years, medium galaxy; each difficulty in its own process. "Joins" counts realms that entered an existing war through a call to arms; "letters" counts rival letters to the player's realm.
+
+| Difficulty | Year | Wars | Joins | Letters | On the player | Falls | Player rank | Top share | Passive | Victories |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Relaxed | 30 | 8.7 | 3.3 | 12.7 | 0.0 | 1.7 | 1.0 | 37% | 6.7 | none |
+| Relaxed | 60 | 15.3 | 7.0 | 30.7 | 1.7 | 1.7 | 1.3 | 42% | 19.7 | domination at 38 (the player) |
+| Standard | 30 | 10.3 | 6.0 | 10.0 | 0.3 | 0.3 | 1.3 | 32% | 0.3 | none |
+| Standard | 60 | 21.7 | 10.3 | 38.0 | 1.7 | 0.7 | 1.7 | 46% | 2.0 | domination at 46, ascension at 58 (the player) |
+| Hard | 30 | 7.0 | 8.0 | 13.0 | 0.7 | 0.3 | 2.3 | 34% | 0.0 | none |
+| Hard | 60 | 20.3 | 13.0 | 32.3 | 2.7 | 0.7 | 2.7 | 46% | 3.0 | domination at 36 (the player) |
+
+- **Wars now grow.** Wars draw in more realms: 7 joins per 60 years on relaxed, 10 on standard, 13 on hard. Hard rivals gang up most.
+- **The difficulty gradient holds.**
+  - Wars declared on the player's realm: 1.7, 1.7 and 2.7.
+  - Its rank: 1.3, 1.7 and 2.7.
+- **Rivals talk.** About 30–38 letters reach the player's realm in 60 years, roughly one every two years per rival.
+- **Concerns to watch:**
+  - Passive rival-years on relaxed rose to 19.7, against 3.0 in the four-seed run above.
+  - In this sample every victory by year 60 went to the player's realm. In the 100-year suite above, the AI won 6 of 12.
+
+  Three seeds and 60 years are too few to separate these from seed variance. The full 100-year, four-seed suite takes about 2.5 hours on this machine and was not rerun.
