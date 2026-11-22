@@ -260,6 +260,7 @@ export function execute(state: GameState, empireId: number, cmd: Command): Comma
         if (!routeFleet(state, f, p.systemId)) return fail('No route');
       } else if (o.type === 'patrol') {
         if (o.a === o.b) return fail('Patrol needs two systems');
+        if (!state.galaxy.systems[o.a] || !state.galaxy.systems[o.b]) return fail('No route');
         if (!routeFleet(state, f, o.b)) return fail('No route');
         o.leg = 0;
       } else if (o.type === 'blockade') {
@@ -541,6 +542,7 @@ export function execute(state: GameState, empireId: number, cmd: Command): Comma
       return { ok: true, message: `${amt > 0 ? 'Bought' : 'Sold'} ${Math.abs(amt)} for ${value} credits` };
     }
     case 'propose': {
+      if (cmd.to === empireId) return fail('You cannot negotiate with yourself');
       const to = state.empires[cmd.to];
       if (!to?.alive || to.kind === 'guardian' || to.kind === 'raiders') return fail('They will not negotiate');
       if (!hasContact(state, empireId, cmd.to)) return fail('No contact established');

@@ -9,6 +9,10 @@ npm test           # simulation tests + 30-year soak
 npm run build      # type-check + production build into dist/
 npm run soak       # soak test only, with yearly reports
 npm run soak:seeds -- 12 101 303   # multi-seed invariant check: years, then seeds
+npm run fuzz -- 20 small,medium 1,2,3 25   # bug audit: random player commands (years, sizes, seeds,
+                   #   commands per month) with invariants checked monthly; prints every problem kind
+npm run fuzz:browser -- http://localhost:5181 20 2   # browser monkey audit against a running dev
+                   #   server (clicks per screen, phases); desktop and phone; reports page/console errors
 npm run test:e2e   # Playwright browser tests (starts its own dev server; needs Chromium:
                    #   npx playwright install chromium)
 npm run candidates:fetch    # download CC0 candidate asset packs into dev-assets/ (gitignored)
@@ -32,6 +36,7 @@ The game is a static site and is deployed to **GitHub Pages** at https://rawsush
 - `.github/workflows/deploy.yml` runs on every push to `main`. It type-checks, runs the tests, builds, adds a `404.html` fallback and `.nojekyll`, and publishes `dist/` to the `gh-pages` branch.
 - Pages serves `gh-pages` from the root. If Pages is ever switched off, turn it back on in **Settings → Pages → Build and deployment → Deploy from a branch → `gh-pages` / root**.
 - The build uses relative paths (`base: './'`), so it works under the `/star-dominion/` subpath. The game has no client-side routes, and the 404 fallback still serves the app.
+- A service worker (`public/sw.js`, registered only in production builds) makes the game playable offline after the first visit and keeps models, textures and sounds on the device. Its cache is named after the release version (`sw.js?v=<package.json version>`), so a new release replaces it; bump the version in `package.json` for every release.
 - Saves stay in the browser (IndexedDB), so play needs no server. For Google cloud saves, set the four `VITE_FIREBASE_*` values as repository **variables** (not secrets; they are public web identifiers), then follow the steps below. Never commit `.env.local`.
 
 ## Enabling Google cloud saves (optional)
@@ -95,9 +100,15 @@ These Firebase web keys identify the project and are not secrets. Access is cont
 ## Known limitations and next steps
 
 - **Balance:** AI kingdoms rarely reach Type II within 30 years. Megastructure investment needs tuning.
-- **Bundle size:** the main chunk is about 970 KB minified because of Three.js. Lazy-loading the system view would cut this.
+- **Bundle size:** three.js (~730 KB minified) and React load as their own long-cached files; the game code is ~850 KB; the capital city loads on first visit (and is prefetched in idle time).
 - **Multiplayer:** the simulation and command layer are ready for a server-authoritative host. Lobby, networking and conflict resolution are not built.
-- **Mobile:** the HUD targets desktop. Below 1100 px the dispatches panel hides and windows fill the screen, but play on phones is not a goal.
+- **Mobile:** below 640 px the HUD switches to a phone layout (compact readouts, full-screen windows). It is tested on a phone-sized viewport in Chromium; real devices and Safari are not covered by the automated tests.
+
+## Releasing
+
+1. Bump `version` in `package.json` (shown in game, names the offline cache) and add a section to `CHANGELOG.md`.
+2. Run the full checks: `npx tsc --noEmit -p .`, `npm test`, `npm run build`, `npm run test:e2e`, plus `npm run fuzz` for a longer bug audit.
+3. Merge to `main`: the deploy workflow publishes the build. Tag the merge commit `v<version>` and create a GitHub release with the changelog section.
 
 ## Expansion progress (sovereign expansion)
 

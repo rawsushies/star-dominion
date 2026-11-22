@@ -7,7 +7,7 @@ import { SystemView3D, orbitCam, type SysHit } from '../render/system3d';
 import { PlanetView3D, planetCam } from '../render/planetScene';
 import { getLedger } from '../../sim/engine';
 import { isExplored } from '../../sim/territory';
-import { FrameGate, currentViewQuality } from '../graphics';
+import { FrameGate, ResolutionGovernor, currentViewQuality } from '../graphics';
 
 let cameraForGame: unknown = null;
 
@@ -68,7 +68,7 @@ export function MapView() {
 
     const size = () => {
       const r = cv.getBoundingClientRect();
-      const dpr = Math.min(currentViewQuality().tier === 'desktop' ? 2 : 1.5, window.devicePixelRatio || 1);
+      const dpr = Math.min(currentViewQuality().tier === 'desktop' ? 2 : 1.5, window.devicePixelRatio || 1) * gov.scale;
       if (cv.width !== Math.round(r.width * dpr) || cv.height !== Math.round(r.height * dpr)) {
         cv.width = Math.round(r.width * dpr);
         cv.height = Math.round(r.height * dpr);
@@ -83,6 +83,8 @@ export function MapView() {
     let last = performance.now();
     // render only as often as needed: full rate while the player handles the map, less when idle
     const gate = new FrameGate();
+    const gov = new ResolutionGovernor();
+    (window as unknown as { __sdRes?: ResolutionGovernor }).__sdRes = gov;
     let seenTick = -1;
     const unsub = useUI.subscribe((st, prev) => {
       if (st.view !== prev.view || st.systemId !== prev.systemId || st.planetId !== prev.planetId || st.fleetId !== prev.fleetId || st.mapMode !== prev.mapMode || st.pendingOrder !== prev.pendingOrder) gate.poke(400);
@@ -95,6 +97,7 @@ export function MapView() {
       if (keys.size) gate.poke(200);
       if (g && g.tick !== seenTick && ui.speed === 0) { seenTick = g.tick; gate.invalidate(); }
       if (!gate.due(t, ui.speed > 0)) { raf = requestAnimationFrame(draw); return; }
+      gov.frame(t, gate.active(t));
       const dt = Math.min(0.1, (t - last) / 1000); last = t;
       if (g) {
         const { w, h, dpr } = size();
@@ -258,6 +261,7 @@ export function MapView() {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
       const k = e.key.toLowerCase();
+      if (e.ctrlKey || e.metaKey || e.altKey) { keys.clear(); return; }
       if (['w', 'a', 's', 'd', 'q', 'e'].includes(k)) { if (e.type === 'keydown') keys.add(k); else keys.delete(k); }
     };
     cv.addEventListener('mousedown', onDown);
@@ -268,7 +272,11 @@ export function MapView() {
     cv.addEventListener('wheel', onWheel, { passive: false });
     window.addEventListener('keydown', onKey);
     window.addEventListener('keyup', onKey);
+    // a key released while the window is not focused never sends keyup: forget held keys on blur
+    const onBlur = () => keys.clear();
+    window.addEventListener('blur', onBlur);
     return () => {
+      window.removeEventListener('blur', onBlur);
       unsub();
       cancelAnimationFrame(raf);
       cv.removeEventListener('mousedown', onDown);

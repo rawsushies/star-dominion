@@ -10,6 +10,7 @@ import type { GameState } from '../../sim/types';
 import { listSaves, type SaveMeta } from '../../persistence/idb';
 import { formatDate } from '../../sim/util';
 import { cls } from './common';
+import { APP_VERSION } from '../../version';
 import { beginGuidedReign } from './Guidance';
 import { guidancePrefs } from '../../guidance/state';
 import { AccountPanel } from './Account';
@@ -63,6 +64,7 @@ export function MainMenu() {
       <div className="title-mark">
         <h1>Star<br />Dominion</h1>
         <p>A young crown, one world, and a galaxy that will not wait.</p>
+        <p className="title-version" data-testid="app-version">Version {APP_VERSION}</p>
       </div>
       <form className="setup frame" style={{ padding: '20px 22px', overflowY: 'auto' }} onSubmit={(e) => { e.preventDefault(); start({ ...s, playerName: s.playerName.trim() || 'Aurelian Throne', ...(guided ? { prologue: true } : {}) }); if (guided) beginGuidedReign(); }}>
         <div className="section" style={{ marginTop: 0, marginBottom: 14 }}>
