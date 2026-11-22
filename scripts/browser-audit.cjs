@@ -4,6 +4,10 @@
 //   node scripts/browser-audit.cjs [baseURL=http://localhost:5181] [clicksPerScreen=25] [phases=3]
 const { chromium } = require('playwright');
 
+// a stuck page must not hang the audit: give up after AUDIT_TIMEOUT_MIN minutes
+const LIMIT_MIN = Number(process.env.AUDIT_TIMEOUT_MIN || 30);
+setTimeout(() => { console.log(`\n✗ audit stopped after ${LIMIT_MIN} minutes (last step logged above)`); process.exit(2); }, LIMIT_MIN * 60_000).unref();
+
 const BASE = process.argv[2] || 'http://localhost:5181';
 const CLICKS = Number(process.argv[3] || 25);
 const PHASES = Number(process.argv[4] || 3);
@@ -38,6 +42,7 @@ async function startReign(page) {
         where = `phase${phase}/${s}`;
         await page.evaluate((id) => { if (!window.__sd?.getState().game) throw new Error('not in a reign'); const ui = window.__sd.getState(); ui.set?.({ windows: [] }); ui.openScreen(id); }, s).catch((e) => errors.push(`[${vp.name} ${where}] openScreen threw ${e.message}`));
         await page.waitForTimeout(250);
+        if (process.env.AUDIT_VERBOSE) console.log(`  ${vp.name} ${where}`);
         const txt = await page.evaluate(() => document.body.innerText.length);
         if (txt < 50) blank.push(where);
         // a crashed React tree leaves the error boundary's text behind
