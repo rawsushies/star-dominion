@@ -828,10 +828,11 @@ function callToArms(state: GameState, e: Empire) {
       if (hasTreaty(state, c.id, enemy.id, 'alliance') || hasTreaty(state, c.id, enemy.id, 'defense') || hasTreaty(state, c.id, enemy.id, 'vassal')) continue;
       if (state.truces.some((t) => ((t.a === c.id && t.b === enemy.id) || (t.b === c.id && t.a === enemy.id)) && t.until > state.tick)) continue;
       if (c.id === state.playerId && (prologueActive(state) || enemy.id === state.playerId)) continue;
+      // the enemy of my enemy: a grudge against the foe matters more than love for the ally
       const grudge = opinion(state, c.id, enemy.id) < -10 || planOf(c).target === enemy.id;
-      if (!grudge || opinion(state, c.id, e.id) < 0) continue;
-      w.asked.push(c.id);
+      if (!grudge || opinion(state, c.id, e.id) < opinion(state, c.id, enemy.id) + 15 || warBetween(state, c.id, e.id)) continue;
       if (c.isPlayer) {
+        w.asked.push(c.id);
         const amount = Math.round(100 + e.stats.population * 2);
         if (e.stock.credits < amount) continue;
         state.proposals.push({ id: nextId(state), from: e.id, to: c.id, give: [{ kind: 'credits', amount }], receive: [], tick: state.tick, kind: 'deal', joinWar: w.id });
@@ -840,7 +841,10 @@ function callToArms(state: GameState, e: Empire) {
       } else {
         const theirs = (side === 'attackers' ? w.defenders : w.attackers).reduce((a, id) => a + (estimatePower(state, c.id, id) ?? state.empires[id].stats.militaryPower), 0);
         const ours = (side === 'attackers' ? w.attackers : w.defenders).reduce((a, id) => a + (estimatePower(state, c.id, id) ?? state.empires[id].stats.militaryPower), 0) + (c.stats.militaryPower || 0);
-        if (ours < theirs * 1.1 || c.warExhaustion > 30 || atWar(state, c.id)) continue;
+        // weighed afresh each turn: a realm that waits may join once the odds turn
+        const busy = state.wars.filter((x) => x.attackers.includes(c.id) || x.defenders.includes(c.id)).length;
+        if (ours < theirs || c.warExhaustion > 35 || busy >= aiPreset(state, c).maxWars || planOf(c).goal === 'recover') continue;
+        w.asked.push(c.id);
         joinWar(state, w, c.id, side);
       }
     }
