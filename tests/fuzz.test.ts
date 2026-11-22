@@ -94,3 +94,20 @@ describe('the diplomatic web stays consistent', () => {
     expect(g.proposals.some((p) => p.id === 998)).toBe(false);
   });
 });
+
+describe('colony figures stay in range', () => {
+  it('occupation resistance never climbs past 100, and events never push stability below 0', () => {
+    const g = newGame({ seed: 77, galaxySize: 'small', aiCount: 3 });
+    // the case the bug audit found: an unstable, occupied world with no garrison
+    for (let d = 0; d < 360 * 4; d++) {
+      for (const p of g.planets) if (p.colony && p.id !== g.empires[p.colony.ownerId].capitalPlanetId) {
+        if (d % 30 === 0) { p.colony.resistance = Math.max(p.colony.resistance, 99.5); p.colony.stability = Math.min(p.colony.stability, 3); }
+      }
+      step(g); g.gameOver = null;
+      for (const p of g.planets) if (p.colony) {
+        expect(p.colony.resistance).toBeLessThanOrEqual(100);
+        expect(p.colony.stability).toBeGreaterThanOrEqual(0);
+      }
+    }
+  }, 120_000);
+});

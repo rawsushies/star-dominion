@@ -435,7 +435,7 @@ function colonyMonthly(state: GameState) {
     if (c.resistance > 0) {
       const garrisons = c.buildings.garrison ?? 0;
       const decay = (1.2 + garrisons * 1.5) * (1 + (e.policies.border_security === 'fortified' ? 0.5 : 0));
-      c.resistance = Math.max(0, c.resistance - decay + (c.stability < 25 ? 2 : 0));
+      c.resistance = Math.min(100, Math.max(0, c.resistance - decay + (c.stability < 25 ? 2 : 0)));
     }
     // Rebellion
     if (c.stability < 12 && e.capitalPlanetId !== p.id) c.lowStabilityMonths++;
@@ -529,14 +529,14 @@ function randomEvents(state: GameState) {
       case 2: {
         // epidemics are now the fever chain (sim/chains.ts); a realm with regenerative medicine shrugs off minor ones
         if (e.research.done.includes('bio_medicine')) { ev('info', 'Epidemic contained', `Regenerative medicine halted an outbreak on ${p.name}.`); break; }
-        c.stability -= 5; ev('warn', 'Sickness', `A seasonal sickness keeps the workers of ${p.name} at home (-5 stability).`); break;
+        c.stability = Math.max(0, c.stability - 5); ev('warn', 'Sickness', `A seasonal sickness keeps the workers of ${p.name} at home (-5 stability).`); break;
       }
       case 3: e.timedMods.push({ key: 'stability', value: 6, until: state.tick + 360, label: 'Cultural renaissance' }); ev('good', 'Cultural renaissance', 'A flowering of the arts lifts spirits across the realm (+6 stability for a year).'); break;
       case 4: e.timedMods.push({ key: 'tradeValue', value: 0.25, until: state.tick + 360, label: 'Trade boom' }); ev('good', 'Trade boom', 'Merchant houses report record profits (+25% trade value for a year).'); break;
       case 5: spawnRaiders(state, e); break;
       case 6: e.research.progress += 120; ev('good', 'Scientific breakthrough', 'A serendipitous discovery advances current research (+120).'); break;
-      case 7: c.pops += 2; c.stability -= 4; ev('info', 'Refugee wave', `Refugees from beyond the frontier settle on ${p.name} (+2 pops, -4 stability).`); break;
-      case 8: c.stability -= 12; ev('warn', 'Labour strikes', `Workers on ${p.name} walk out over conditions (-12 stability).`); break;
+      case 7: c.pops += 2; c.stability = Math.max(0, c.stability - 4); ev('info', 'Refugee wave', `Refugees from beyond the frontier settle on ${p.name} (+2 pops, -4 stability).`); break;
+      case 8: c.stability = Math.max(0, c.stability - 12); ev('warn', 'Labour strikes', `Workers on ${p.name} walk out over conditions (-12 stability).`); break;
     }
   }
 }
