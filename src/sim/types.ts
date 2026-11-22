@@ -54,6 +54,8 @@ export interface ConstructionItem {
 
 export interface Colony {
   ownerId: number;
+  /** the player delegated construction here: the steward keeps the queue filled */
+  auto?: boolean;
   pops: number;
   buildings: Partial<Record<BuildingId, number>>;
   queue: ConstructionItem[];
@@ -339,6 +341,8 @@ export interface Empire {
   relicLog?: { tick: number; rarity: 'common' | 'rare' | 'epic' | 'legendary'; kind: 'cache' | 'ship' | 'hero'; title: string; text: string }[];
   /** tick from which the realm has met the domination thresholds (sim/victory.ts) */
   dominationSince?: number | null;
+  /** when the realm last became supreme (every rival fallen or its vassal) */
+  supremacySince?: number | null;
   /** victories this realm has been announced as nearing */
   victoryWarned?: string[];
   stats: EmpireStats; // cached each month for UI/AI
@@ -355,6 +359,8 @@ export interface AIPlan {
   review: number;
   /** most systems held (to notice heavy losses) */
   peakSystems: number;
+  /** when the realm last grew (a new system); a realm that stops growing grows restless */
+  grewTick?: number;
   /** troops the current invasion target needs (set by fleet operations) */
   troopsWanted?: number;
 }
@@ -502,7 +508,7 @@ export interface GameState {
   disruptedRoutes: Record<string, number>; // colony planet id -> tick disrupted (for event dedupe)
   playerId: number;
   /** the Prologue starter quest (src/sim/prologue.ts) */
-  prologue?: { pretenderId: number; stage: number; done: boolean; startBuildings?: number; doneTick?: number };
+  prologue?: { pretenderId: number; crownPlanetId?: number; stage: number; done: boolean; startBuildings?: number; doneTick?: number };
   gameOver: null | { won: boolean; reason: string; kind?: 'domination' | 'supremacy' | 'ascension'; winner?: number };
   /** @deprecated legacy guided first-reign progress; migrated to `guidance` on load */
   tutorial?: { step: number; base: { explored: number; buildings: number; ships: number } } | null;

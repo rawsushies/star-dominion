@@ -149,6 +149,8 @@ test('advisor hints reflect real conditions and lead to the fix; guidance can be
   await page.keyboard.press('Space');
   const hint = page.getByTestId('hint').filter({ hasText: 'The scholars are idle' });
   await expect(hint).toBeVisible();
+  // advice comes with a "Do it for me" that gives the order
+  await expect(hint.getByRole('button', { name: 'Do it for me' })).toBeVisible();
   await hint.getByRole('button', { name: 'Open Research' }).click();
   await expect(page.locator('section.win[aria-label="Research"]')).toBeVisible();
   await page.locator('section.win[aria-label="Research"]').getByRole('button', { name: 'Research', exact: true }).first().click();

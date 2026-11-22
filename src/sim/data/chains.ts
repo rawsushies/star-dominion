@@ -5,6 +5,46 @@
 import type { PetitionDef } from './governance';
 
 export const CHAIN_STAGES: PetitionDef[] = [
+  // ---- exploration anomalies: found by ships charting new systems (sim/chains.ts anomalyOnExplore)
+  { id: 'anomaly_ark', chain: true, from: 'event', title: 'A sleeper ark in deep space', attr: 'stewardship',
+    text: 'Our surveyors found an ancient colony ship adrift, its sleepers still alive in their pods. Reports have reached {planet}.',
+    options: [
+      { label: 'Wake them and settle them on {planet}', cost: { food: 80 }, planet: { pops: 3, stability: -4 } },
+      { label: 'Strip the ark for metal', gain: { alloys: 220 }, allHouses: -2 },
+      { label: 'Leave them to sleep', reputation: 3, next: { def: 'anomaly_ark_wakes', days: 720, chance: 0.5 } },
+    ] },
+  { id: 'anomaly_ark_wakes', chain: true, from: 'event', title: 'The sleepers wake', attr: 'diplomacy',
+    text: 'The ark we left behind has woken. Its people send word to {planet}: they would join the realm, for a price.',
+    options: [
+      { label: 'Welcome them', cost: { credits: 150 }, planet: { pops: 4 } },
+      { label: 'Turn them away', reputation: -4 },
+    ] },
+  { id: 'anomaly_signal', chain: true, from: 'event', title: 'A signal from the dark', attr: 'science',
+    text: 'A survey ship recorded a repeating signal near a strange star. It is not natural. The archscholars at {planet} want to know more.',
+    options: [
+      { label: 'Fund a study of the signal', cost: { credits: 180 }, next: { def: 'anomaly_signal_decoded', days: 240, chance: 0.6, else: 'anomaly_signal_hunters' } },
+      { label: 'Broadcast an answer', gain: { influence: 25 }, next: { def: 'anomaly_signal_hunters', days: 180, chance: 0.4 } },
+      { label: 'Log it and move on' },
+    ] },
+  { id: 'anomaly_signal_decoded', chain: true, from: 'event', title: 'The signal decoded', attr: 'science',
+    text: 'The signal was a library: mathematics, then physics, then something we do not yet understand.',
+    options: [
+      { label: 'Study it for years', research: 400, timed: { days: 1800, mods: { 'output.research': 0.06 }, label: 'The decoded signal' } },
+      { label: 'Trade copies to other courts', gain: { credits: 400 }, reputation: 6 },
+    ] },
+  { id: 'anomaly_signal_hunters', chain: true, from: 'event', title: 'Something answered', attr: 'command',
+    text: 'Raider bands tracked the signal and our answer to our border. Their ships gather near {planet}.',
+    options: [
+      { label: 'Raise the alarm and arm the border', cost: { alloys: 80 }, timed: { days: 360, mods: { shipDamage: 0.05 }, label: 'Border alert' } },
+      { label: 'Let them come', raiders: 1 },
+    ] },
+  { id: 'anomaly_ghosts', chain: true, from: 'event', title: 'A ghost fleet', attr: 'command',
+    text: 'Our surveyors found a fleet of warships drifting powerless, their crews long gone. The hulls are sound.',
+    options: [
+      { label: 'Recommission them', cost: { alloys: 120, credits: 80 }, fleet: ['frigate', 'frigate', 'corvette'] },
+      { label: 'Scrap them for metal', gain: { alloys: 260 } },
+      { label: 'Honour the dead and leave them', allHouses: 3, reputation: 2 },
+    ] },
   // ---- the precursor vault: what a realm does with an ancient find
   { id: 'precursor_signal', chain: true, from: 'event', title: 'A sealed precursor structure', attr: 'science',
     text: 'Surveyors on {planet} have found a sealed structure older than any known realm. Something inside still draws power.',

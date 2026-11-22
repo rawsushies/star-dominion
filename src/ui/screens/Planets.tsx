@@ -70,7 +70,7 @@ function PlanetDetail({ p }: { p: Planet }) {
   buildings.sort((a, b) => order(a[0]) - order(b[0]));
   return (
     <div style={{ minWidth: 0 }}>
-      <div className="row" style={{ gap: 18, alignItems: 'center' }}>
+      <div className="row planet-head" style={{ gap: 18, alignItems: 'center' }}>
         <PlanetThumb planet={p} size={150} />
         <div className="grow">
           <h1 className="serif" style={{ fontSize: 36, margin: 0, fontWeight: 600, lineHeight: 1 }}>{p.name}</h1>
@@ -101,6 +101,10 @@ function PlanetDetail({ p }: { p: Planet }) {
       <div className="cols side-r" style={{ marginTop: 16 }}>
         <div style={{ minWidth: 0 }}>
           <Section guide="planet-build" title="Districts and buildings" aside={`${rep.buildingsUsed}/${rep.buildingSlots} building slots · more slots every 5 pops`}>
+            <label className="row setting" style={{ marginBottom: 8 }} data-testid="auto-build">
+              <input type="checkbox" checked={!!c.auto} onChange={(ev) => ui.cmd({ type: 'setAutoBuild', planetId: p.id, on: ev.target.checked })} />
+              <span><b>Let the steward build here</b><span className="hint" style={{ display: 'block' }}>Each month the steward queues what this world needs most (following its province role), keeping a small reserve. You can still build yourself.{p.id !== me.capitalPlanetId && <> <button className="linkish" onClick={(ev) => { ev.preventDefault(); ui.cmd({ type: 'setAutoBuild', planetId: 'all', on: true }); }}>Hand every colony to stewards</button></>}</span></span>
+            </label>
             <div className="row wrap" style={{ marginBottom: 8, gap: 6 }}>
               {(['residential', 'agri', 'mining', 'power'] as const).map((d) => {
                 const have = (c.buildings[d] ?? 0) + c.queue.filter((q) => q.id === d && !q.demolish).length;

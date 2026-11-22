@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { AIM_TEXT, victoryAim } from '../../sim/strategy';
 import { Term } from '../components/Guidance';
 import { HeroView3D } from '../render/hero3d';
 import type { Character } from '../../sim/types';
@@ -58,8 +59,10 @@ function ProposalRow({ p }: { p: Proposal }) {
   const from = g.empires[p.from];
   const describe = (items: DealItem[]) => items.map((it) => it.kind === 'credits' ? `${it.amount} credits` : it.kind === 'resource' ? `${it.amount} ${it.res}` : it.kind === 'system' ? `the ${g.galaxy.systems[it.systemId].name} system` : TREATY_LABEL[it.treaty]).join(', ');
   let text = '';
+  const fealty = p.receive.some((x) => x.kind === 'treaty' && x.treaty === 'vassal');
   if (p.kind === 'peace') text = `proposes peace: ${PEACE_LABEL[p.peaceTerm ?? 'status_quo']}${p.peaceTerm && p.peaceTerm !== 'status_quo' ? ' (in their favour)' : ''}.`;
   else if (p.joinWar != null) { const w = g.wars.find((x) => x.id === p.joinWar); const foe = w ? g.empires[w.attackers.includes(p.from) ? w.defenders[0] : w.attackers[0]] : null; text = `offers ${describe(p.give)} if you join their war against the ${foe?.name ?? 'enemy'}. Accepting puts you at war with them.`; }
+  else if (p.demand && fealty) text = 'demands that you become their vassal. They would protect you and call you to their wars, and your realm could no longer win alone. Refusing will anger them, and they will start arming against you.';
   else if (p.demand) text = `demands ${describe(p.receive)}. Refusing will anger them, and they will start arming against you.`;
   else if (p.give.length && !p.receive.length) text = `offers ${describe(p.give)}.`;
   else if (!p.give.length && p.receive.length) text = `demands ${describe(p.receive)}.`;
@@ -68,7 +71,7 @@ function ProposalRow({ p }: { p: Proposal }) {
     <div className="row" style={{ padding: '6px 0', borderBottom: '1px solid rgba(34,50,74,0.6)' }}>
       <Swatch color={from.color} />
       <span className="grow"><b style={{ fontWeight: 500 }}>{from.name}</b> {text} <span className="faint">({formatDate(p.tick)})</span></span>
-      <button className="btn small primary" onClick={() => ui.cmd({ type: 'respondProposal', id: p.id, accept: true })}>{p.demand ? 'Pay' : p.joinWar != null ? 'Join the war' : 'Accept'}</button>
+      <button className="btn small primary" onClick={() => ui.cmd({ type: 'respondProposal', id: p.id, accept: true })}>{p.demand ? (fealty ? 'Swear fealty' : 'Pay') : p.joinWar != null ? 'Join the war' : 'Accept'}</button>
       <button className="btn small" onClick={() => {
         ui.cmd({ type: 'respondProposal', id: p.id, accept: false });
       }}>{p.demand ? 'Refuse' : 'Decline'}</button>
@@ -127,6 +130,7 @@ function EmpirePanel({ id }: { id: number }) {
           <h1 className="serif" style={{ margin: 0, fontSize: 32, fontWeight: 600, lineHeight: 1 }}>{e.name}</h1>
           <div className="subtitle">{e.ruler ? `${e.ruler} · ` : ''}{GOVERNMENTS[e.government].label}{bordering(g, id, g.playerId) ? ' · shares a border with you' : ''}</div>
           {lore && <div className="hint" style={{ marginTop: 4 }}>{lore}</div>}
+          {e.kind === 'major' && <div className="hint" style={{ marginTop: 4 }} data-testid="rival-aim"><b>Ambition:</b> {AIM_TEXT[victoryAim(e)]}</div>}
         </div>
         <div style={{ textAlign: 'right' }}>
           <div className={cls('num', op >= 20 ? 'pos' : op <= -20 ? 'neg' : '')} style={{ fontSize: 30, lineHeight: 1 }}>{signed(op, 0)}</div>
@@ -152,14 +156,14 @@ function EmpirePanel({ id }: { id: number }) {
                 <div key={t} className="row between" style={{ padding: '4px 0', borderBottom: '1px solid rgba(34,50,74,0.5)' }}>
                   <span><Term entry="mech.treaties">{TREATY_LABEL[t]}</Term></span>
                   {has ? <button className="btn small danger" onClick={() => { if (confirm(`End the ${TREATY_LABEL[t]}? Breaking pacts damages your reputation.`)) ui.cmd({ type: 'breakTreaty', target: id, treaty: t }); }}>Dissolve</button>
-                    : <span className="row" style={{ gap: 8 }}>{ev && <span className={cls('hint', ev.accept ? 'pos' : 'neg')}>{ev.accept ? 'Likely' : 'Unlikely'}</span>}<button className="btn small" disabled={!!war} onClick={() => send([{ kind: 'treaty', treaty: t }], [])}>Propose</button></span>}
+                    : <span className="row" style={{ gap: 8 }}>{ev && <Odds ev={ev} />}<button className="btn small" disabled={!!war} onClick={() => send([{ kind: 'treaty', treaty: t }], [])}>Propose</button></span>}
                 </div>
               );
             })}
             {e.kind !== 'major' || true ? (
               <div className="row between" style={{ padding: '4px 0' }}>
-                <span>Demand vassalage</span>
-                <button className="btn small" disabled={!!war || !!vassalOf} onClick={() => send([], [{ kind: 'treaty', treaty: 'vassal' }])}>Demand</button>
+                <span><Term entry="mech.treaties">Demand vassalage</Term></span>
+                <span className="row" style={{ gap: 8 }}>{!war && !vassalOf && <Odds ev={preview([], [{ kind: 'treaty', treaty: 'vassal' }])} />}<button className="btn small" disabled={!!war || !!vassalOf} onClick={() => send([], [{ kind: 'treaty', treaty: 'vassal' }])}>Demand</button></span>
               </div>
             ) : null}
             {vassalOf && vassalOf.b === g.playerId && <button className="btn small danger" style={{ marginTop: 6 }} onClick={() => ui.cmd({ type: 'breakTreaty', target: id, treaty: 'vassal' })}>Declare independence (war)</button>}
@@ -260,4 +264,11 @@ function ContractRow({ label, v, set }: { label: string; v: Partial<Record<ResId
       {void fmt}
     </div>
   );
+}
+
+/** Whether a proposal would be accepted, and the main reason why not (all reasons on hover). */
+function Odds({ ev }: { ev: { accept: boolean; reasons: [string, number][] } }) {
+  const worst = ev.reasons.filter(([, v]) => v < 0).sort((a, b) => a[1] - b[1])[0];
+  const all = ev.reasons.map(([k, v]) => `${k}: ${v > 0 ? '+' : ''}${v}`).join('\n');
+  return <span className={cls('hint', ev.accept ? 'pos' : 'neg')} title={all}>{ev.accept ? 'Likely' : worst ? `Unlikely: ${worst[0].toLowerCase()}` : 'Unlikely'}</span>;
 }

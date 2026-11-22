@@ -81,7 +81,8 @@ export type Command =
   | { type: 'proposePeace'; warId: number; term: PeaceTerm }
   | { type: 'breakTreaty'; target: number; treaty: TreatyType }
   | { type: 'startMegastructure'; systemId: number; mega: string }
-  | { type: 'drawRelic'; count: number };
+  | { type: 'drawRelic'; count: number }
+  | { type: 'setAutoBuild'; planetId: number | 'all'; on: boolean };
 
 export interface CommandResult { ok: boolean; message?: string; evaluation?: Evaluation }
 
@@ -575,6 +576,12 @@ export function execute(state: GameState, empireId: number, cmd: Command): Comma
       }
       return { ok: ev.accept, message: ev.accept ? 'Contract signed' : 'Contract declined', evaluation: ev };
     }
+    case 'setAutoBuild': {
+      const targets = cmd.planetId === 'all' ? state.planets.filter((p) => p.colony?.ownerId === empireId && p.id !== e.capitalPlanetId) : [state.planets[cmd.planetId]];
+      if (!targets.length || targets.some((p) => p?.colony?.ownerId !== empireId)) return fail('Not your colony');
+      for (const p of targets) p.colony!.auto = cmd.on;
+      return OK;
+    }
     case 'drawRelic': {
       const n = Math.max(1, Math.min(10, Math.floor(cmd.count)));
       if ((e.relics ?? 0) < n) return fail(`Needs ${n} relic${n > 1 ? 's' : ''}`);
@@ -657,7 +664,7 @@ export function execute(state: GameState, empireId: number, cmd: Command): Comma
       const sys = state.galaxy.systems[cmd.systemId];
       if (!def || !sys) return fail('Invalid project');
       if (sys.owner !== empireId) return fail('System not owned');
-      if (!hasTech(e, def.tech)) return fail('Requires research');
+      if (!hasTech(e, def.tech)) return fail(`Requires research: ${TECH_BY_ID[def.tech!]?.name ?? def.tech}`);
       if (def.starReq && !def.starReq.includes(sys.star)) return fail('Unsuitable star');
       if (sys.megastructures.length >= 2) return fail('System can host at most two megastructures');
       if (sys.megastructures.some((m) => m.id === def.id)) return fail('Already present in this system');

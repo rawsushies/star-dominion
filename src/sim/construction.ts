@@ -3,6 +3,7 @@
 // costs (paid when work starts) and real build times.
 
 import { BUILDINGS } from './data/buildings';
+import { TECH_BY_ID } from './data/techs';
 import { industrialistBonus } from './characters';
 import { SHIPS } from './data/ships';
 import { STARBASE } from './data/ships';
@@ -46,7 +47,7 @@ export function canBuild(state: GameState, e: Empire, p: Planet, id: BuildingId)
   const d = BUILDINGS[id];
   if (!c || c.ownerId !== e.id) return { ok: false, reason: 'Not your colony' };
   if (d.buildable === false) return { ok: false, reason: 'Cannot be constructed' };
-  if (!hasTech(e, d.tech)) return { ok: false, reason: 'Requires research' };
+  if (!hasTech(e, d.tech)) return { ok: false, reason: `Requires research: ${TECH_BY_ID[d.tech!]?.name ?? d.tech}` };
   if (d.needs && !(c.buildings[d.needs] ?? 0)) return { ok: false, reason: `Requires ${BUILDINGS[d.needs].label}` };
   if (d.deposit === 'rare' && p.deposits.rare <= 0) return { ok: false, reason: 'No rare element deposit' };
   const have = count(c, id);
@@ -65,7 +66,7 @@ export function canBuildShip(state: GameState, e: Empire, p: Planet, cls: ShipCl
   const c = p.colony;
   if (!c || c.ownerId !== e.id) return { ok: false, reason: 'Not your colony' };
   if (!(c.buildings.shipyard ?? 0)) return { ok: false, reason: 'Requires an Orbital Shipyard' };
-  if (!hasTech(e, SHIPS[cls].tech)) return { ok: false, reason: 'Requires research' };
+  if (!hasTech(e, SHIPS[cls].tech)) return { ok: false, reason: `Requires research: ${TECH_BY_ID[SHIPS[cls].tech!]?.name ?? SHIPS[cls].tech}` };
   if (c.shipQueue.length >= 8) return { ok: false, reason: 'Shipyard queue full (8)' };
   return { ok: true };
 }

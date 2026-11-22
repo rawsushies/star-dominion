@@ -124,9 +124,11 @@ describe('economy', () => {
     const p = capital(s);
     p.colony!.buildings.agri = 0;
     e.stock.food = 5;
-    const pops = p.colony!.pops;
+    // against the same game with food: random events (refugees, ...) can add people to either
+    const fed = newGame({ seed: 4 });
     runDays(s, 90);
-    expect(p.colony!.pops).toBeLessThan(pops);
+    runDays(fed, 90);
+    expect(p.colony!.pops).toBeLessThan(capital(fed).colony!.pops - 1);
     expect(s.events.some((ev) => ev.kind === 'shortage')).toBe(true);
   });
 });

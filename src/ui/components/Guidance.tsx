@@ -249,6 +249,7 @@ function HintCard() {
   const prefs = usePrefs();
   const [open, setOpen] = useState(false);
   const [fold, setFold] = useState(false);
+  const [done, setDone] = useState<{ id: string; text: string } | null>(null);
   const [, setWake] = useState(0);
   // recompute at most every 1.5 s of real time, or when the day changes after a pause
   const now = performance.now();
@@ -296,7 +297,9 @@ function HintCard() {
         <div key={h.id} className={cls('hint-row', h.severity)} data-testid="hint">
           <div className="hint-t">{h.title}</div>
           <div className="hint-x">{h.text}</div>
+          {done?.id === h.id && <div className="hint lesson-note" role="status">{done.text}</div>}
           <div className="row" style={{ gap: 6, marginTop: 6 }}>
+            {h.doIt && <button className="btn small primary" onClick={() => { let why = ''; for (const c of h.doIt!) { const r = ui.cmd(c); if (!r.ok) why ||= r.message ?? ''; } setDone({ id: h.id, text: why ? `Not done: ${why}.` : 'Done.' }); hintCache.rev = -1; ui.bump(); }}>Do it for me</button>}
             {h.action && <button className="btn small" onClick={() => act(h)}>{h.action.label}</button>}
             <button className="btn small" onClick={() => dismiss(h)} title="Hide this advice for six months">Dismiss</button>
           </div>

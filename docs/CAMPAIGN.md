@@ -142,3 +142,101 @@ Three seeds (101–303), 60 years, medium galaxy; each difficulty in its own pro
   - In this sample every victory by year 60 went to the player's realm. In the 100-year suite above, the AI won 6 of 12.
 
   Three seeds and 60 years are too few to separate these from seed variance. The full 100-year, four-seed suite takes about 2.5 hours on this machine and was not rerun.
+
+## Milestone: Supremacy road, rival ambitions, difficulty bias (2026-11-22)
+
+Changes measured here:
+- **Fealty.** Weaker realms can swear fealty, and strong realms demand it.
+- **Vassalage terms.** Winners vassalise more readily.
+- **Loyal vassals.** Content vassals stay loyal.
+- **Supremacy hold.** Supremacy must be held for 12 months, and a realm gathering vassals now alarms the galaxy.
+- **Ambitions.** Each rival pursues the victory its temperament inclines it to.
+- **Player bias by difficulty.** Rivals need an extra strength ratio before attacking the player: +0.6 on relaxed, 0 on standard, −0.2 on hard. Relaxed's general war ratio fell from 2.0 to 1.6, so relaxed rivals fight each other more while sparing the player.
+
+### Setup
+
+Four seeds (101–404), medium galaxy, 100 years, with snapshots at 30, 60 and 100.
+
+| Difficulty | Year | Wars | On the player | Falls | Vassals | Player rank | Top share | Passive | Victories |
+|---|---|---|---|---|---|---|---|---|---|
+| Relaxed | 30 | 8.5 | 0.3 | 1.3 | 2.3 | 2.0 | 32% | 4.3 | none |
+| Relaxed | 60 | 14.5 | 0.5 | 1.8 | 3.5 | 2.0 | 42% | 34.0 | domination at 54 (P) |
+| Relaxed | 100 | 18.3 | 0.8 | 1.8 | 4.5 | 2.0 | 44% | 35.3 | ascension at 61 and 79 (P) and 62 (AI), domination at 54 (P) |
+| Standard | 30 | 9.0 | 0.5 | 1.8 | 3.0 | 1.5 | 36% | 2.3 | none |
+| Standard | 60 | 13.3 | 1.3 | 2.3 | 3.5 | 1.8 | 47% | 13.3 | domination at 40 (AI), supremacy at 45 (AI) |
+| Standard | 100 | 14.3 | 1.5 | 2.3 | 3.8 | 1.8 | 47% | 15.8 | the above, plus ascension at 65 (P, twice) |
+| Hard | 30 | 8.3 | 0.5 | 2.3 | 2.3 | 1.0 | 38% | 0.8 | none |
+| Hard | 60 | 18.8 | 4.3 | 3.0 | 2.8 | 1.8 | 43% | 1.0 | domination at 51 (P), ascension at 56 (AI), supremacy at 58 (AI) |
+| Hard | 100 | 24.0 | 5.0 | 3.0 | 2.8 | 1.8 | 46% | 1.0 | the above, plus ascension at 70 (AI) |
+
+P is the player's realm (AI-played at standard skill), AI is a rival.
+
+### What the numbers say
+
+- **Every campaign ended in a victory, by all three roads.**
+  - Ascension: 7.
+  - Domination: 3.
+  - Supremacy: 2, both by AI realms.
+
+  In the previous 12-campaign suite, Supremacy was never achieved. In a 60-year sample on medium and small galaxies (18 runs), it was achieved 5 times: 3 by the player's realm and 2 by AI realms.
+- **The difficulty gradient is clean.**
+
+  | Difficulty | Player's realm wins | AI wins | Wars declared on the player per century |
+  |---|---|---|---|
+  | Relaxed | 3 of 4 | 1 | 0.8 |
+  | Standard | 2 of 4 | 2 | 1.5 |
+  | Hard | 1 of 4 | 3 | 5.0 |
+
+  The player's realm survived every run.
+- **Vassals are now common** (2.3 to 4.5 per campaign at year 100). Wars per century fell to 14–24 because vassals cannot attack their overlords.
+- **Passive rival-years remain high on relaxed** (35 per campaign, 104 on seed 202) and on one standard seed (62). See the diagnosis below.
+
+### Diagnosis and fix for passive rivals
+
+Running the seed-202 relaxed campaign with vassals counted apart showed 67 idle years for independent realms. The idle realms had targets, but their strength ratio against every neighbour was 0.14–0.78, below the 0.8 needed to plan a war. One realm armed for decades at 1.03 without reaching relaxed's threshold of about 1.4. It was a balance-of-power stalemate.
+
+**Restlessness.** A realm that has not gained a system for more than four years grows restless: 0 to 0.6, rising 0.08 a year, and only 40% as much for realms aiming at Ascension. Restlessness raises its appetite for war and lowers the strength margin it demands before fighting. The harness now also counts reaching a new era or building a megastructure stage as activity: a realm racing to Ascension is not passive.
+
+### Final suite (all changes in)
+
+Four seeds (101–404), medium galaxy, 100 years.
+
+| Difficulty | Year | Wars | On the player | Falls | Vassals | Player rank | Top share | Passive | Victories |
+|---|---|---|---|---|---|---|---|---|---|
+| Relaxed | 30 | 8.8 | 0.3 | 1.3 | 2.3 | 2.0 | 32% | 1.3 | none |
+| Relaxed | 60 | 14.3 | 0.8 | 1.5 | 4.3 | 1.8 | 34% | 1.3 | ascension at 49 and 59 (AI) |
+| Relaxed | 100 | 17.3 | 1.3 | 1.5 | 4.3 | 1.8 | 34% | 1.3 | the above, plus ascension at 63 and 67 (P) |
+| Standard | 30 | 8.0 | 0.5 | 1.8 | 2.5 | 1.5 | 33% | 2.3 | none |
+| Standard | 60 | 15.0 | 1.8 | 1.8 | 3.3 | 1.8 | 36% | 2.3 | supremacy at 44 (AI), domination at 48 (P) |
+| Standard | 100 | 21.3 | 2.0 | 1.8 | 5.0 | 1.5 | 43% | 2.3 | the above, plus domination at 76 (P), ascension at 81 (AI) |
+| Hard | 30 | 8.0 | 0.5 | 2.3 | 2.5 | 1.0 | 38% | 0.3 | none |
+| Hard | 60 | 16.5 | 2.5 | 3.0 | 4.5 | 1.3 | 42% | 0.3 | ascension at 55 and 56 (AI), supremacy at 49 (P) |
+| Hard | 100 | 23.3 | 5.3 | 3.0 | 4.8 | 1.8 | 45% | 0.3 | the above, plus ascension at 79 (AI) |
+
+P is the player's realm (AI-played at standard skill), AI is a rival.
+
+- **Passive rival-years fell from 35 to 1.3 on relaxed.** They are 2.3 on standard and 0.3 on hard.
+- **Runaway leaders are checked.** The leader's share of all systems is 34–45%, against 44–56% before; the median realm is not crushed (snowball 1.9–3.1×).
+- **Every campaign ended in a victory, by all three roads.**
+  - Ascension: 8.
+  - Domination: 2.
+  - Supremacy: 2, one by the player's realm and one by an AI realm.
+- **Pressure on the player is a clean gradient.** Wars declared on the player per century: 1.3, 2.0 and 5.3.
+- **The win gradient is weaker.**
+
+  | Difficulty | Player's realm wins | AI wins |
+  |---|---|---|
+  | Relaxed | 2 of 4 | 2 |
+  | Standard | 2 of 4 | 2 |
+  | Hard | 1 of 4 | 3 |
+
+  On relaxed, two AI realms ascended (at years 49 and 59) before the AI-played player's realm. A human using the warnings ("a rival nears Ascension"), coalitions or war could stop them; the stand-in does not.
+
+### Known limits
+
+- **Ascension is now the most common victory** (8 of 12). Every relaxed campaign ended in Ascension, so relaxed outcomes are repetitive.
+  - Its pace is set by the era requirements, not by the AI's aim: halving or restoring the "aim for Ascension" research threshold changed nothing.
+  - Domination is rarer than before because vassals' land does not count and coalitions now also form against realms gathering vassals.
+  - Rebalancing the era requirements is the next lever; it is not done here.
+- **Twelve campaigns on one galaxy size.** Small galaxies were sampled for 60 years (18 runs, earlier in this milestone), and large galaxies were not balance-tested.
+- **The human-like proxy** (`scripts/human-proxy.ts`) uses only the guidance's "Do it for me", stewards and the Prologue. It survived all six 25-year games on all difficulties once "Do it for me" reached the Next step advice, but it reaches only era 1 and Kardashev 0.8–0.96 in 25 years. A beginner who only follows the prompts falls behind the AI, as expected; this is not tuned further.

@@ -27,7 +27,7 @@ import { opsOf, OP_MAX_LEVEL } from './operations';
 import { canQueueCapital, openPlots, plotOccupant, capitalCost, plannedLevel } from './capital';
 import { CAPITAL_BUILDINGS } from './data/capital';
 import { next, chance } from './rng';
-import type { BuildingId, Empire, Fleet, GameState, PeaceTerm, Planet, ShipClass, TreatyType , OpMode } from './types';
+import type { BuildingId, DealItem, Empire, Fleet, GameState, PeaceTerm, Planet, ShipClass, TreatyType , OpMode } from './types';
 import type { TechCategory } from './data/techs';
 import type { DesignationId } from './data/designations';
 import { rulerAge, heirOf, HEIR_COST } from './succession';
@@ -36,7 +36,7 @@ import { isAtWarWith } from './economy';
 import type { CovertKind } from './types';
 import { MEGA_BY_ID } from './data/megastructures';
 import { megaInstalment } from './construction';
-import { aiPreset, coalitionWanted, estimatePower, militaryFill, planOf, reviewStrategy } from './strategy';
+import { aiPreset, coalitionWanted, estimatePower, militaryFill, planOf, reviewStrategy, victoryAim } from './strategy';
 import { hegemon } from './victory';
 import { orbitSecured } from './fleets';
 
@@ -122,28 +122,40 @@ function economy(state: GameState, e: Empire) {
   const colonies = state.planets.filter((p) => p.colony?.ownerId === e.id);
   const shipyards = colonies.filter((p) => (p.colony!.buildings.shipyard ?? 0) > 0).length;
   const reserve = aiPreset(state, e).tightReserves ? { minerals: 30, credits: 20 } : { minerals: 60, credits: 40 };
-  for (const p of colonies) {
+  for (const p of colonies) buildOnPlanet(state, e, p, L, shipyards, colonies.length, reserve);
+  economyRest(state, e);
+}
+
+/** One planet's next building, chosen as the AI would (also used for the player's delegated worlds). */
+export function buildOnPlanet(state: GameState, e: Empire, p: Planet, L = getLedger(state, e), shipyards?: number, colonyCount?: number, reserve: Record<string, number> = { minerals: 60, credits: 40 }) {
+  {
     const c = p.colony!;
-    if (c.queue.length >= 2) continue;
+    if (c.queue.length >= 2) return;
     const rep = L.planets[p.id];
-    if (!rep) continue;
+    if (!rep) return;
+    const colonies = state.planets.filter((x) => x.colony?.ownerId === e.id);
+    shipyards ??= colonies.filter((x) => (x.colony!.buildings.shipyard ?? 0) > 0).length;
+    colonyCount ??= colonies.length;
     let best: BuildingId | null = null;
     let bestScore = 3;
     const options: [BuildingId, number][] = [];
     for (const b of BUILDABLE) {
       if (!canBuild(state, e, p, b).ok) continue;
-      const s = scoreBuilding(state, e, p, b, L, rep, shipyards, colonies.length);
+      const s = scoreBuilding(state, e, p, b, L, rep, shipyards, colonyCount);
       if (s > 3) options.push([b, s]);
       if (s > bestScore) { bestScore = s; best = b; }
     }
     // a less able court settles for an adequate choice now and then
-    if (options.length > 1 && chance(state.rng, aiPreset(state, e).sloppiness)) best = options[Math.floor(next(state.rng) * options.length)][0];
-    if (!best) continue;
+    if (!e.isPlayer && options.length > 1 && chance(state.rng, aiPreset(state, e).sloppiness)) best = options[Math.floor(next(state.rng) * options.length)][0];
+    if (!best) return;
     const cost = buildingCost(state, e, best);
-    const afford = Object.entries(cost).every(([k, v]) => e.stock[k as keyof typeof e.stock] >= (v as number) + ((reserve as any)[k] ?? 0));
-    if (!afford) continue;
+    const afford = Object.entries(cost).every(([k, v]) => e.stock[k as keyof typeof e.stock] >= (v as number) + (reserve[k] ?? 0));
+    if (!afford) return;
     execute(state, e.id, { type: 'queueBuilding', planetId: p.id, building: best });
   }
+}
+
+function economyRest(state: GameState, e: Empire) {
   // Orbital extractors on owned uncolonised bodies
   const Lops = getLedger(state, e);
   // found an operation as soon as one is affordable with a small reserve: waiting for a large
@@ -294,7 +306,8 @@ function policies(state: GameState, e: Empire) {
   if (e.personality.science > 0.7 && e.stock.credits > 600) want('research_priority', 'prioritized');
 }
 
-function market(state: GameState, e: Empire) {
+/** Trade like the AI's treasury: sell what overflows, buy shortages, invest a hoarded treasury (used by the player's stewards too). */
+export function market(state: GameState, e: Empire) {
   const L = getLedger(state, e);
   for (const r of ['minerals', 'energy', 'food', 'alloys', 'electronics', 'rare'] as const) {
     if (e.stock[r] > L.cap[r] * 0.85) execute(state, e.id, { type: 'market', res: r, amount: -Math.round(e.stock[r] * 0.2) });
@@ -731,7 +744,7 @@ function diplomacy(state: GameState, e: Empire) {
     // a winning side presses on while it still has worlds to take and the people will bear it
     const pressOn = myScore > 0 && myScore < 85 && e.warExhaustion < 55 && years < 8 && !losing && canStillTake(state, e, foes);
     if (pressOn) term = null;
-    else if (myScore > 70 && years > 1) term = otherMajor && myScore > 80 && (state.empires[other].stats.militaryPower || 1) * 4 < (e.stats.militaryPower || 1) && state.empires[other].stats.systems * 3 <= e.stats.systems ? 'vassalize' : otherMajor ? 'cede' : 'vassalize';
+    else if (myScore > 70 && years > 1) { const ratio = (e.stats.militaryPower || 1) / (state.empires[other].stats.militaryPower || 1); term = !otherMajor || (myScore > 75 && (ratio >= 3 || (ratio >= 2 && (e.personality.diplomacy >= 0.45 || victoryAim(e) === 'supremacy')))) ? 'vassalize' : 'cede'; }
     else if (myScore > 40 && years > 1) term = 'cede';
     else if (myScore > 25 && years > 1.5) term = 'tribute';
     else if (e.warExhaustion > 50 || myScore < -25 || (losing && myScore < 5) || years > 6) term = 'status_quo';    if (!term) continue;
@@ -795,6 +808,24 @@ function diplomacy(state: GameState, e: Empire) {
       state.proposals.push({ id: nextId(state), from: e.id, to: weak.id, give: [], receive: [{ kind: 'credits', amount }], tick: state.tick, kind: 'deal', demand: true });
       log(state, { kind: 'diplomacy', severity: 'warn', title: `${e.name} demands tribute`, text: `They want ${amount} credits. Refuse, and they will remember it: expect them to arm against you. Answer in Diplomacy.`, empires: [weak.id] });
       sendLetter(state, e, 'ultimatum', amount, 0);
+    }
+  }
+  // Demands of fealty: a much stronger realm offers a weak neighbour protection for its submission.
+  // This is the diplomatic road to supremacy, distinct from conquest (vassal space is not your own).
+  if (planOf(e).goal !== 'war' && chance(state.rng, (0.08 + e.personality.diplomacy * 0.08) * (victoryAim(e) === 'supremacy' ? 2 : 1))) {
+    for (const o of majors) {
+      if (o.kind !== 'major' || !bordering(state, e.id, o.id) || warBetween(state, e.id, o.id)) continue;
+      if (state.treaties.some((t) => t.type === 'vassal' && (t.b === o.id || t.b === e.id))) continue;
+      const ratio = (e.stats.militaryPower || 1) / (estimatePower(state, e.id, o.id) ?? (o.stats.militaryPower || 1));
+      if (ratio < 2.5) continue;
+      const prop = { id: nextId(state), from: e.id, to: o.id, give: [] as DealItem[], receive: [{ kind: 'treaty' as const, treaty: 'vassal' as TreatyType }], tick: state.tick, kind: 'deal' as const };
+      if (o.isPlayer) {
+        if (prologueActive(state) || state.proposals.some((p) => p.from === e.id && p.to === o.id)) continue;
+        state.proposals.push({ ...prop, demand: true });
+        log(state, { kind: 'diplomacy', severity: 'warn', title: `${e.name} demands your fealty`, text: 'They want you as their vassal: they would protect you, you would follow them to war and could not win alone. Refuse, and they will remember it. Answer in Diplomacy.', empires: [o.id] });
+        sendLetter(state, e, 'fealty', undefined, 0);
+      } else if (evaluateProposal(state, prop).accept) applyDeal(state, prop);
+      break;
     }
   }
   // Wars are declared by the strategic plan (strategy.ts). While arming, secure the other flanks.

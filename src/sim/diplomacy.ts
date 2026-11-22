@@ -200,7 +200,15 @@ function treatyAppetite(state: GameState, ai: number, other: number, t: TreatyTy
     case 'vassal': {
       // `offeredByOther`: the proposer offers vassalage (they become overlord if listed in their receive list)
       void offeredByOther;
-      return ['Submission to your rule', Math.round(-80 + (powerRatio > 3 ? 40 : 0) + (powerRatio > 5 ? 30 : 0) + (op > 30 ? 15 : 0))];
+      // submission is weighed against the alternative: a much stronger neighbour, a war being lost
+      // to someone else, a rival arming against us. Proud, aggressive realms resist longest.
+      const lead = hegemon(state);
+      if (lead?.id === ai) return ['We bow to no one', -1000];
+      const losing = state.wars.some((w) => { const side = w.attackers.includes(ai) ? 1 : w.defenders.includes(ai) ? -1 : 0; return side !== 0 && w.score * side < -20 && !w.attackers.includes(other) && !w.defenders.includes(other); });
+      const hunted = state.empires.some((x) => x.alive && x.id !== other && x.aiPlan && (x.aiPlan.goal === 'arm' || x.aiPlan.goal === 'war') && x.aiPlan.target === ai && (x.stats.militaryPower || 0) > (e.stats.militaryPower || 1) * 1.3);
+      const small = (e.stats.systems || 0) * 3 <= (o.stats.systems || 0);
+      const v = -75 + Math.min(60, Math.max(0, (powerRatio - 1.5) * 20)) + (op > 30 ? 15 : op > 0 ? 5 : -10) + (losing || hunted ? 35 : 0) + (small ? 10 : 0) + Math.round((0.5 - pers.aggression) * 20);
+      return [losing || hunted ? 'Seeks your protection' : 'Submission to your rule', Math.round(v)];
     }
   }
 }

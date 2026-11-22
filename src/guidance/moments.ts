@@ -142,6 +142,7 @@ function candidates(g: GameState): Moment[] {
   if (signed) out.push({ id: 'peace-signed', interrupt: true, voice: 'peace', title: 'Peace is signed', text: 'The war is over. A five-year truce means neither side can attack the other until it ends. Your ships can go home and rest, and you can spend on building again.' });
   const threat = recent.find((e) => e.kind === 'victory_threat' && e.severity === 'danger');
   if (threat) out.push({ id: 'rival-near-win', danger: true, voice: 'rival_near_win', title: threat.title, text: 'A rival is close to winning the whole game. If they get there, your reign ends. Other realms are worried too: offer them a defence pact, or attack the leader together to take systems from them.', action: { label: 'Open Throne room', screen: 'throne' } });
+  if (me.supremacySince != null) out.push({ id: 'near-supremacy', interrupt: true, voice: 'near_win', title: 'Every rival kneels to you', text: 'No rival great realm is independent. Keep it so for a year and you win by Supremacy. Watch your vassals: an unhappy vassal breaks free when you look weak.', action: { label: 'Open Throne room', screen: 'throne' } });
   if (me.dominationSince != null) out.push({ id: 'near-win', interrupt: true, voice: 'near_win', title: 'You are close to winning', text: 'You hold enough of the galaxy to win by domination. Keep it for two years and the galaxy is yours. Expect your rivals to team up against you.', action: { label: 'Open Throne room', screen: 'throne' } });
 
   // a screen joining the bar (beginner mode)

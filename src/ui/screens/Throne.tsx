@@ -29,7 +29,7 @@ export function pendingMatters(g: GameState): Matter[] {
   const L = getLedger(g, e);
   const out: Matter[] = [];
   const wars = g.wars.filter((w) => w.attackers.includes(e.id) || w.defenders.includes(e.id));
-  for (const w of wars) out.push({ text: `${w.name}: war score ${w.attackers.includes(e.id) ? w.score : -w.score}`, screen: 'warroom', tone: 'danger' });
+  for (const w of wars) out.push({ text: `${w.name}: war score ${Math.round(w.attackers.includes(e.id) ? w.score : -w.score)}`, screen: 'warroom', tone: 'danger' });
   // rivals visibly massing against us (the same intelligence that sends the warning dispatch)
   for (const r of g.empires) if (r.alive && r.aiPlan?.goal === 'arm' && r.aiPlan.target === e.id && intelLevel(g, e.id, r.id) >= 30) out.push({ text: `${r.name} is arming against us`, screen: 'diplomacy', tone: 'danger' });
   for (const r of g.empires) if (r.alive && r.kind === 'major' && r.id !== e.id && r.dominationSince != null) out.push({ text: `${r.name} holds a dominion: ${Math.max(0, 24 - Math.floor((g.tick - r.dominationSince) / 30))} months until they win`, screen: 'throne', tone: 'danger' });
@@ -97,7 +97,7 @@ function Succession() {
 
 const VICTORY_HOW: Record<VictoryKind, string> = {
   domination: 'Hold half of all claimed systems and two fifths of all people, then keep it for two years.',
-  supremacy: 'Leave no rival great realm independent: defeat them, or make them your vassals in peace terms.',
+  supremacy: 'Leave no rival great realm independent for a year: destroy them, make them vassals in peace terms, or press weak neighbours to swear fealty (Diplomacy, Demand vassalage). A vassal\'s land does not count toward Domination, so this is the road of subjugation, not annexation. Keep your vassals content, or they rise when you look weak.',
   ascension: 'Advance through the eras to Omega Sovereignty: research, power, great works and the Continuum Engine.',
 };
 
@@ -181,8 +181,8 @@ export function ThroneScreen() {
               {!matters.length && <div className="empty">The realm is quiet. Your ministers have nothing to put before you.</div>}
             </div>
           </Section>
-          <Ambitions g={g} />
           <RoadsToVictory g={g} />
+          <Ambitions g={g} />
           <Succession />
           <Section title="Ministries">
             <div className="ministries">

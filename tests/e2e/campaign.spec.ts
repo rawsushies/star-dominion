@@ -31,7 +31,8 @@ test('a hard campaign: difficulty explained, ambitions and victory tracked, a ch
   const matter = page.getByTestId('petition').filter({ hasText: 'The guilds offer a loan' });
   await expect(matter).toContainText('this will return to the council');
   await matter.getByRole('button', { name: 'Accept the loan' }).click();
-  await expect.poll(async () => (await game(page)).empires[0].pendingChains?.[0]?.def).toBe('guild_due');
+  // other chains may already be scheduled (matters left unanswered for three years take their default answer)
+  await expect.poll(async () => ((await game(page)).empires[0].pendingChains ?? []).some((x: { def: string }) => x.def === 'guild_due')).toBe(true);
 
   // save, reload and load: the plan, the pending chain and the ambitions survive
   await page.getByRole('button', { name: /Chancery/ }).click();
