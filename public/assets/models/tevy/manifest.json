@@ -1,0 +1,1789 @@
+{
+  "source": "tevy.dev",
+  "license": "CC0-1.0",
+  "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "fetched": "2026-11-21",
+  "models": [
+    {
+      "slug": "four-lane-city-road-12-m",
+      "name": "Four-Lane City Road Section",
+      "version": 1,
+      "page": "https://tevy.dev/models/four-lane-city-road-12-m",
+      "dimensions": {
+        "x": 16,
+        "y": 0.004,
+        "z": 12
+      },
+      "parts": [],
+      "animations": [],
+      "files": [
+        {
+          "lod": 1,
+          "file": "assets/models/tevy/four-lane-city-road-12-m.lod1.glb",
+          "bytes": 199964,
+          "triangles": 60,
+          "sha256": "f5b0e14e8875b7f93b6a45d65a6e8d7aa7a0a91af37b24b17abbff357e12629e"
+        }
+      ]
+    },
+    {
+      "slug": "scramble-crossing-junction-box",
+      "name": "Scramble Crossing Junction Box",
+      "version": 1,
+      "page": "https://tevy.dev/models/scramble-crossing-junction-box",
+      "dimensions": {
+        "x": 16,
+        "y": 0.004,
+        "z": 16
+      },
+      "parts": [],
+      "animations": [],
+      "files": [
+        {
+          "lod": 1,
+          "file": "assets/models/tevy/scramble-crossing-junction-box.lod1.glb",
+          "bytes": 197588,
+          "triangles": 126,
+          "sha256": "635df1da07453aed36c06b5bc4b26ced4d366458565c054b73bb733bbdb20136"
+        }
+      ]
+    },
+    {
+      "slug": "scramble-crossing-zebra-arm",
+      "name": "Scramble Crossing Zebra Arm",
+      "version": 1,
+      "page": "https://tevy.dev/models/scramble-crossing-zebra-arm",
+      "dimensions": {
+        "x": 16,
+        "y": 0.003,
+        "z": 6
+      },
+      "parts": [],
+      "animations": [],
+      "files": [
+        {
+          "lod": 1,
+          "file": "assets/models/tevy/scramble-crossing-zebra-arm.lod1.glb",
+          "bytes": 137668,
+          "triangles": 60,
+          "sha256": "9b1c7fc6607a3ebd64017cb325e24546c778a6d0e7aa8a4640937e9952cc2dd7"
+        }
+      ]
+    },
+    {
+      "slug": "traffic-signal-mast",
+      "name": "Traffic Signal Mast Arm",
+      "version": 1,
+      "page": "https://tevy.dev/models/traffic-signal-mast",
+      "dimensions": {
+        "x": 6.422,
+        "y": 7.2,
+        "z": 0.84
+      },
+      "parts": [],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/traffic-signal-mast.lod2.glb",
+          "bytes": 227188,
+          "triangles": 826,
+          "sha256": "18dd751d007f29e577ace71a77146e739d1c220a3f3341cdfdfb375b5f2460b9"
+        }
+      ]
+    },
+    {
+      "slug": "traffic-light",
+      "name": "Traffic Light",
+      "version": 1,
+      "page": "https://tevy.dev/models/traffic-light",
+      "dimensions": {
+        "x": 0.58,
+        "y": 3.512,
+        "z": 0.726
+      },
+      "parts": [],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/traffic-light.lod2.glb",
+          "bytes": 76208,
+          "triangles": 560,
+          "sha256": "423cdca5ff589af67ddbfe2f65a0325e26f22f4e17cd7057e96cd7d9f7d31181"
+        }
+      ]
+    },
+    {
+      "slug": "walk-signal",
+      "name": "Pedestrian Crossing Signal",
+      "version": 1,
+      "page": "https://tevy.dev/models/walk-signal",
+      "dimensions": {
+        "x": 0.4,
+        "y": 3.368,
+        "z": 0.653
+      },
+      "parts": [],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/walk-signal.lod2.glb",
+          "bytes": 115256,
+          "triangles": 520,
+          "sha256": "d09420169113c0ca54bd1390c96a253de740ae9c641c5dde2830931a8d79f136"
+        }
+      ]
+    },
+    {
+      "slug": "street-lamp",
+      "name": "Street Lamp",
+      "version": 1,
+      "page": "https://tevy.dev/models/street-lamp",
+      "dimensions": {
+        "x": 0.5,
+        "y": 8.1,
+        "z": 2.32
+      },
+      "parts": [],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/street-lamp.lod2.glb",
+          "bytes": 79548,
+          "triangles": 234,
+          "sha256": "5e674ebcdede9ba496faa1eb59103f33d6973d80092664554f1abef5a7108f86"
+        }
+      ]
+    },
+    {
+      "slug": "glass-bus-shelter",
+      "name": "Glass Bus Shelter",
+      "version": 1,
+      "page": "https://tevy.dev/models/glass-bus-shelter",
+      "dimensions": {
+        "x": 4.637,
+        "y": 2.5,
+        "z": 1.662
+      },
+      "parts": [],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/glass-bus-shelter.lod2.glb",
+          "bytes": 304700,
+          "triangles": 1786,
+          "sha256": "312af0fa500aefcad1df5f5e713762f7b18f97a3ace237ab3f6b64fab8589597"
+        }
+      ]
+    },
+    {
+      "slug": "estate-car",
+      "name": "Family Estate Car",
+      "version": 1,
+      "page": "https://tevy.dev/models/estate-car",
+      "dimensions": {
+        "x": 2.08,
+        "y": 1.5,
+        "z": 4.7
+      },
+      "parts": [
+        "wheel_FL",
+        "wheel_FR",
+        "wheel_RL",
+        "wheel_RR",
+        "steering_wheel"
+      ],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/estate-car.lod2.glb",
+          "bytes": 71508,
+          "triangles": 3560,
+          "sha256": "dcbad162328214b8939061e020aaf3dac35b3100724e18e360155450b84514c2"
+        }
+      ]
+    },
+    {
+      "slug": "city-taxi",
+      "name": "City Taxi",
+      "version": 1,
+      "page": "https://tevy.dev/models/city-taxi",
+      "dimensions": {
+        "x": 1.747,
+        "y": 1.725,
+        "z": 4.7
+      },
+      "parts": [
+        "wheel_FL",
+        "wheel_FR",
+        "wheel_RL",
+        "wheel_RR",
+        "steer_FL",
+        "steer_FR",
+        "steering_wheel",
+        "door_FL",
+        "door_FR",
+        "door_RL",
+        "door_RR"
+      ],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/city-taxi.lod2.glb",
+          "bytes": 113492,
+          "triangles": 4215,
+          "sha256": "468fd8c6b6c7356345f7db2f25f04cf06e9cfa2e8ab715c7f4d1d0ef416f8d39"
+        }
+      ]
+    },
+    {
+      "slug": "police-car",
+      "name": "Police Patrol Car",
+      "version": 1,
+      "page": "https://tevy.dev/models/police-car",
+      "dimensions": {
+        "x": 2.13,
+        "y": 1.599,
+        "z": 5.224
+      },
+      "parts": [
+        "wheel_FL",
+        "wheel_FR",
+        "wheel_RL",
+        "wheel_RR",
+        "steer_FL",
+        "steer_FR",
+        "steering_wheel",
+        "door_FL",
+        "door_FR",
+        "door_RL",
+        "door_RR",
+        "bonnet",
+        "boot"
+      ],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/police-car.lod2.glb",
+          "bytes": 138564,
+          "triangles": 5517,
+          "sha256": "0721bf7d0869159d2014742b8df077b2c096a36fec8dbea57b0ea6e01138c3cb"
+        }
+      ]
+    },
+    {
+      "slug": "ambulance",
+      "name": "Ambulance",
+      "version": 1,
+      "page": "https://tevy.dev/models/ambulance",
+      "dimensions": {
+        "x": 2.55,
+        "y": 3.012,
+        "z": 7.285
+      },
+      "parts": [
+        "door_L",
+        "door_R",
+        "door_side",
+        "door_rear_L",
+        "door_rear_R",
+        "wheel_FL",
+        "wheel_FR",
+        "wheel_RL",
+        "wheel_RR"
+      ],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/ambulance.lod2.glb",
+          "bytes": 249532,
+          "triangles": 5362,
+          "sha256": "3fca91597a683876e1944b80873a9ba506ba63000d73d055e64bbea32530128e"
+        }
+      ]
+    },
+    {
+      "slug": "cargo-hauler-van",
+      "name": "Cyber Cargo Van",
+      "version": 1,
+      "page": "https://tevy.dev/models/cargo-hauler-van",
+      "dimensions": {
+        "x": 2.59,
+        "y": 3.082,
+        "z": 5.81
+      },
+      "parts": [
+        "wheel_FL",
+        "wheel_FR",
+        "wheel_RL",
+        "wheel_RR",
+        "steer_FL",
+        "steer_FR",
+        "door_L",
+        "door_R",
+        "door_rear_L",
+        "door_rear_R"
+      ],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/cargo-hauler-van.lod2.glb",
+          "bytes": 252452,
+          "triangles": 4302,
+          "sha256": "ee7b083bee07370fd171c6ae685f3221ea35953547bbdff769a7f187f4f4c9c5"
+        }
+      ]
+    },
+    {
+      "slug": "city-bus",
+      "name": "Low-Floor City Bus",
+      "version": 1,
+      "page": "https://tevy.dev/models/city-bus",
+      "dimensions": {
+        "x": 2.893,
+        "y": 3.104,
+        "z": 12.4
+      },
+      "parts": [
+        "wheel_FL",
+        "wheel_FR",
+        "wheel_RL",
+        "wheel_RR",
+        "steering_wheel"
+      ],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/city-bus.lod2.glb",
+          "bytes": 95636,
+          "triangles": 4036,
+          "sha256": "39a41f717064f7f98f7d06572ccde86bd83e349373057e88b8c80968690a827a"
+        }
+      ]
+    },
+    {
+      "slug": "semi-truck",
+      "name": "Semi Truck and Trailer",
+      "version": 1,
+      "page": "https://tevy.dev/models/semi-truck",
+      "dimensions": {
+        "x": 3.27,
+        "y": 4.207,
+        "z": 20.026
+      },
+      "parts": [
+        "door_L",
+        "door_R",
+        "trailer",
+        "door_rear_L",
+        "door_rear_R",
+        "landing_leg_L",
+        "landing_leg_R",
+        "wheel_FL",
+        "wheel_FR",
+        "wheel_ML",
+        "wheel_MR",
+        "wheel_RL",
+        "wheel_RR",
+        "trailer_wheel_1L",
+        "trailer_wheel_1R",
+        "trailer_wheel_2L",
+        "trailer_wheel_2R",
+        "trailer_wheel_3L",
+        "trailer_wheel_3R"
+      ],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/semi-truck.lod2.glb",
+          "bytes": 268288,
+          "triangles": 11042,
+          "sha256": "7886effedc2fda3c1477523c54a39d3e19ed9ab32f22ffeb4f82d918648046aa"
+        }
+      ]
+    },
+    {
+      "slug": "hover-car",
+      "name": "Hover Car",
+      "version": 1,
+      "page": "https://tevy.dev/models/hover-car",
+      "dimensions": {
+        "x": 2.374,
+        "y": 1.422,
+        "z": 4.646
+      },
+      "parts": [
+        "door_FL",
+        "door_FR",
+        "door_RL",
+        "door_RR",
+        "thruster_FL",
+        "thruster_FR",
+        "thruster_RL",
+        "thruster_RR"
+      ],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/hover-car.lod2.glb",
+          "bytes": 247840,
+          "triangles": 6758,
+          "sha256": "192e48736df7494f67f66c07c3b94e9b53b0c82618f8395e7764e0e9d58e844d"
+        }
+      ]
+    },
+    {
+      "slug": "forklift",
+      "name": "Forklift",
+      "version": 1,
+      "page": "https://tevy.dev/models/forklift",
+      "dimensions": {
+        "x": 1.41,
+        "y": 2.397,
+        "z": 4.12
+      },
+      "parts": [
+        "wheel_FL",
+        "wheel_FR",
+        "wheel_RL",
+        "wheel_RR",
+        "mast",
+        "mast_inner",
+        "carriage",
+        "fork_L",
+        "fork_R",
+        "tilt_ram_L_barrel",
+        "tilt_ram_L_rod",
+        "tilt_ram_R_barrel",
+        "tilt_ram_R_rod",
+        "lift_ram_L_barrel",
+        "lift_ram_L_rod",
+        "lift_ram_R_barrel",
+        "lift_ram_R_rod"
+      ],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/forklift.lod2.glb",
+          "bytes": 253904,
+          "triangles": 6160,
+          "sha256": "d0a9f242db47ffe2401eaa7e09b4a23a7c314ad289daf1033a526ae0ad95040e"
+        }
+      ]
+    },
+    {
+      "slug": "industrial-exosuit-loader",
+      "name": "Industrial Exosuit Loader",
+      "version": 1,
+      "page": "https://tevy.dev/models/industrial-exosuit-loader",
+      "dimensions": {
+        "x": 2.41,
+        "y": 3,
+        "z": 3.471
+      },
+      "parts": [
+        "shoulder_L",
+        "elbow_L",
+        "wrist_L",
+        "claw_upper_L",
+        "claw_lower_L",
+        "shoulder_R",
+        "elbow_R",
+        "wrist_R",
+        "claw_upper_R",
+        "claw_lower_R",
+        "hip_L",
+        "knee_L",
+        "hip_R",
+        "knee_R",
+        "ram_shoulder_L_barrel",
+        "ram_shoulder_L_rod",
+        "ram_elbow_L_barrel",
+        "ram_elbow_L_rod",
+        "ram_shoulder_R_barrel",
+        "ram_shoulder_R_rod",
+        "ram_elbow_R_barrel",
+        "ram_elbow_R_rod",
+        "ram_knee_L_barrel",
+        "ram_knee_L_rod",
+        "ram_knee_R_barrel",
+        "ram_knee_R_rod"
+      ],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/industrial-exosuit-loader.lod2.glb",
+          "bytes": 243572,
+          "triangles": 4112,
+          "sha256": "1476489255a9556703991910f9249a10b125ddaf14b8298ba8f904aa325ad5f9"
+        }
+      ]
+    },
+    {
+      "slug": "casual-walker",
+      "name": "Casual Walker",
+      "version": 1,
+      "page": "https://tevy.dev/models/casual-walker",
+      "dimensions": {
+        "x": 1.367,
+        "y": 1.788,
+        "z": 0.38
+      },
+      "parts": [],
+      "animations": [
+        {
+          "name": "idle",
+          "duration": 5.033
+        },
+        {
+          "name": "look_around",
+          "duration": 5.033
+        },
+        {
+          "name": "walk",
+          "duration": 1.033
+        },
+        {
+          "name": "wave",
+          "duration": 3.633
+        }
+      ],
+      "files": [
+        {
+          "lod": 1,
+          "file": "assets/models/tevy/casual-walker.lod1.glb",
+          "bytes": 671280,
+          "triangles": 8999,
+          "sha256": "ed578eebe688843f684391719158a08bf454665fd63f16df6b4745a57cffda9f"
+        },
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/casual-walker.lod2.glb",
+          "bytes": 250212,
+          "triangles": 1799,
+          "sha256": "9ae23cac191eb57ca75750b9af94afb0c909ab257b6868843a4de6cf16004734"
+        }
+      ]
+    },
+    {
+      "slug": "dog-walker",
+      "name": "Dog Walker",
+      "version": 1,
+      "page": "https://tevy.dev/models/dog-walker",
+      "dimensions": {
+        "x": 1.34,
+        "y": 1.754,
+        "z": 0.38
+      },
+      "parts": [],
+      "animations": [
+        {
+          "name": "idle",
+          "duration": 5.033
+        },
+        {
+          "name": "look_around",
+          "duration": 5.033
+        },
+        {
+          "name": "walk",
+          "duration": 1.033
+        },
+        {
+          "name": "wave",
+          "duration": 3.633
+        }
+      ],
+      "files": [
+        {
+          "lod": 1,
+          "file": "assets/models/tevy/dog-walker.lod1.glb",
+          "bytes": 600648,
+          "triangles": 8999,
+          "sha256": "a5408cf77434f9a74b112bc4924f07e1f86191edfac7f11eb4bb29b7d28b0ef4"
+        },
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/dog-walker.lod2.glb",
+          "bytes": 244032,
+          "triangles": 1800,
+          "sha256": "c150adc9c8d1add29795c8f27d5df67e188cf36e90f7c2631e40d850bf0fd82b"
+        }
+      ]
+    },
+    {
+      "slug": "road-worker",
+      "name": "Road Worker",
+      "version": 1,
+      "page": "https://tevy.dev/models/road-worker",
+      "dimensions": {
+        "x": 1.411,
+        "y": 1.839,
+        "z": 0.396
+      },
+      "parts": [],
+      "animations": [
+        {
+          "name": "idle",
+          "duration": 5.033
+        },
+        {
+          "name": "look_around",
+          "duration": 5.033
+        },
+        {
+          "name": "walk",
+          "duration": 1.033
+        },
+        {
+          "name": "wave",
+          "duration": 3.633
+        }
+      ],
+      "files": [
+        {
+          "lod": 1,
+          "file": "assets/models/tevy/road-worker.lod1.glb",
+          "bytes": 628044,
+          "triangles": 8999,
+          "sha256": "a7b66ac6b58404ad4d076b25dd77412191ef2462c6f5f06e72eb9cd854d4d17b"
+        },
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/road-worker.lod2.glb",
+          "bytes": 253596,
+          "triangles": 1799,
+          "sha256": "6da3901a1d681887465874c153d32b5c01b0107bf9b5fb88ea61977c87e5d3ab"
+        }
+      ]
+    },
+    {
+      "slug": "astronaut",
+      "name": "Astronaut in Spacesuit",
+      "version": 1,
+      "page": "https://tevy.dev/models/astronaut",
+      "dimensions": {
+        "x": 1.4,
+        "y": 1.91,
+        "z": 0.695
+      },
+      "parts": [],
+      "animations": [
+        {
+          "name": "idle",
+          "duration": 5.033
+        },
+        {
+          "name": "look_around",
+          "duration": 5.033
+        },
+        {
+          "name": "walk",
+          "duration": 1.033
+        },
+        {
+          "name": "wave",
+          "duration": 3.633
+        }
+      ],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/astronaut.lod2.glb",
+          "bytes": 270736,
+          "triangles": 1799,
+          "sha256": "db920520e75518f8d92c79d501ed884dbc5ef8e837a78248d880e0f1ecd63046"
+        }
+      ]
+    },
+    {
+      "slug": "hiker",
+      "name": "Hiker",
+      "version": 1,
+      "page": "https://tevy.dev/models/hiker",
+      "dimensions": {
+        "x": 1.249,
+        "y": 1.702,
+        "z": 0.568
+      },
+      "parts": [],
+      "animations": [
+        {
+          "name": "idle",
+          "duration": 5.033
+        },
+        {
+          "name": "look_around",
+          "duration": 5.033
+        },
+        {
+          "name": "walk",
+          "duration": 1.033
+        },
+        {
+          "name": "wave",
+          "duration": 3.633
+        }
+      ],
+      "files": [
+        {
+          "lod": 1,
+          "file": "assets/models/tevy/hiker.lod1.glb",
+          "bytes": 614708,
+          "triangles": 8999,
+          "sha256": "bbf5f07bf23991a967cd29ef6c692d852047f1fc0d6860f689108e8e485b2f6e"
+        },
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/hiker.lod2.glb",
+          "bytes": 251732,
+          "triangles": 1800,
+          "sha256": "faafc8e6a6bb577cf2f945334ce9b8e863d31eac44841fbf046f5ae7e3f33406"
+        }
+      ]
+    },
+    {
+      "slug": "metro-train-car",
+      "name": "Metro Train Car",
+      "version": 1,
+      "page": "https://tevy.dev/models/metro-train-car",
+      "dimensions": {
+        "x": 2.84,
+        "y": 3.88,
+        "z": 19.64
+      },
+      "parts": [
+        "bogie_front",
+        "bogie_rear",
+        "wheelset_1",
+        "wheelset_2",
+        "wheelset_3",
+        "wheelset_4",
+        "door_L1a",
+        "door_L1b",
+        "door_L2a",
+        "door_L2b",
+        "door_L3a",
+        "door_L3b",
+        "door_L4a",
+        "door_L4b",
+        "door_R1a",
+        "door_R1b",
+        "door_R2a",
+        "door_R2b",
+        "door_R3a",
+        "door_R3b",
+        "door_R4a",
+        "door_R4b"
+      ],
+      "animations": [],
+      "files": [
+        {
+          "lod": 1,
+          "file": "assets/models/tevy/metro-train-car.lod1.glb",
+          "bytes": 1133520,
+          "triangles": 25120,
+          "sha256": "1f1f057a56cb11a9d1d7953577a40fb6e0c90600a0f37a7b59bb077f47ca3701"
+        },
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/metro-train-car.lod2.glb",
+          "bytes": 245156,
+          "triangles": 5420,
+          "sha256": "a3e805c15c7cbefd764e0511d43ac4f69acf7cf7457f51bbb1a43db77ccb79a4"
+        }
+      ]
+    },
+    {
+      "slug": "elevated-railway-span",
+      "name": "Elevated Railway Span",
+      "version": 1,
+      "page": "https://tevy.dev/models/elevated-railway-span",
+      "dimensions": {
+        "x": 20,
+        "y": 14.245,
+        "z": 11.74
+      },
+      "parts": [],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/elevated-railway-span.lod2.glb",
+          "bytes": 124272,
+          "triangles": 1520,
+          "sha256": "b7dc5957bf1b223f76fda4c67f40fa837bbff476c899a1e264404699bee76f5a"
+        }
+      ]
+    },
+    {
+      "slug": "station-platform",
+      "name": "Station Platform",
+      "version": 2,
+      "page": "https://tevy.dev/models/station-platform",
+      "dimensions": {
+        "x": 12,
+        "y": 3.94,
+        "z": 3.68
+      },
+      "parts": [],
+      "animations": [],
+      "files": [
+        {
+          "lod": 1,
+          "file": "assets/models/tevy/station-platform.lod1.glb",
+          "bytes": 520436,
+          "triangles": 789,
+          "sha256": "8aa1892ea5dabbfccab9815708a74f020b44713c0ef903b281dc3aeea13c8c38"
+        }
+      ]
+    },
+    {
+      "slug": "station-entrance-canopy",
+      "name": "Station Entrance Canopy",
+      "version": 1,
+      "page": "https://tevy.dev/models/station-entrance-canopy",
+      "dimensions": {
+        "x": 6.77,
+        "y": 7.85,
+        "z": 10.024
+      },
+      "parts": [],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/station-entrance-canopy.lod2.glb",
+          "bytes": 181316,
+          "triangles": 2046,
+          "sha256": "f2330cecdc512dbb62dbea025282862e99099839beea71e35948d4adb8c9a55e"
+        }
+      ]
+    },
+    {
+      "slug": "pedestrian-overpass",
+      "name": "Pedestrian Overpass",
+      "version": 1,
+      "page": "https://tevy.dev/models/pedestrian-overpass",
+      "dimensions": {
+        "x": 22.4,
+        "y": 7.235,
+        "z": 15.42
+      },
+      "parts": [],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/pedestrian-overpass.lod2.glb",
+          "bytes": 138424,
+          "triangles": 1068,
+          "sha256": "97ccfd225e9151c295bb400528fed61738b51f16908bddca4ea943a35561e9a2"
+        }
+      ]
+    },
+    {
+      "slug": "scifi-freighter",
+      "name": "Sci-Fi Freighter",
+      "version": 1,
+      "page": "https://tevy.dev/models/scifi-freighter",
+      "dimensions": {
+        "x": 9.926,
+        "y": 9.3,
+        "z": 40.75
+      },
+      "parts": [
+        "ramp",
+        "container_1",
+        "container_2",
+        "container_3",
+        "container_4",
+        "leg_FL",
+        "leg_FR",
+        "leg_RL",
+        "leg_RR"
+      ],
+      "animations": [],
+      "files": [
+        {
+          "lod": 1,
+          "file": "assets/models/tevy/scifi-freighter.lod1.glb",
+          "bytes": 967512,
+          "triangles": 14700,
+          "sha256": "e24fa74712ae55ff0296142c66450c68559b51e51364cbd5f04f6defaa0f02c1"
+        }
+      ]
+    },
+    {
+      "slug": "scifi-hangar",
+      "name": "Sci-Fi Hangar Bay",
+      "version": 2,
+      "page": "https://tevy.dev/models/scifi-hangar",
+      "dimensions": {
+        "x": 20,
+        "y": 14.8,
+        "z": 30
+      },
+      "parts": [
+        "blast_door",
+        "crane_bridge",
+        "crane_trolley"
+      ],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/scifi-hangar.lod2.glb",
+          "bytes": 216168,
+          "triangles": 6048,
+          "sha256": "38d7ebe19492e80e54c1228dddf0faf9da5622432ebfb01c92bfa4eae7a4020b"
+        }
+      ]
+    },
+    {
+      "slug": "scifi-fighter",
+      "name": "Sci-Fi Interceptor",
+      "version": 1,
+      "page": "https://tevy.dev/models/scifi-fighter",
+      "dimensions": {
+        "x": 10.6,
+        "y": 3.581,
+        "z": 14.08
+      },
+      "parts": [
+        "wing_L",
+        "wing_R",
+        "canopy",
+        "gear_nose",
+        "gear_main_L",
+        "gear_main_R",
+        "gear_door_nose_L",
+        "gear_door_nose_R",
+        "gear_door_main_L",
+        "gear_door_main_R"
+      ],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/scifi-fighter.lod2.glb",
+          "bytes": 252724,
+          "triangles": 2832,
+          "sha256": "48150434500084f978e23e22ea9fb1ff21166b62a94b015f2470fefebd6d4f69"
+        }
+      ]
+    },
+    {
+      "slug": "stealth-fighter",
+      "name": "Stealth Fighter",
+      "version": 1,
+      "page": "https://tevy.dev/models/stealth-fighter",
+      "dimensions": {
+        "x": 11.695,
+        "y": 3.946,
+        "z": 17.723
+      },
+      "parts": [
+        "canopy",
+        "flap_L",
+        "flap_R",
+        "aileron_L",
+        "aileron_R",
+        "rudder_L",
+        "rudder_R",
+        "stabilator_L",
+        "stabilator_R",
+        "gear_nose",
+        "gear_main_L",
+        "gear_main_R",
+        "gear_door_nose_L",
+        "gear_door_nose_R",
+        "gear_door_main_L",
+        "gear_door_main_R"
+      ],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/stealth-fighter.lod2.glb",
+          "bytes": 229388,
+          "triangles": 3976,
+          "sha256": "b3c1b2c9f8a1a768c1d2fc8e19614101ebc2023641d61ea983c35185ea3c8dee"
+        }
+      ]
+    },
+    {
+      "slug": "scifi-shuttle",
+      "name": "Sci-Fi Shuttle",
+      "version": 1,
+      "page": "https://tevy.dev/models/scifi-shuttle",
+      "dimensions": {
+        "x": 8.64,
+        "y": 4.55,
+        "z": 18.6
+      },
+      "parts": [
+        "door_L",
+        "door_R",
+        "ramp",
+        "nacelle_L",
+        "nacelle_R"
+      ],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/scifi-shuttle.lod2.glb",
+          "bytes": 277332,
+          "triangles": 3844,
+          "sha256": "06b3c83de9734dccc0dfa1feaf6f8a93963f4c6a35097c6c35a9761775403e1e"
+        }
+      ]
+    },
+    {
+      "slug": "scifi-dropship",
+      "name": "Sci-Fi Dropship",
+      "version": 1,
+      "page": "https://tevy.dev/models/scifi-dropship",
+      "dimensions": {
+        "x": 9.3,
+        "y": 5.05,
+        "z": 24.09
+      },
+      "parts": [
+        "engine_FL",
+        "engine_FR",
+        "engine_RL",
+        "engine_RR",
+        "door_L",
+        "door_R",
+        "ramp",
+        "leg_FL",
+        "leg_FR",
+        "leg_RL",
+        "leg_RR"
+      ],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/scifi-dropship.lod2.glb",
+          "bytes": 287504,
+          "triangles": 4916,
+          "sha256": "49dc2baad8f6aa0345bab45e1b0c9121dc7bc9fa3e09dfc2754068fd3272d0f4"
+        }
+      ]
+    },
+    {
+      "slug": "quad-rotor-recon-drone",
+      "name": "Quad-Rotor Recon Drone",
+      "version": 1,
+      "page": "https://tevy.dev/models/quad-rotor-recon-drone",
+      "dimensions": {
+        "x": 1.041,
+        "y": 0.401,
+        "z": 0.865
+      },
+      "parts": [
+        "quad_drone",
+        "rotor_FL",
+        "rotor_FR",
+        "rotor_RL",
+        "rotor_RR",
+        "gimbal",
+        "camera"
+      ],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/quad-rotor-recon-drone.lod2.glb",
+          "bytes": 152236,
+          "triangles": 2412,
+          "sha256": "e45bbf31cb08864b038805d5075b7aa8bf36202cb8447be53c04219d6b5f9ec9"
+        }
+      ]
+    },
+    {
+      "slug": "container-stack-40-ft-four-high",
+      "name": "Four-High 40 ft Container Stack",
+      "version": 1,
+      "page": "https://tevy.dev/models/container-stack-40-ft-four-high",
+      "dimensions": {
+        "x": 2.438,
+        "y": 10.424,
+        "z": 12.245
+      },
+      "parts": [],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/container-stack-40-ft-four-high.lod2.glb",
+          "bytes": 236652,
+          "triangles": 1506,
+          "sha256": "43d7a05f45edc476f0cc14b98d5ff6b8371d8b19445eea598ccf4b59c7a5f322"
+        }
+      ]
+    },
+    {
+      "slug": "harbour-crane",
+      "name": "Harbour Container Crane",
+      "version": 2,
+      "page": "https://tevy.dev/models/harbour-crane",
+      "dimensions": {
+        "x": 52,
+        "y": 52.845,
+        "z": 97.09
+      },
+      "parts": [
+        "boom",
+        "forestay",
+        "trolley",
+        "hoist_ropes",
+        "spreader",
+        "door_cab",
+        "cable_reel"
+      ],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/harbour-crane.lod2.glb",
+          "bytes": 211144,
+          "triangles": 5488,
+          "sha256": "12bfba21e5b662d480f06ba8555d1cdc7c71c500cf2f36dd76ce31be45947dc9"
+        }
+      ]
+    },
+    {
+      "slug": "tower-crane",
+      "name": "Tower Crane",
+      "version": 2,
+      "page": "https://tevy.dev/models/tower-crane",
+      "dimensions": {
+        "x": 6.4,
+        "y": 50.2,
+        "z": 67.12
+      },
+      "parts": [
+        "slewing",
+        "trolley",
+        "hoist_cable",
+        "hook_block",
+        "door_cab"
+      ],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/tower-crane.lod2.glb",
+          "bytes": 253608,
+          "triangles": 8986,
+          "sha256": "83d93f181eabcea7f10aa93dfb5e42a756e5411d82bd03e045c61b6db91f984c"
+        }
+      ]
+    },
+    {
+      "slug": "loading-dock",
+      "name": "Loading Dock",
+      "version": 2,
+      "page": "https://tevy.dev/models/loading-dock",
+      "dimensions": {
+        "x": 6.6,
+        "y": 6.22,
+        "z": 6
+      },
+      "parts": [
+        "leveller_plate",
+        "leveller_lip",
+        "leveller_ram_barrel",
+        "leveller_ram_rod",
+        "dock_light_arm"
+      ],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/loading-dock.lod2.glb",
+          "bytes": 157500,
+          "triangles": 1712,
+          "sha256": "6e6fe1cc51d9be0fc737fa1ccc95b97c84ef5d5a6882c144e78ba23d3d7610cb"
+        }
+      ]
+    },
+    {
+      "slug": "control-tower",
+      "name": "Airport Control Tower",
+      "version": 2,
+      "page": "https://tevy.dev/models/control-tower",
+      "dimensions": {
+        "x": 20.48,
+        "y": 44.13,
+        "z": 16.84
+      },
+      "parts": [
+        "door_L",
+        "door_R",
+        "door_service"
+      ],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/control-tower.lod2.glb",
+          "bytes": 273368,
+          "triangles": 2398,
+          "sha256": "401056e53084c370c3da90610e15a9154277b02874e96899b8be16ca98194406"
+        }
+      ]
+    },
+    {
+      "slug": "cooling-tower",
+      "name": "Cooling Tower",
+      "version": 2,
+      "page": "https://tevy.dev/models/cooling-tower",
+      "dimensions": {
+        "x": 83.9,
+        "y": 111.272,
+        "z": 83.9
+      },
+      "parts": [],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/cooling-tower.lod2.glb",
+          "bytes": 170928,
+          "triangles": 2888,
+          "sha256": "36c459e92791f08c04520cb2f50f7614dede4668e98a01a385f44f555426555f"
+        }
+      ]
+    },
+    {
+      "slug": "factory-hall",
+      "name": "Factory Hall",
+      "version": 1,
+      "page": "https://tevy.dev/models/factory-hall",
+      "dimensions": {
+        "x": 25.3,
+        "y": 12.4,
+        "z": 46.35
+      },
+      "parts": [
+        "crane_bridge",
+        "crane_trolley",
+        "crane_rope",
+        "crane_hook"
+      ],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/factory-hall.lod2.glb",
+          "bytes": 281316,
+          "triangles": 3006,
+          "sha256": "485f297fc23f64ca178c0ae2c9a179f861dc04a6ae11724c9253e624e7d0dfbb"
+        }
+      ]
+    },
+    {
+      "slug": "gas-tanks",
+      "name": "Gas Storage Tanks",
+      "version": 2,
+      "page": "https://tevy.dev/models/gas-tanks",
+      "dimensions": {
+        "x": 47.25,
+        "y": 22.5,
+        "z": 28.25
+      },
+      "parts": [],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/gas-tanks.lod2.glb",
+          "bytes": 135272,
+          "triangles": 2440,
+          "sha256": "318d3f9226f76f3083d05946586c5a9c7db7da41e52b9a561ba627d4ee809b9d"
+        }
+      ]
+    },
+    {
+      "slug": "mountain-peak",
+      "name": "Alpine Mountain Peak",
+      "version": 1,
+      "page": "https://tevy.dev/models/mountain-peak",
+      "dimensions": {
+        "x": 3201.431,
+        "y": 747.966,
+        "z": 3037.358
+      },
+      "parts": [],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/mountain-peak.lod2.glb",
+          "bytes": 208420,
+          "triangles": 3000,
+          "sha256": "5cca82861c41317c72984ace94fe5be7718b6ae0e4e2ecfe03758e3ef639f3cf"
+        }
+      ]
+    },
+    {
+      "slug": "mountain-ridge",
+      "name": "Forested Mountain Ridge",
+      "version": 1,
+      "page": "https://tevy.dev/models/mountain-ridge",
+      "dimensions": {
+        "x": 4001.477,
+        "y": 476.441,
+        "z": 1859.614
+      },
+      "parts": [],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/mountain-ridge.lod2.glb",
+          "bytes": 139668,
+          "triangles": 3000,
+          "sha256": "d50373f2ed4f043b315f23080d467d104cdd2ff34603c1706fe482edafa82714"
+        }
+      ]
+    },
+    {
+      "slug": "red-sandstone-mesa",
+      "name": "Red Sandstone Mesa",
+      "version": 1,
+      "page": "https://tevy.dev/models/red-sandstone-mesa",
+      "dimensions": {
+        "x": 45.995,
+        "y": 21.23,
+        "z": 35.321
+      },
+      "parts": [],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/red-sandstone-mesa.lod2.glb",
+          "bytes": 238480,
+          "triangles": 900,
+          "sha256": "2fc1fd686a35e6e9683ea112ee0260f80ef0681ed96a1eb97edf20e0f12dde0c"
+        }
+      ]
+    },
+    {
+      "slug": "cliff-face",
+      "name": "Granite Cliff Face",
+      "version": 1,
+      "page": "https://tevy.dev/models/cliff-face",
+      "dimensions": {
+        "x": 36.231,
+        "y": 26.194,
+        "z": 10.267
+      },
+      "parts": [],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/cliff-face.lod2.glb",
+          "bytes": 240536,
+          "triangles": 1998,
+          "sha256": "0fe4a8ec4e9748925e34fe1f665ddd05da082eb61b085e6cb60f642470d9b792"
+        }
+      ]
+    },
+    {
+      "slug": "holo-ring-sign",
+      "name": "Round Hologram Sign",
+      "version": 1,
+      "page": "https://tevy.dev/models/holo-ring-sign",
+      "dimensions": {
+        "x": 1.536,
+        "y": 3.744,
+        "z": 0.52
+      },
+      "parts": [],
+      "animations": [],
+      "files": [
+        {
+          "lod": 1,
+          "file": "assets/models/tevy/holo-ring-sign.lod1.glb",
+          "bytes": 90012,
+          "triangles": 580,
+          "sha256": "3a5004ad59c57be3e7bdab030307930e1cf9514515d802fcd2108732e69eec40"
+        }
+      ]
+    },
+    {
+      "slug": "holo-blade-sign",
+      "name": "Hologram Blade Sign",
+      "version": 1,
+      "page": "https://tevy.dev/models/holo-blade-sign",
+      "dimensions": {
+        "x": 0.2,
+        "y": 2.774,
+        "z": 0.91
+      },
+      "parts": [],
+      "animations": [],
+      "files": [
+        {
+          "lod": 1,
+          "file": "assets/models/tevy/holo-blade-sign.lod1.glb",
+          "bytes": 82480,
+          "triangles": 186,
+          "sha256": "dbdeab9efc1f8ad99d085d14f0cce1a2c633caa6ff904c9ccbe45dede41a5d26"
+        }
+      ]
+    },
+    {
+      "slug": "street-food-stall-cart",
+      "name": "Street Food Stall Cart",
+      "version": 1,
+      "page": "https://tevy.dev/models/street-food-stall-cart",
+      "dimensions": {
+        "x": 3.179,
+        "y": 2.37,
+        "z": 1.7
+      },
+      "parts": [
+        "wheel_front",
+        "wheel_back"
+      ],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/street-food-stall-cart.lod2.glb",
+          "bytes": 86604,
+          "triangles": 1390,
+          "sha256": "1977513262dd3bb05a0d8533fc529b82b5be5aab1c6c2e2d0c89be142e81da90"
+        }
+      ]
+    },
+    {
+      "slug": "round-steel-street-table",
+      "name": "Round Steel Street Table",
+      "version": 1,
+      "page": "https://tevy.dev/models/round-steel-street-table",
+      "dimensions": {
+        "x": 0.78,
+        "y": 0.602,
+        "z": 0.78
+      },
+      "parts": [],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/round-steel-street-table.lod2.glb",
+          "bytes": 16780,
+          "triangles": 84,
+          "sha256": "a9c111ce0662ea797fb61cbe02e0799c5d9a0dedcee1ddd916feb9755e1db073"
+        }
+      ]
+    },
+    {
+      "slug": "concrete-planter",
+      "name": "Concrete Planter",
+      "version": 1,
+      "page": "https://tevy.dev/models/concrete-planter",
+      "dimensions": {
+        "x": 2,
+        "y": 1.253,
+        "z": 1
+      },
+      "parts": [],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/concrete-planter.lod2.glb",
+          "bytes": 109340,
+          "triangles": 324,
+          "sha256": "25843f7e4228c1351e285104e88fcdd3841187ccd7fc96d3f3d2da6c6352bdce"
+        }
+      ]
+    },
+    {
+      "slug": "park-bench",
+      "name": "Park Bench",
+      "version": 1,
+      "page": "https://tevy.dev/models/park-bench",
+      "dimensions": {
+        "x": 1.8,
+        "y": 0.918,
+        "z": 0.684
+      },
+      "parts": [],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/park-bench.lod2.glb",
+          "bytes": 92956,
+          "triangles": 728,
+          "sha256": "0b949f38ee02166fda12acf6438e8f6dc344a0d8b04aa1df85acc2766c0ef694"
+        }
+      ]
+    },
+    {
+      "slug": "noodle-kiosk",
+      "name": "Robot Noodle Kiosk",
+      "version": 1,
+      "page": "https://tevy.dev/models/noodle-kiosk",
+      "dimensions": {
+        "x": 2.685,
+        "y": 3.27,
+        "z": 2.2
+      },
+      "parts": [],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/noodle-kiosk.lod2.glb",
+          "bytes": 214508,
+          "triangles": 2236,
+          "sha256": "299e1ca11ef96e07b8fc2cc1ad32c31e4e17567c0e676d831b60f5f07f9c9814"
+        }
+      ]
+    },
+    {
+      "slug": "newsstand-kiosk",
+      "name": "Newsstand Kiosk",
+      "version": 1,
+      "page": "https://tevy.dev/models/newsstand-kiosk",
+      "dimensions": {
+        "x": 3.282,
+        "y": 2.52,
+        "z": 1.78
+      },
+      "parts": [],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/newsstand-kiosk.lod2.glb",
+          "bytes": 131488,
+          "triangles": 1520,
+          "sha256": "daf2b27906ddf1fcb0a521e451e3a67da99d1843d41479fd2069168e9599645e"
+        }
+      ]
+    },
+    {
+      "slug": "plaza-bistro-set",
+      "name": "Plaza Table and Chairs",
+      "version": 1,
+      "page": "https://tevy.dev/models/plaza-bistro-set",
+      "dimensions": {
+        "x": 1.523,
+        "y": 0.87,
+        "z": 1.748
+      },
+      "parts": [
+        "chair_1",
+        "chair_2",
+        "chair_3"
+      ],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/plaza-bistro-set.lod2.glb",
+          "bytes": 87220,
+          "triangles": 758,
+          "sha256": "bf1e5df10f3262ffa00064f9a1ce740db1bb6951f93b596f5e7e84ba209f7e1e"
+        }
+      ]
+    },
+    {
+      "slug": "metro-platform-bench",
+      "name": "Metro Platform Bench",
+      "version": 1,
+      "page": "https://tevy.dev/models/metro-platform-bench",
+      "dimensions": {
+        "x": 2,
+        "y": 0.855,
+        "z": 0.605
+      },
+      "parts": [],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/metro-platform-bench.lod2.glb",
+          "bytes": 26788,
+          "triangles": 240,
+          "sha256": "2ec3a1eb2410cc8f6483655711fac3823f8229df4b8a0f180a470dc2078e0aa6"
+        }
+      ]
+    },
+    {
+      "slug": "metro-platform-column",
+      "name": "Metro Platform Column",
+      "version": 1,
+      "page": "https://tevy.dev/models/metro-platform-column",
+      "dimensions": {
+        "x": 0.6,
+        "y": 4.611,
+        "z": 0.6
+      },
+      "parts": [],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/metro-platform-column.lod2.glb",
+          "bytes": 18660,
+          "triangles": 40,
+          "sha256": "aaab7f67b1b9baa6d729f0fb806ddf475306efc912cd3793e5bd1082b86f00c6"
+        }
+      ]
+    },
+    {
+      "slug": "elevated-railway-span-shops",
+      "name": "Elevated Railway Span with Shops",
+      "version": 1,
+      "page": "https://tevy.dev/models/elevated-railway-span-shops",
+      "dimensions": {
+        "x": 20.2,
+        "y": 14.245,
+        "z": 11.74
+      },
+      "parts": [],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/elevated-railway-span-shops.lod2.glb",
+          "bytes": 192656,
+          "triangles": 2640,
+          "sha256": "2179b6e991f50e3d99c7bfc1bc88417a21b7d82002f5482120b23dfe91846621"
+        }
+      ]
+    },
+    {
+      "slug": "substation",
+      "name": "Electrical Substation",
+      "version": 2,
+      "page": "https://tevy.dev/models/substation",
+      "dimensions": {
+        "x": 31,
+        "y": 14.53,
+        "z": 31.004
+      },
+      "parts": [
+        "gate_L",
+        "gate_R"
+      ],
+      "animations": [],
+      "files": [
+        {
+          "lod": 2,
+          "file": "assets/models/tevy/substation.lod2.glb",
+          "bytes": 223208,
+          "triangles": 3016,
+          "sha256": "5625677e37b7a3768ba2f4e2fb4d6b9b9e5058e2a022ab7c60b57d2038f3cde1"
+        }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "slug": "meadow-ground",
+      "name": "Meadow Ground",
+      "version": 1,
+      "tileSize": 2,
+      "page": "https://tevy.dev/materials/meadow-ground",
+      "files": [
+        {
+          "file": "assets/textures/tevy/meadow-ground-color-1k.ktx2",
+          "bytes": 260142,
+          "sha256": "d8c4cc22fe163b5f81eb93e1fdd1c83f91f3861083be2616ec699654218067ac"
+        },
+        {
+          "file": "assets/textures/tevy/meadow-ground-normal-1k.ktx2",
+          "bytes": 751392,
+          "sha256": "3d7c29e8c59f03fd6b1d0e9de87f8b6a536cfe6021628a2ba527439c19b0ad35"
+        }
+      ]
+    },
+    {
+      "slug": "desert-sand",
+      "name": "Desert Sand",
+      "version": 1,
+      "tileSize": 4,
+      "page": "https://tevy.dev/materials/desert-sand",
+      "files": [
+        {
+          "file": "assets/textures/tevy/desert-sand-color-1k.ktx2",
+          "bytes": 551594,
+          "sha256": "5781c5352705052ab10e911694bbde201522dc7792946d31dc8a5b17654774c5"
+        },
+        {
+          "file": "assets/textures/tevy/desert-sand-normal-1k.ktx2",
+          "bytes": 686756,
+          "sha256": "ac1d39a9c5d71a6324bf5392d5411db994ce19d0fca67cfcb5f5b6921798baca"
+        }
+      ]
+    },
+    {
+      "slug": "snow",
+      "name": "Fresh Snow",
+      "version": 1,
+      "tileSize": 2,
+      "page": "https://tevy.dev/materials/snow",
+      "files": [
+        {
+          "file": "assets/textures/tevy/snow-color-1k.ktx2",
+          "bytes": 73824,
+          "sha256": "bf7ea9690dbfe2d301b0eff4e6a3a0c3dce0168a2fe8b1391e59916f47d0fa2f"
+        },
+        {
+          "file": "assets/textures/tevy/snow-normal-1k.ktx2",
+          "bytes": 1039186,
+          "sha256": "3302bc8885923f7c8f003edb16c3a47168b94f1f7ba5ddfecc2ee7dabd38518d"
+        }
+      ]
+    },
+    {
+      "slug": "granite-rock",
+      "name": "Granite Rock Face",
+      "version": 1,
+      "tileSize": 2,
+      "page": "https://tevy.dev/materials/granite-rock",
+      "files": [
+        {
+          "file": "assets/textures/tevy/granite-rock-color-1k.ktx2",
+          "bytes": 262879,
+          "sha256": "d7bc96727b5db1d01e16fad66d67d0f47d62be0158c20772160ac4d8fe69a3a9"
+        },
+        {
+          "file": "assets/textures/tevy/granite-rock-normal-1k.ktx2",
+          "bytes": 694090,
+          "sha256": "e5bd2771d0d058d7fd8b3d04feab73666af2ac7ce0a55db110f23aa13ee78a8c"
+        }
+      ]
+    }
+  ]
+}

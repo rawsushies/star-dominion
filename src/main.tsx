@@ -20,3 +20,27 @@ createRoot(document.getElementById('root')!).render(<App />);
 (window as any).__sdCam = galaxyCam;
 (window as any).__sdRender = renderStats;
 (window as any).__sdAudio = { audio, debug: audioDebug };
+
+// Development only (stripped from production builds): jump the player's capital to the
+// laboratory's developed sample, for screenshots of a grown city.
+if (import.meta.env.DEV) {
+  (window as any).__sdDev = {
+    developCapital: async () => {
+      const { developCapital } = await import('./dev/sampleCapital');
+      const ui = useUI.getState();
+      if (ui.game) { developCapital(ui.game.empires[ui.game.playerId]); ui.bump(); }
+    },
+    /** fast-forward the simulation (browser tests) */
+    runDays: async (days: number) => {
+      const { runDays } = await import('./sim/engine');
+      const ui = useUI.getState();
+      if (ui.game) { runDays(ui.game, days); ui.bump(); }
+    },
+    /** lay an event-chain stage before the council (browser tests) */
+    raiseChain: async (def: string, planetId: number | null = null) => {
+      const { raiseStage } = await import('./sim/chains');
+      const ui = useUI.getState();
+      if (ui.game) { raiseStage(ui.game, ui.game.empires[ui.game.playerId], def, planetId); ui.bump(); }
+    },
+  };
+}

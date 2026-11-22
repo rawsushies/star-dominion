@@ -1,3 +1,4 @@
+import { DIFFICULTY_TEXT } from '../../sim/strategy';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useUI, loadGame } from '../store';
 import { newGame, DEFAULT_SETTINGS } from '../../sim/engine';
@@ -97,6 +98,7 @@ export function MainMenu() {
         <div className="field">
           <label>Rival strength</label>
           <div className="seg">{(['relaxed', 'standard', 'hard'] as const).map((d) => <button type="button" key={d} className={cls(s.difficulty === d && 'on')} onClick={() => up({ difficulty: d })}>{d[0].toUpperCase() + d.slice(1)}</button>)}</div>
+          <span className="hint" data-testid="difficulty-text">{DIFFICULTY_TEXT[s.difficulty]}</span>
         </div>
         <div className="field">
           <label htmlFor="seed">Galaxy seed</label>

@@ -53,7 +53,7 @@ const neo = (label: string) => `.neo-btn[aria-label="${label}"]`;
 const win = (label: string) => `section.win[aria-label="${label}"]`;
 const guide = (id: string) => `[data-guide="${id}"]`;
 const grew = (k: string, by = 1) => (c: LessonCtx) => (c.now[k] ?? 0) >= (c.base[k] ?? 0) + by;
-const opened = (id: ScreenId) => (c: LessonCtx) => c.has(`win:${id}`) || c.ui.windows.some((w) => w.id === id);
+const opened = (id: ScreenId) => (c: LessonCtx) => c.has(`win:${id}`) || c.ui.windows.some((w) => w.id === id) || (id === 'capital' && c.ui.view === 'capital');
 const me = (g: GameState) => g.empires[g.playerId];
 
 export const CHAPTERS: Chapter[] = [
@@ -133,7 +133,7 @@ export const CHAPTERS: Chapter[] = [
     steps: [
       {
         title: 'Open the capital',
-        text: 'Your capital world carries a city of great works around the Citadel. Open the Capital window from the ministries column.',
+        text: 'Your capital world carries a city of great works around the Citadel. Open the Capital from the ministries column: the city fills the screen.',
         goal: 'Open the Capital window',
         done: opened('capital'),
         target: [neo('Capital')],
@@ -142,14 +142,14 @@ export const CHAPTERS: Chapter[] = [
       {
         title: 'The Citadel and its plots',
         text: `The Citadel is the heart of the city. Each level opens more of the 24 city plots and allows grander buildings around it, up to level ${CITADEL_MAX}. Every other building needs a minimum Citadel level, and some need other buildings first. Raising the Citadel itself requires the rest of the city and the Throne hall to keep pace.`,
-        target: [guide('capital-plots'), win('Capital')],
+        target: [guide('capital-plots')],
       },
       {
         title: 'Raise a building',
         text: 'Choose a plot, then pick a building to raise, or select an existing building and extend it a level. The cost is shown before you commit and is paid when work begins. Each level takes a number of days; your builders work through the queue in order, and more builders come with Citadel levels.',
         goal: 'Queue a building or an upgrade in the capital',
         done: grew('capitalWork'),
-        target: [guide('capital-build'), win('Capital')],
+        target: [guide('capital-build')],
         open: 'capital',
       },
       {

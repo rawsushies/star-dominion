@@ -7,6 +7,7 @@ import { cls } from './common';
 import { focusSystem } from './MapView';
 import { AccountPanel } from './Account';
 import { AudioSettings } from './AudioSettings';
+import { GraphicsSettings } from './GraphicsSettings';
 import { audio } from '../../audio/manager';
 import { assetFailures, onAssetFailure, type AssetFailure } from '../render/assets/loader';
 
@@ -97,6 +98,7 @@ export function useHotkeys() {
         if (ui.pendingOrder) ui.set({ pendingOrder: null });
         else if (ui.menuOpen) ui.set({ menuOpen: false });
         else if (ui.screen !== 'map') ui.set({ screen: 'map' });
+        else if (ui.view === 'capital') { if (ui.capitalPlot != null) ui.set({ capitalPlot: null }); else ui.leaveCapital(); }
         else if (ui.view === 'system') ui.set({ view: 'galaxy' });
         else ui.set({ systemId: null, fleetId: null, planetId: null });
       } else if (e.key === 'F1') { e.preventDefault(); ui.set({ screen: 'map' }); }
@@ -167,6 +169,10 @@ export function GameMenu() {
           <div className="section">
             <h3><span>Sound</span></h3>
             <AudioSettings compact />
+          </div>
+          <div className="section">
+            <h3><span>Graphics</span><span className="aside">Stored in this browser</span></h3>
+            <GraphicsSettings />
           </div>
           <div className="section">
             <h3><span>Options</span></h3>

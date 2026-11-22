@@ -1,5 +1,5 @@
 // Central modifier aggregation. Every bonus in the game (government, policies,
-// technology, megastructures, timed events, difficulty) is expressed as a
+// technology, megastructures, timed events) is expressed as a
 // named additive modifier so that all systems read from one place.
 
 import { GOVERNMENTS, POLICY_BY_ID } from './data/governments';
@@ -44,7 +44,6 @@ function signature(state: GameState, e: Empire, megas: { id: string; stage: numb
     e.research.future ?? 0,
     e.timedMods.map((t) => t.key + t.value).join(','),
     megas.map((m) => m.id + m.stage).join(','),
-    state.settings.difficulty,
     e.isPlayer ? 1 : 0,
     e.era ?? 0,
     councilSig(state, e),
@@ -96,12 +95,7 @@ function compute(state: GameState, e: Empire) {
   add(governanceMods(state, e));
   add(capitalMods(e));
   for (const tm of e.timedMods) mods[tm.key] = (mods[tm.key] ?? 0) + tm.value;
-  // Difficulty: AI bonuses (never applied to the player).
-  if (!e.isPlayer && e.kind === 'major') {
-    const d = state.settings.difficulty;
-    const b = d === 'hard' ? 0.25 : d === 'relaxed' ? -0.15 : 0;
-    if (b) for (const k of ['output.minerals', 'output.energy', 'output.food', 'output.alloys', 'output.research', 'tax']) mods[k] = (mods[k] ?? 0) + b;
-  }
+  // Difficulty never changes what a realm is given: it changes how well the rivals play (sim/strategy.ts).
   const entry = { sig, mods, flags };
   cache.set(e, entry);
   return entry;

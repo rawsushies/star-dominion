@@ -10,6 +10,7 @@ import { guidanceOf, setGuidancePrefs } from '../../guidance/state';
 import { CODEX_CATS, codexEntry, searchCodex, type CodexCat, type CodexEntry } from '../../guidance/codex';
 import { NAV } from '../components/Chrome';
 import { AudioSettings } from '../components/AudioSettings';
+import { GraphicsSettings } from '../components/GraphicsSettings';
 
 export function CodexScreen() {
   const ui = useUI();
@@ -171,6 +172,9 @@ function Settings() {
       </Section>
       <Section title="Sound">
         <AudioSettings />
+      </Section>
+      <Section title="Graphics">
+        <GraphicsSettings />
       </Section>
     </div>
   );

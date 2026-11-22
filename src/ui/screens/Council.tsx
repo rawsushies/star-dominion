@@ -119,6 +119,14 @@ function optionHint(o: import('../../sim/data/governance').PetitionOption, scale
   if (o.house) out.push(`house opinion ${signed(o.house, 0)}`);
   if (o.allHouses) out.push(`all houses ${signed(o.allHouses, 0)}`);
   if (o.member) out.push(`minister loyalty ${signed(o.member, 0)}`);
+  if (o.planet?.pops) out.push(`${signed(o.planet.pops, 0)} population on the world`);
+  if (o.planet?.stability) out.push(`world stability ${signed(o.planet.stability, 0)}`);
+  if (o.planet?.resistance) out.push(`resistance ${signed(o.planet.resistance, 0)}`);
+  if (o.research) out.push(`+${o.research} research on the current project`);
+  if (o.raiders) out.push(o.raiders > 1 ? 'corsair bands will raid us' : 'a corsair band will raid us');
+  if (o.reputation) out.push(`every court's opinion ${signed(o.reputation, 0)}`);
+  if (o.fleet?.length) out.push(`${o.fleet.length} ships join at the capital`);
+  if (o.next) out.push(o.next.chance && o.next.chance < 1 ? 'this may return to the council' : 'this will return to the council');
   return out.join(', ');
 }
 

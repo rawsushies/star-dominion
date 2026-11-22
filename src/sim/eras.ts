@@ -5,6 +5,7 @@ import { ERAS, MAX_ERA, type EraDef } from './data/eras';
 import { TECH_BY_ID } from './data/techs';
 import { MEGA_BY_ID } from './data/megastructures';
 import { log } from './util';
+import { claimedSystems } from './victory';
 import { civilisationPower, kardashevType } from './power';
 import type { Empire, GameState } from './types';
 
@@ -23,8 +24,9 @@ export function eraRequirements(state: GameState, e: Empire, era: EraDef): ReqSt
   if (r.techs) push(`${r.techs} technologies researched`, e.research.done.length, r.techs);
   if (r.systems) push(`${r.systems} systems held`, e.stats.systems, r.systems);
   if (r.galaxyShare) {
-    const need = Math.ceil(state.galaxy.systems.length * r.galaxyShare);
-    push(`${Math.round(r.galaxyShare * 100)}% of the galaxy held (${need} systems)`, e.stats.systems, need);
+    // measured against claimed space, so the requirement means the same in a 60-system galaxy and in the 10,000-system Milky Way
+    const need = Math.max(4, Math.ceil(claimedSystems(state) * r.galaxyShare));
+    push(`${Math.round(r.galaxyShare * 100)}% of claimed space held (${need} systems)`, e.stats.systems, need);
   }
   if (r.pops) push(`${r.pops} population`, Math.round(e.stats.population), r.pops);
   if (r.tech) push(`Breakthrough: ${TECH_BY_ID[r.tech]?.name ?? r.tech}`, e.research.done.includes(r.tech) ? 1 : 0, 1);

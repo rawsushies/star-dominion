@@ -201,9 +201,24 @@ const MECHANICS: CodexEntry[] = [
     how: 'Diplomacy → Treaties, Exchange (credits, resources, systems, treaties) and Resource contract (monthly, for a number of years). The other realm weighs each offer and lists its reasons when it declines.',
     related: ['mech.diplomacy', 'mech.trade'], screen: 'diplomacy' },
   { id: 'mech.war', cat: 'diplomacy', title: 'War and peace', summary: 'Declaring war, war score and peace terms.',
-    does: 'War can be declared on a realm you are not already at war with, are not bound to by vassalage and have no truce with; it costs 40 influence. Defence pacts and alliances bring others in. War score moves with battles, captured worlds (15, or 30 for a capital) and failed invasions. War exhaustion builds over time.',
+    does: 'War can be declared on a realm you are not already at war with, are not bound to by vassalage and have no truce with; it costs 40 influence. Defence pacts and alliances bring others in. War score moves with battles, captured worlds (15, or 30 for a capital), failed invasions and occupation (one point a month for each enemy colony system your warships hold with no defending fleet, up to three a month). War exhaustion builds over time.',
     how: 'Offer peace from Diplomacy or Military: status quo, tribute, ceding systems or vassalage. Better terms need a better war score. Peace brings a five-year truce.',
     related: ['mech.combat', 'mech.invasion', 'mech.treaties'], screen: 'diplomacy' },
+  { id: 'mech.victory', cat: 'diplomacy', title: 'Victory and defeat', summary: 'Three roads to victory, open to every great realm.',
+    what: 'Domination: hold half of all claimed systems and two fifths of all people, and keep it for two years. Supremacy: leave no rival great realm independent (fallen or your vassal). Ascension: reach Omega Sovereignty, the last era.',
+    does: 'Rivals can win too, and a rival\'s victory ends your reign. The galaxy is warned when a realm begins a domination hold or comes three quarters of the way to any victory. Realms fear whoever leads: their opinion of the leader falls, they sign defence pacts with one another more readily and plan wars against it.',
+    how: 'The throne room shows your progress on each road and that of the leading rival you know of.',
+    related: ['mech.war', 'mech.eras', 'mech.ambitions'], screen: 'throne' },
+  { id: 'mech.ambitions', cat: 'diplomacy', title: 'Ambitions', summary: 'Optional milestones for each stage of a reign.',
+    what: 'Ambitions are grouped in three phases: a foothold among the stars, a realm among realms, a civilisation of the galaxy. You move to the next phase with the first era or a handful of fulfilled ambitions.',
+    does: 'Each ambition pays a modest one-time reward when met: influence, resources or a temporary bonus. None is required, and any may be met early.',
+    how: 'Throne room → Ambitions lists the current phase with progress bars.',
+    related: ['mech.victory'], screen: 'throne' },
+  { id: 'mech.rivals', cat: 'diplomacy', title: 'Rival realms and difficulty', summary: 'How AI rivals plan, and what difficulty changes.',
+    what: 'Rivals issue the same commands as you and judge strength through the same uncertain intelligence. Each pursues a goal: expand, develop, arm against a rival, wage war, recover from losses, or chase the last eras.',
+    does: 'A rival arming against you stages its fleet on your border and secures its other flanks; if your intelligence on it is decent, you are told. Difficulty changes how well rivals play: how fast they react, how much of an edge they want before declaring war, how many battle groups they field, how long they leave you alone (15, 8 or 4 years), and whether aggressive realms betray pacts (Hard only). It never gives them resources.',
+    how: 'Choose the difficulty when starting a reign. Watch the war room and dispatches for warnings.',
+    related: ['mech.war', 'mech.victory'], screen: 'diplomacy' },
   // research
   { id: 'mech.research', cat: 'research', title: 'Research and technology', summary: 'Technologies in nine fields and eight tiers, plus Ascension.',
     what: `There are ${TECHS.length} technologies. Each belongs to a field and a tier; higher tiers cost more (tier 1: ${techCost(TECHS.find((t) => t.tier === 1)!.id)} research). Most need prerequisites; Ascension technologies need a civilisational era.`,
@@ -307,7 +322,7 @@ function generated(): CodexEntry[] {
   // eras
   for (const e of ERAS) {
     const r = e.req;
-    const req = [r.techs && `${r.techs} technologies`, r.systems && `${r.systems} systems`, r.galaxyShare && `${Math.round(r.galaxyShare * 100)}% of the galaxy`, r.pops && `${r.pops} pops`, r.tech && `research ${TECH_BY_ID[r.tech]?.name ?? r.tech}`, r.megaStages && `${r.megaStages} megastructure stages`, r.mega && `${r.mega.stages} stage(s) of the ${MEGASTRUCTURES.find((m) => m.id === r.mega!.id)?.label}`, r.minK && `Kardashev K ≥ ${r.minK}`].filter(Boolean).join(', ');
+    const req = [r.techs && `${r.techs} technologies`, r.systems && `${r.systems} systems`, r.galaxyShare && `${Math.round(r.galaxyShare * 100)}% of claimed space`, r.pops && `${r.pops} pops`, r.tech && `research ${TECH_BY_ID[r.tech]?.name ?? r.tech}`, r.megaStages && `${r.megaStages} megastructure stages`, r.mega && `${r.mega.stages} stage(s) of the ${MEGASTRUCTURES.find((m) => m.id === r.mega!.id)?.label}`, r.minK && `Kardashev K ≥ ${r.minK}`].filter(Boolean).join(', ');
     out.push({ id: `era.${e.id}`, cat: 'eras', group: 'Eras', title: `${e.id + 1}. ${e.name}`, summary: e.epithet, what: e.lore, facts: [['Requirements', req || 'none (starting era)'], ['Permanent effects', modsText(e.mods)], ['Perks', e.perks.join('; ')]], related: ['mech.eras', 'mech.kardashev'], screen: 'kingdom', status: e.id >= ERAS.length - 2 ? 'speculative' : undefined });
   }
   // megastructures

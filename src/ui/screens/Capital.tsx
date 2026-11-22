@@ -3,27 +3,42 @@ import { Term } from '../components/Guidance';
 import { useUI, useGame } from '../store';
 import { CAPITAL_BUILDINGS, CAPITAL_BY_ID, CITADEL_MAX, PLOT_COLS, PLOT_ROWS, plotsUnlocked } from '../../sim/data/capital';
 import { CapitalView3D, type CapitalLabel } from '../render/capital3d';
+import { MegacityCapitalView3D } from '../render/capitalMegacity';
+import { currentDevice, graphics, onGraphicsChange, resolveCapital } from '../graphics';
 import {
   capLevel, openPlots, plotOccupant, canQueueCapital, capitalCost, capitalDays, plannedLevel, citadelRequirements, maxQueue, builders, capitalMods,
 } from '../../sim/capital';
 import { Sheet, Section, Meter, CostView, cls } from '../components/common';
 import { modText } from './Council';
 
-export function CityCanvas({ sel, onPick, height = 420 }: { sel: number | null; onPick?: (p: number | null) => void; height?: number }) {
+export type CityView = CapitalView3D | MegacityCapitalView3D;
+
+export function CityCanvas({ sel, onPick, height = 420, onView }: { sel: number | null; onPick?: (p: number | null) => void; height?: number | string; onView?: (v: CityView | null) => void }) {
   const g = useGame();
   const me = g.empires[g.playerId];
   const canvas = useRef<HTMLCanvasElement>(null);
   const overlay = useRef<HTMLDivElement>(null);
-  const view = useRef<CapitalView3D | null>(null);
+  const view = useRef<CapitalView3D | MegacityCapitalView3D | null>(null);
   const pick = useRef(onPick);
   pick.current = onPick;
+  // the view follows the graphics settings (Chancery → Graphics); a change rebuilds it
+  const [gfx, setGfx] = useState(graphics);
+  useEffect(() => onGraphicsChange(() => setGfx(graphics())), []);
+  const { style, quality } = resolveCapital(gfx, currentDevice());
+  const [, setReady] = useState(0);
   useEffect(() => {
     if (!canvas.current || !overlay.current) return;
-    const v = new CapitalView3D(canvas.current, overlay.current, me.color, (p) => pick.current?.(p));
+    const c = canvas.current;
+    const onP = (p: number | null) => pick.current?.(p);
+    const v = style === 'megacity'
+      ? new MegacityCapitalView3D(c, overlay.current, me.color, onP, { quality, planetType: me.capitalPlanetId != null ? g.planets[me.capitalPlanetId]?.type : undefined })
+      : new CapitalView3D(c, overlay.current, me.color, onP);
     view.current = v;
-    (window as unknown as { __sdCapital?: CapitalView3D }).__sdCapital = v;
-    return () => { v.dispose(); view.current = null; };
-  }, [me.color]);
+    onView?.(v);
+    if (v instanceof MegacityCapitalView3D) v.ready.then(() => setReady((n) => n + 1));
+    (window as unknown as { __sdCapital?: unknown }).__sdCapital = v;
+    return () => { onView?.(null); v.dispose(); view.current = null; overlay.current?.replaceChildren(); };
+  }, [me.color, style, quality]);
   useEffect(() => {
     const cap = me.capital;
     if (!view.current || !cap) return;
@@ -35,13 +50,15 @@ export function CityCanvas({ sel, onPick, height = 420 }: { sel: number | null; 
       seen.add(id);
     }
     for (const j of cap.queue) if (!seen.has(j.building)) { seen.add(j.building); labels.push({ plot: j.plot, name: CAPITAL_BY_ID[j.building].label, level: 0, building: true, progress: j.progress / j.total, days: j.total - j.progress }); }
+    if (view.current instanceof MegacityCapitalView3D) view.current.setRealmState({ atWar: g.wars.some((w) => w.attackers.includes(g.playerId) || w.defenders.includes(g.playerId)) });
     view.current.sync(me, labels, sel);
   });
   return (
     <div data-guide="capital-plots" style={{ position: 'relative', height, overflow: 'hidden' }}>
-      <canvas ref={canvas} data-testid="city" style={{ width: '100%', height: '100%', display: 'block', cursor: onPick ? 'pointer' : 'grab', touchAction: 'none' }} />
+      {/* keyed: each view gets a fresh canvas, since a WebGL context cannot pass between renderers */}
+      <canvas key={`${style}-${quality}`} ref={canvas} data-testid="city" data-view={style} style={{ width: '100%', height: '100%', display: 'block', cursor: onPick ? 'pointer' : 'grab', touchAction: 'none' }} />
       <div ref={overlay} className="cap-overlay" />
-      <div className="cap-help">Drag to turn the city, scroll to zoom, select a plot to build.</div>
+      <div className="cap-help">{style === 'megacity' ? 'Drag to move · right-drag or two fingers to turn · scroll or pinch to zoom · tap a plot' : 'Drag to turn the city, scroll to zoom, select a plot to build.'}</div>
     </div>
   );
 }
@@ -87,7 +104,9 @@ export function CapitalScreen() {
         </div>
         <div>
           <Section title="Raise or extend" guide="capital-build">
-            <div className="hint" style={{ marginBottom: 6 }}>Citadel {cit + 1} needs {next.otherLevels} levels of other buildings and a level {next.throneHall} throne hall.</div>
+            <div className="hint" style={{ marginBottom: 6 }}>{next.otherLevels || next.throneHall
+              ? `Citadel ${cit + 1} needs ${[next.otherLevels ? `${next.otherLevels} levels of other buildings` : '', next.throneHall ? `a level ${next.throneHall} throne hall` : ''].filter(Boolean).join(' and ')}.`
+              : `Citadel ${cit + 1} has no requirements beyond its cost.`}</div>
             <table className="t">
               <thead><tr><th>Building</th><th className="n">Level</th><th>Next level</th><th></th></tr></thead>
               <tbody>
@@ -113,7 +132,7 @@ export function CapitalScreen() {
   );
 }
 
-function BuildingCard({ id }: { id: string }) {
+export function BuildingCard({ id }: { id: string }) {
   const g = useGame();
   const me = g.empires[g.playerId];
   const d = CAPITAL_BY_ID[id];

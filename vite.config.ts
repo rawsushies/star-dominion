@@ -8,14 +8,14 @@ import { resolve, sep, extname } from 'node:path';
  * gallery (compare.html). Candidate packs are third-party downloads that are not approved
  * for production, so they live outside public/ and never reach the production build.
  */
-function candidateAssets(): Plugin {
-  const root = resolve(__dirname, 'dev-assets/candidates');
+function candidateAssets(mount = '/candidates', dir = 'dev-assets/candidates'): Plugin {
+  const root = resolve(__dirname, dir);
   const types: Record<string, string> = { '.glb': 'model/gltf-binary', '.gltf': 'model/gltf+json', '.bin': 'application/octet-stream', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.obj': 'text/plain', '.mtl': 'text/plain', '.fbx': 'application/octet-stream', '.dae': 'model/vnd.collada+xml', '.tga': 'image/x-tga' };
   return {
-    name: 'candidate-assets',
+    name: `candidate-assets${mount}`,
     apply: 'serve',
     configureServer(server) {
-      server.middlewares.use('/candidates', (req, res, next) => {
+      server.middlewares.use(mount, (req, res, next) => {
         const rel = decodeURIComponent((req.url ?? '/').split('?')[0]);
         const file = resolve(root, '.' + rel);
         if (file !== root && !file.startsWith(root + sep)) { res.statusCode = 403; res.end(); return; }
@@ -31,7 +31,7 @@ function candidateAssets(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [react(), candidateAssets()],
+  plugins: [react(), candidateAssets(), candidateAssets('/tevy-candidates', 'dev-assets/tevy')],
   base: './',
   test: { environment: 'node', include: ['tests/**/*.test.ts'] },
 } as any);

@@ -6,11 +6,11 @@ import { jumpTo } from '../components/Chrome';
 
 const FILTERS: { id: string; label: string; kinds?: string[] }[] = [
   { id: 'all', label: 'All' },
-  { id: 'war', label: 'War', kinds: ['war', 'peace', 'battle', 'battle_end', 'invasion', 'capture', 'retreat', 'admiral', 'raiders', 'fall'] },
+  { id: 'war', label: 'War', kinds: ['war', 'peace', 'battle', 'battle_end', 'invasion', 'capture', 'retreat', 'admiral', 'raiders', 'threat', 'betrayal', 'fall'] },
   { id: 'realm', label: 'Realm', kinds: ['colony', 'outpost', 'construction', 'shipyard', 'starbase', 'megastructure', 'capital', 'government', 'unrest', 'rebellion', 'shortage', 'trade'] },
-  { id: 'diplomacy', label: 'Diplomacy', kinds: ['treaty', 'diplomacy', 'peace', 'war'] },
+  { id: 'diplomacy', label: 'Diplomacy', kinds: ['treaty', 'diplomacy', 'coalition', 'victory_threat', 'peace', 'war'] },
   { id: 'science', label: 'Science', kinds: ['research', 'discovery', 'guardian'] },
-  { id: 'events', label: 'Events', kinds: ['event', 'start', 'victory', 'gameover'] },
+  { id: 'events', label: 'Events', kinds: ['event', 'ambition', 'council', 'start', 'victory', 'victory_threat', 'gameover'] },
 ];
 
 export function JournalScreen() {

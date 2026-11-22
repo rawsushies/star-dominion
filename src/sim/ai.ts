@@ -5,12 +5,12 @@
 import { BUILDINGS, BUILDABLE } from './data/buildings';
 import { SHIPS } from './data/ships';
 import { TECH_BY_ID, techCost } from './data/techs';
-import { execute } from './commands';
+import { execute, STATION_COST } from './commands';
 import { getLedger } from './engine';
 import { canBuild, buildingCost, shipCost } from './construction';
 import { availableTechs } from './research';
-import { fleetPower, isCivilianFleet, routeFleet } from './fleets';
-import { evaluateProposal, opinion, hasContact, canDeclareWar, makePeace, applyDeal, PEACE_LABEL, systemValue } from './diplomacy';
+import { fleetPower, isCivilianFleet, routeFleet, shipStats } from './fleets';
+import { evaluateProposal, opinion, hasContact, makePeace, applyDeal, PEACE_LABEL, systemValue } from './diplomacy';
 import { bordering, claimCost, hasTreaty, isHostile, ownedSystems, warBetween, armed, isExplored } from './territory';
 import { empireMods, hasTech } from './modifiers';
 import { planetHab } from './economy';
@@ -20,7 +20,7 @@ import { charactersOf, captivesHeldBy, canLearn, rosterLimit, recruitCost, recru
 import { SKILLS, ROLES } from './data/characters';
 import { COUNCIL_SEATS } from './data/council';
 import { canIssueDecree, canActOnHouse, inRevolt, maxDecrees } from './governance';
-import { PETITION_BY_ID } from './data/governance';
+import { PETITION_BY_ID, DECREE_BY_ID } from './data/governance';
 import { opsOf, OP_MAX_LEVEL } from './operations';
 import { canQueueCapital, openPlots, plotOccupant, capitalCost, plannedLevel } from './capital';
 import { CAPITAL_BUILDINGS } from './data/capital';
@@ -34,9 +34,13 @@ import { isAtWarWith } from './economy';
 import type { CovertKind } from './types';
 import { MEGA_BY_ID } from './data/megastructures';
 import { megaInstalment } from './construction';
+import { aiPreset, coalitionWanted, estimatePower, militaryFill, planOf, reviewStrategy } from './strategy';
+import { hegemon } from './victory';
+import { orbitSecured } from './fleets';
 
 export function runAI(state: GameState, e: Empire) {
   const isMajor = e.kind === 'major';
+  if (isMajor) reviewStrategy(state, e);
   economy(state, e);
   research(state, e);
   policies(state, e);
@@ -115,7 +119,7 @@ function economy(state: GameState, e: Empire) {
   const L = getLedger(state, e);
   const colonies = state.planets.filter((p) => p.colony?.ownerId === e.id);
   const shipyards = colonies.filter((p) => (p.colony!.buildings.shipyard ?? 0) > 0).length;
-  const reserve = { minerals: 60, credits: 40 };
+  const reserve = aiPreset(state, e).tightReserves ? { minerals: 30, credits: 20 } : { minerals: 60, credits: 40 };
   for (const p of colonies) {
     const c = p.colony!;
     if (c.queue.length >= 2) continue;
@@ -123,11 +127,15 @@ function economy(state: GameState, e: Empire) {
     if (!rep) continue;
     let best: BuildingId | null = null;
     let bestScore = 3;
+    const options: [BuildingId, number][] = [];
     for (const b of BUILDABLE) {
       if (!canBuild(state, e, p, b).ok) continue;
       const s = scoreBuilding(state, e, p, b, L, rep, shipyards, colonies.length);
+      if (s > 3) options.push([b, s]);
       if (s > bestScore) { bestScore = s; best = b; }
     }
+    // a less able court settles for an adequate choice now and then
+    if (options.length > 1 && chance(state.rng, aiPreset(state, e).sloppiness)) best = options[Math.floor(next(state.rng) * options.length)][0];
     if (!best) continue;
     const cost = buildingCost(state, e, best);
     const afford = Object.entries(cost).every(([k, v]) => e.stock[k as keyof typeof e.stock] >= (v as number) + ((reserve as any)[k] ?? 0));
@@ -136,7 +144,11 @@ function economy(state: GameState, e: Empire) {
   }
   // Orbital extractors on owned uncolonised bodies
   const Lops = getLedger(state, e);
-  if (e.stock.minerals > 250 && e.stock.credits > 120 && Lops.logisticsUsed < Lops.logisticsCap) {
+  // found an operation as soon as one is affordable with a small reserve: waiting for a large
+  // mineral surplus trapped mineral-poor realms, which never built the mines that would end it
+  if (e.stock.minerals >= STATION_COST.minerals + 60 && e.stock.credits >= STATION_COST.credits + 80 && Lops.logisticsUsed < Lops.logisticsCap) {
+    const short = Lops.net.minerals < 60 || e.stock.minerals < 300; // minerals hold the realm back
+    const sites: { pid: number; kind: 'research' | 'gas' | 'energy' | 'mining'; score: number }[] = [];
     for (const sid of ownedSystems(state, e.id)) {
       for (const pid of state.galaxy.systems[sid].planetIds) {
         const p = state.planets[pid];
@@ -144,8 +156,11 @@ function economy(state: GameState, e: Empire) {
         const habitable = planetHab(state, p, e, empireMods(state, e)) >= 0.5;
         if (habitable) continue; // reserve for colonisation
         const kind = p.deposits.research >= 3 ? 'research' : p.type === 'gas_giant' ? 'gas' : p.deposits.energy > p.deposits.minerals ? 'energy' : 'mining';
-        if (execute(state, e.id, { type: 'buildStation', planetId: pid, kind }).ok) return;
+        sites.push({ pid, kind, score: (kind === 'mining' && short ? 10 : 0) + (p.deposits.minerals ?? 0) + (p.deposits.energy ?? 0) + (p.deposits.research ?? 0) });
       }
+    }
+    for (const site of sites.sort((a, b) => b.score - a.score)) {
+      if (execute(state, e.id, { type: 'buildStation', planetId: site.pid, kind: site.kind }).ok) return;
     }
   }
   operationsAI(state, e);
@@ -236,6 +251,8 @@ const CAT_WEIGHT = (e: Empire): Record<TechCategory, number> => {
   };
 };
 
+const MEGA_TECHS = new Set(Object.values(MEGA_BY_ID).map((m) => m.tech).filter(Boolean) as string[]);
+
 function research(state: GameState, e: Empire) {
   if (e.research.current) return;
   const opts = availableTechs(e);
@@ -246,11 +263,15 @@ function research(state: GameState, e: Empire) {
     if (need && opts.includes(tech)) { execute(state, e.id, { type: 'setResearch', tech }); return; }
   }
   const w = CAT_WEIGHT(e);
+  const goal = e.kind === 'major' ? planOf(e).goal : 'develop';
   let best = opts[0];
   let bestV = -1;
   for (const t of opts) {
     const def = TECH_BY_ID[t];
-    const v = (w[def.category] * 1000) / techCost(t) * (0.85 + next(state.rng) * 0.3);
+    let v = (w[def.category] * 1000) / techCost(t) * (0.85 + next(state.rng) * 0.3);
+    if (goal === 'ascend' && (t.startsWith('era_') || MEGA_TECHS.has(t) || def.category === 'ascension')) v *= 2.5;
+    if ((goal === 'arm' || goal === 'war') && (def.category === 'weapons' || def.category === 'defense')) v *= 1.6;
+    if (goal === 'expand' && (def.category === 'colonization' || def.category === 'propulsion')) v *= 1.4;
     if (v > bestV) { bestV = v; best = t; }
   }
   execute(state, e.id, { type: 'setResearch', tech: best });
@@ -276,6 +297,12 @@ function market(state: GameState, e: Empire) {
   for (const r of ['minerals', 'energy', 'food', 'alloys', 'electronics', 'rare'] as const) {
     if (e.stock[r] > L.cap[r] * 0.85) execute(state, e.id, { type: 'market', res: r, amount: -Math.round(e.stock[r] * 0.2) });
     else if (e.stock[r] < 30 && L.net[r] < 0 && e.stock.credits > 400) execute(state, e.id, { type: 'market', res: r, amount: 80 });
+  }
+  // a rich treasury over an empty mineral store buys minerals: buildings, the capital and new
+  // operations all need them
+  if (e.stock.minerals < 250 && e.stock.credits > 1200) {
+    const amount = Math.round(Math.min(250 - e.stock.minerals, ((e.stock.credits - 1200) * 0.25) / Math.max(0.5, state.market.price.minerals)));
+    if (amount > 10) execute(state, e.id, { type: 'market', res: 'minerals', amount });
   }
   // a hoarded treasury builds nothing: invest surplus credits in the goods great works and fleets need
   if (e.stock.credits > 4000) {
@@ -305,7 +332,7 @@ function atWar(state: GameState, id: number) {
 function military(state: GameState, e: Empire) {
   const L = getLedger(state, e);
   const war = atWar(state, e.id);
-  const fill = e.kind === 'major' ? (war ? 1.05 : 0.45 + e.personality.aggression * 0.45) : war ? 0.8 : 0.35;
+  const fill = militaryFill(state, e);
   const target = L.navalCap * fill;
   const yards = state.planets.filter((p) => p.colony?.ownerId === e.id && (p.colony.buildings.shipyard ?? 0) > 0);
   if (!yards.length) return;
@@ -326,7 +353,7 @@ function military(state: GameState, e: Empire) {
   if (war && e.kind === 'major') {
     const troops = Object.values(state.fleets).filter((f) => f.ownerId === e.id).reduce((a, f) => a + f.troops, 0);
     const queuedT = yards.reduce((a, p) => a + p.colony!.shipQueue.filter((q) => q.id === 'transport').length, 0);
-    if (troops + queuedT * 8 < 32 && canAfford(e, withReserve(shipCost(state, e, 'transport')))) {
+    if (troops + queuedT * 8 < 24 + aiPreset(state, e).battleGroups * 8 && canAfford(e, withReserve(shipCost(state, e, 'transport')))) {
       execute(state, e.id, { type: 'queueShip', planetId: yards[0].id, cls: 'transport' });
     }
   }
@@ -456,50 +483,166 @@ function enemyStrengthAt(state: GameState, e: Empire, sid: number): number {
   return p;
 }
 
+function warFleets(state: GameState, e: Empire): Fleet[] {
+  const out: Fleet[] = [];
+  for (const id in state.fleets) {
+    const f = state.fleets[id];
+    if (f.ownerId !== e.id || isCivilianFleet(f) || !armed(f)) continue;
+    if (f.ships.every((s) => s.cls === 'transport' || s.cls === 'scout')) continue;
+    out.push(f);
+  }
+  return out.sort((a, b) => fleetPower(state, b) - fleetPower(state, a) || a.id - b.id);
+}
+
+function sendTo(state: GameState, e: Empire, f: Fleet, target: number) {
+  if (f.systemId === target && !f.path.length) return;
+  if (f.order.type === 'move' && (f.order as { target: number }).target === target) return;
+  execute(state, e.id, { type: 'moveFleet', fleetId: f.id, target });
+}
+
+/** Nearest owned system with a starbase (to repair and resupply), from a fleet's position. */
+function nearestHaven(state: GameState, e: Empire, from: number): number | null {
+  const t = nearestWhere(state.galaxy, from, (id) => { const s = state.galaxy.systems[id]; return s.owner === e.id && s.starbase > 0; });
+  return t ?? e.capitalSystemId;
+}
+
+/** Estimated garrison of a hostile world, through the realm's intelligence on its owner. */
+function garrisonEstimate(state: GameState, e: Empire, p: Planet): number {
+  const owner = state.empires[p.colony!.ownerId];
+  const real = getLedger(state, owner).planets[p.id]?.garrison ?? 4;
+  return estimatePower(state, e.id, owner.id) == null ? real * 1.5 : real * 1.15;
+}
+
+/**
+ * Fleet operations. Fleets are organised by the plan: defence of the realm first, then a main
+ * battle group that takes enemy worlds with the transports following, and (with better
+ * coordination) raiding groups that blockade weakly held enemy systems. Hurt fleets go home to
+ * repair; outmatched ones retreat.
+ */
 function operations(state: GameState, e: Empire) {
-  const main = mainFleet(state, e);
-  if (!main) return;
+  const fleets = warFleets(state, e);
+  if (!fleets.length) return;
+  const preset = aiPreset(state, e);
   const owned = new Set(ownedSystems(state, e.id));
-  const myPower = fleetPower(state, main);
-  // 1) Defend: hostile armed fleets inside our borders
-  let threat: { sid: number; p: number } | null = null;
+  const free = new Set(fleets.map((f) => f.id));
+  const pow = (f: Fleet) => fleetPower(state, f);
+
+  // 0) Damaged or starving fleets break off to repair.
+  for (const f of fleets) {
+    const hullFrac = f.ships.reduce((a, s) => a + s.hull, 0) / Math.max(1, f.ships.reduce((a, s) => a + shipStats(state, e, s.cls).hull, 0));
+    if (f.supply < 25 || hullFrac < 0.45) {
+      const haven = nearestHaven(state, e, f.systemId);
+      if (haven != null && !(f.systemId === haven && !f.path.length)) { sendTo(state, e, f, haven); free.delete(f.id); }
+      else if (haven === f.systemId && hullFrac < 0.8) free.delete(f.id); // stay docked until repaired
+    }
+  }
+
+  // 1) Defence: answer every hostile fleet inside our borders with enough strength, nearest first.
+  const threats: { sid: number; p: number }[] = [];
   for (const id in state.fleets) {
     const f = state.fleets[id];
     if (!owned.has(f.systemId) || !isHostile(state, e.id, f.ownerId) || !armed(f)) continue;
     if (state.empires[f.ownerId].kind === 'guardian') continue;
-    const p = fleetPower(state, f);
-    if (!threat || p > threat.p) threat = { sid: f.systemId, p };
+    const t = threats.find((x) => x.sid === f.systemId);
+    if (t) t.p += pow(f); else threats.push({ sid: f.systemId, p: pow(f) });
   }
-  if (threat && myPower > threat.p * 0.9) {
-    if (main.systemId !== threat.sid && (main.order.type !== 'move' || (main.order as any).target !== threat.sid)) {
-      execute(state, e.id, { type: 'moveFleet', fleetId: main.id, target: threat.sid });
+  threats.sort((a, b) => b.p - a.p);
+  for (const t of threats) {
+    const d = jumpDistances(state.galaxy, [t.sid], undefined, 10);
+    const avail = fleets.filter((f) => free.has(f.id)).sort((a, b) => (d[a.systemId] ?? 99) - (d[b.systemId] ?? 99));
+    let sum = 0;
+    const picked: Fleet[] = [];
+    for (const f of avail) { if (sum > t.p * 1.15) break; picked.push(f); sum += pow(f); }
+    if (sum > t.p * 0.9) for (const f of picked) { sendTo(state, e, f, t.sid); free.delete(f.id); }
+    else if (e.capitalSystemId != null) {
+      // too strong to meet in the field: concentrate at the capital, behind its starbase
+      for (const f of picked) { sendTo(state, e, f, e.capitalSystemId); free.delete(f.id); }
     }
-    return;
   }
+
   const wars = state.wars.filter((w) => w.attackers.includes(e.id) || w.defenders.includes(e.id));
-  if (wars.length && e.kind === 'major') {
-    if (main.supply < 25 && e.capitalSystemId != null) { if (main.systemId !== e.capitalSystemId) execute(state, e.id, { type: 'moveFleet', fleetId: main.id, target: e.capitalSystemId }); return; }
+  const groups = fleets.filter((f) => free.has(f.id));
+  if (wars.length && (e.kind === 'major' || e.kind === 'rebels') && groups.length) {
     const enemies = new Set<number>();
     for (const w of wars) (w.attackers.includes(e.id) ? w.defenders : w.attackers).forEach((x) => enemies.add(x));
-    // 2) Attack: nearest enemy colony system we can overpower
-    const d = jumpDistances(state.galaxy, [main.systemId], undefined, 8);
+    const main = groups[0];
+    const mainP = pow(main) + groups.slice(1).filter((f) => f.systemId === main.systemId).reduce((a, f) => a + pow(f), 0);
+    // allies fighting the same enemies: strike near their fleets (a shared front)
+    const allyAt = new Set<number>();
+    for (const id in state.fleets) {
+      const f = state.fleets[id];
+      if (f.ownerId === e.id || !armed(f)) continue;
+      if (wars.some((w) => (w.attackers.includes(e.id) && w.attackers.includes(f.ownerId)) || (w.defenders.includes(e.id) && w.defenders.includes(f.ownerId)))) allyAt.add(f.systemId);
+    }
+    const d = jumpDistances(state.galaxy, [main.systemId], undefined, 10);
+    const margin = preset.tightReserves ? 1.2 : 1.35;
     const targets = state.planets
-      .filter((p) => p.colony && enemies.has(p.colony.ownerId))
-      .map((p) => ({ p, d: d[p.systemId], s: enemyStrengthAt(state, e, p.systemId) }))
-      .filter((x) => Number.isFinite(x.d) && x.d <= 8)
-      .sort((a, b) => a.d + a.s / 100 - (b.d + b.s / 100));
-    const t = targets.find((x) => myPower > x.s * 1.3);
-    if (t) {
-      if (main.systemId !== t.p.systemId) {
-        if (main.order.type !== 'move' || (main.order as any).target !== t.p.systemId) execute(state, e.id, { type: 'moveFleet', fleetId: main.id, target: t.p.systemId });
-      } else {
-        // Fleet holds orbit: bring in the troops
-        const transports = Object.values(state.fleets).filter((f) => f.ownerId === e.id && f.troops > 0 && f.order.type !== 'invade');
-        for (const tf of transports) execute(state, e.id, { type: 'fleetOrder', fleetId: tf.id, order: { type: 'invade', planetId: t.p.id } });
+      .filter((p) => p.colony && enemies.has(p.colony.ownerId) && Number.isFinite(d[p.systemId]))
+      .map((p) => {
+        const s = enemyStrengthAt(state, e, p.systemId);
+        const cap = state.empires[p.colony!.ownerId].capitalPlanetId === p.id;
+        const near = allyAt.has(p.systemId) || adjacency(state.galaxy)[p.systemId].some((v) => allyAt.has(v));
+        return { p, s, v: (p.colony!.pops * 2 + 10 + (cap ? 40 : 0)) * (near ? 1.4 : 1) / (1 + d[p.systemId]) };
+      })
+      .filter((x) => mainP > x.s * margin)
+      .sort((a, b) => b.v - a.v || a.p.id - b.p.id);
+    const here = enemyStrengthAt(state, e, main.systemId);
+    if (here > mainP * 1.1 && !owned.has(main.systemId)) {
+      // outmatched: fall back
+      const haven = nearestHaven(state, e, main.systemId);
+      if (haven != null) for (const f of groups.filter((g) => g.systemId === main.systemId)) sendTo(state, e, f, haven);
+    } else if (targets.length) {
+      const t = targets[0];
+      sendTo(state, e, main, t.p.systemId);
+      // the other groups: raiders blockade weak enemy systems, the rest join the main group
+      const raiders = groups.slice(1, preset.battleGroups);
+      const raidTargets = state.galaxy.systems.filter((s) => s.owner != null && enemies.has(s.owner) && s.id !== t.p.systemId);
+      for (const f of groups.slice(1)) {
+        const isRaider = raiders.includes(f) && pow(f) > 15;
+        if (isRaider) {
+          const rd = jumpDistances(state.galaxy, [f.systemId], undefined, 6);
+          const rt = raidTargets.filter((s) => Number.isFinite(rd[s.id]) && enemyStrengthAt(state, e, s.id) * 1.4 < pow(f)).sort((a, b) => rd[a.id] - rd[b.id] || a.id - b.id)[0];
+          if (rt) { if (f.systemId !== rt.id) execute(state, e.id, { type: 'fleetOrder', fleetId: f.id, order: { type: 'blockade', systemId: rt.id } }); continue; }
+        }
+        sendTo(state, e, f, main.path.length ? t.p.systemId : main.systemId);
       }
-      // merge stray transports into a single group at home first
+      // transports wait at the nearest owned system and land once the orbit is ours
+      const transports = Object.values(state.fleets).filter((f) => f.ownerId === e.id && f.troops > 0 && f.order.type !== 'invade');
+      const troops = transports.reduce((a, f) => a + f.troops, 0);
+      if (main.systemId === t.p.systemId && orbitSecured(state, e.id, t.p.id) && troops > garrisonEstimate(state, e, t.p)) {
+        for (const tf of transports) execute(state, e.id, { type: 'fleetOrder', fleetId: tf.id, order: { type: 'invade', planetId: t.p.id } });
+      } else {
+        const stage = nearestWhere(state.galaxy, t.p.systemId, (id) => owned.has(id)) ?? e.capitalSystemId;
+        if (stage != null) for (const tf of transports) if (tf.order.type === 'idle' && tf.systemId !== stage) sendTo(state, e, tf, stage);
+        // merge transports waiting together so the landing is one blow
+        const atStage = transports.filter((tf) => tf.systemId === stage && !tf.path.length);
+        for (const o of atStage.slice(1)) execute(state, e.id, { type: 'mergeFleets', fleetId: atStage[0].id, otherId: o.id });
+      }
+      return;
+    } else {
+      // no world we can take: hunt enemy fleets we outmatch in reach, else hold the border
+      let prey: { sid: number; p: number } | null = null;
+      for (const id in state.fleets) {
+        const f = state.fleets[id];
+        if (!enemies.has(f.ownerId) || !armed(f) || !Number.isFinite(d[f.systemId])) continue;
+        const p = enemyStrengthAt(state, e, f.systemId);
+        if (mainP > p * margin && (!prey || p > prey.p)) prey = { sid: f.systemId, p };
+      }
+      if (prey) { for (const f of groups) sendTo(state, e, f, prey.sid); return; }
+      if (e.capitalSystemId != null) for (const f of groups) if (!owned.has(f.systemId) && f.order.type === 'idle') sendTo(state, e, f, e.capitalSystemId);
       return;
     }
+  }
+  if (!groups.length) return;
+  const main = groups[0];
+  const myPower = pow(main);
+  // 2) Arming for war: stage the fleet on the border facing the rival.
+  const plan = e.kind === 'major' ? planOf(e) : null;
+  if (plan?.goal === 'arm' && plan.target != null) {
+    const theirs = new Set(ownedSystems(state, plan.target));
+    const adj = adjacency(state.galaxy);
+    const stage = [...owned].filter((sid) => adj[sid].some((v) => theirs.has(v))).sort((a, b) => a - b)[0];
+    if (stage != null) { for (const f of groups) sendTo(state, e, f, stage); return; }
   }
   // 3) Peacetime: hunt raiders inside or adjacent to our territory, else return home
   const adj = adjacency(state.galaxy);
@@ -524,8 +667,8 @@ function operations(state: GameState, e: Empire) {
       }
     }
   }
-  if (main.order.type === 'idle' && !main.path.length && e.capitalSystemId != null && main.systemId !== e.capitalSystemId && !owned.has(main.systemId)) {
-    execute(state, e.id, { type: 'moveFleet', fleetId: main.id, target: e.capitalSystemId });
+  if (e.capitalSystemId != null) {
+    for (const f of groups) if (f.order.type === 'idle' && !f.path.length && f.systemId !== e.capitalSystemId && !owned.has(f.systemId)) sendTo(state, e, f, e.capitalSystemId);
   }
 }
 
@@ -543,10 +686,15 @@ function diplomacy(state: GameState, e: Empire) {
     const myScore = mySide === 'attackers' ? w.score : -w.score;
     const years = (state.tick - w.startTick) / 360;
     let term: PeaceTerm | null = null;
-    if (myScore > 60 && years > 1) term = state.empires[other].kind === 'major' ? 'cede' : 'vassalize';
-    else if (myScore > 35 && years > 1.5) term = 'tribute';
-    else if (e.warExhaustion > 45 || myScore < -25 || years > 6) term = 'status_quo';
-    if (!term) continue;
+    // weigh the war: score, how long, how tired, and how the strength balance now looks
+    const foes = mySide === 'attackers' ? w.defenders : w.attackers;
+    const theirP = foes.reduce((a, id) => a + (estimatePower(state, e.id, id) ?? state.empires[id].stats.militaryPower), 0);
+    const losing = (e.stats.militaryPower || 1) < theirP * 0.6;
+    const otherMajor = state.empires[other].kind === 'major';
+    if (myScore > 70 && years > 1) term = otherMajor && (state.empires[other].stats.militaryPower || 1) * 4 < (e.stats.militaryPower || 1) ? 'vassalize' : otherMajor ? 'cede' : 'vassalize';
+    else if (myScore > 40 && years > 1) term = 'cede';
+    else if (myScore > 25 && years > 1.5) term = 'tribute';
+    else if (e.warExhaustion > 50 || myScore < -25 || (losing && myScore < 5) || years > 6) term = 'status_quo';    if (!term) continue;
     const pending = state.proposals.some((p) => p.from === e.id && p.kind === 'peace' && p.warId === w.id);
     if (state.empires[other].isPlayer) {
       if (!pending && chance(state.rng, 0.5)) {
@@ -567,7 +715,9 @@ function diplomacy(state: GameState, e: Empire) {
     if (!hasContact(state, e.id, o.id) || warBetween(state, e.id, o.id)) continue;
     const op = opinion(state, e.id, o.id);
     const ladder: [TreatyType, number][] = [['nap', 10], ['trade', 20 - e.personality.mercantile * 15], ['research', 30 - e.personality.science * 15], ['defense', 55], ['alliance', 75]];
-    for (const [t, need] of ladder) {
+    const coalition = coalitionWanted(state, e, o.id);
+    for (const [t, base] of ladder) {
+      const need = coalition && t === 'defense' ? Math.min(base, 5) : base;
       if (op < need || hasTreaty(state, e.id, o.id, t)) continue;
       if (t === 'trade' && e.personality.mercantile < 0.35) continue;
       if (t === 'research' && e.personality.science < 0.4) continue;
@@ -579,6 +729,8 @@ function diplomacy(state: GameState, e: Empire) {
         }
       } else if (evaluateProposal(state, { ...prop, from: e.id, to: o.id }).accept) {
         applyDeal(state, prop);
+        const lead = hegemon(state);
+        if (coalition && t === 'defense' && lead) log(state, { kind: 'coalition', severity: lead.id === state.playerId ? 'danger' : 'info', title: `${e.name} and ${o.name} stand together`, text: `Fearing the power of ${state.empires[lead.id].name}, they sign a mutual defence pact.`, empires: lead.id === state.playerId ? [] : [e.id, o.id] });
       }
       break; // one proposal per partner per cycle
     }
@@ -587,28 +739,20 @@ function diplomacy(state: GameState, e: Empire) {
   }
   // Tribute demands from weak neighbours (aggressive AIs, player included)
   if (e.personality.aggression > 0.6 && chance(state.rng, 0.08)) {
-    const weak = majors.find((o) => o.isPlayer && bordering(state, e.id, o.id) && (e.stats.militaryPower > (o.stats.militaryPower || 1) * 2.5) && !warBetween(state, e.id, o.id));
+    const weak = majors.find((o) => o.isPlayer && bordering(state, e.id, o.id) && (e.stats.militaryPower > (estimatePower(state, e.id, o.id) ?? 1e9) * 2.5) && !warBetween(state, e.id, o.id));
     if (weak && !state.proposals.some((p) => p.from === e.id && p.to === weak.id)) {
       state.proposals.push({ id: nextId(state), from: e.id, to: weak.id, give: [], receive: [{ kind: 'credits', amount: Math.round(150 + e.stats.population * 4) }], tick: state.tick, kind: 'deal' });
       log(state, { kind: 'diplomacy', severity: 'warn', title: `${e.name} demands tribute`, text: 'Their envoys hint that refusal would be unwise.', empires: [weak.id] });
     }
   }
-  // War declarations
-  if (atWar(state, e.id) || e.warExhaustion > 15 || state.tick < 360 * 4) return;
-  const myPow = e.stats.militaryPower || 1;
-  const candidates = majors
-    .filter((o) => bordering(state, e.id, o.id) && !hasTreaty(state, e.id, o.id, 'nap') && !hasTreaty(state, e.id, o.id, 'alliance') && !hasTreaty(state, e.id, o.id, 'defense') && canDeclareWar(state, e.id, o.id).ok)
-    .map((o) => {
-      // defenders' allies count against us
-      let theirPow = o.stats.militaryPower || 1;
-      for (const t of state.treaties) if ((t.type === 'defense' || t.type === 'alliance') && (t.a === o.id || t.b === o.id)) theirPow += state.empires[t.a === o.id ? t.b : t.a].stats.militaryPower;
-      return { o, ratio: myPow / theirPow, op: opinion(state, e.id, o.id) };
-    })
-    .filter((x) => x.ratio > 1.6 - e.personality.aggression * 0.5 && x.op < 10 - e.personality.aggression * 20 + (x.o.kind !== 'major' ? 30 * e.personality.expansion : 0))
-    .sort((a, b) => b.ratio - a.ratio);
-  const c = candidates[0];
-  if (c && chance(state.rng, 0.12 + e.personality.aggression * 0.25)) {
-    execute(state, e.id, { type: 'declareWar', target: c.o.id });
+  // Wars are declared by the strategic plan (strategy.ts). While arming, secure the other flanks.
+  const plan = planOf(e);
+  if (plan.goal === 'arm' && plan.target != null) {
+    for (const o of majors) {
+      if (o.id === plan.target || o.isPlayer || !bordering(state, e.id, o.id) || hasTreaty(state, e.id, o.id, 'nap') || warBetween(state, e.id, o.id)) continue;
+      const prop = { id: nextId(state), from: e.id, to: o.id, give: [{ kind: 'treaty' as const, treaty: 'nap' as TreatyType }], receive: [], tick: state.tick, kind: 'deal' as const };
+      if (evaluateProposal(state, prop).accept) applyDeal(state, prop);
+    }
   }
 }
 
@@ -744,7 +888,9 @@ function governance(state: GameState, e: Empire) {
     def.options.forEach((o, i) => {
       if (Object.entries(o.cost ?? {}).some(([k, v]) => (e.stock[k as keyof typeof e.stock] ?? 0) < v * 2)) return;
       const timed = o.timed ? Object.entries(o.timed.mods).reduce((a, [, v]) => a + v * 120, 0) : 0;
-      const sc = (o.house ?? 0) * ((h?.power ?? 30) / 40) * (h && h.loyalty < 40 ? 1.8 : 1) + (o.allHouses ?? 0) * 3 + (o.member ?? 0) * 0.6 + value(o.gain) * 0.1 - value(o.cost) * 0.06 + timed;
+      const sc = (o.house ?? 0) * ((h?.power ?? 30) / 40) * (h && h.loyalty < 40 ? 1.8 : 1) + (o.allHouses ?? 0) * 3 + (o.member ?? 0) * 0.6 + value(o.gain) * 0.1 - value(o.cost) * 0.06 + timed
+        + (o.research ?? 0) * 0.04 + (o.planet?.stability ?? 0) * 0.4 + (o.planet?.pops ?? 0) * 8 + (o.planet?.resistance ?? 0) * -0.2
+        - (o.raiders ?? 0) * 12 + (o.reputation ?? 0) * 0.4 * e.personality.diplomacy + (o.fleet ? 12 * e.personality.aggression : 0);
       if (sc > bestScore) { bestScore = sc; best = i; }
     });
     if (best >= 0) execute(state, e.id, { type: 'resolvePetition', petitionId: p.id, option: best });
@@ -757,7 +903,9 @@ function governance(state: GameState, e: Empire) {
     }
   }
   // decrees
-  if ((e.decrees?.length ?? 0) >= maxDecrees(state, e) || e.stock.influence < 110) return;
+  // a decree costs 20-50 influence; keep 40 back for outposts and colonies (waiting for 110, as
+  // before, meant most realms never issued one)
+  if ((e.decrees?.length ?? 0) >= maxDecrees(state, e) || e.stock.influence < 60) return;
   const wants: string[] = [];
   const stab = e.stats?.avgStability ?? 50;
   if (stab < 40) wants.push('festival', 'martial_law', 'tax_relief');
@@ -769,6 +917,7 @@ function governance(state: GameState, e: Empire) {
   wants.push('building_programme', 'forge_quotas');
   for (const id of wants) {
     if (canIssueDecree(state, e, id)) continue;
+    if (e.stock.influence < (DECREE_BY_ID[id]?.cost.influence ?? 0) + 40) continue;
     execute(state, e.id, { type: 'issueDecree', decree: id });
     break;
   }

@@ -220,7 +220,7 @@ export interface CapitalState {
 }
 
 export interface ActiveDecree { id: string; until: number; strength: number }
-export interface Petition { id: number; def: string; houseId: number | null; memberId: number | null; sectorId: number | null; tick: number; expires: number }
+export interface Petition { id: number; def: string; houseId: number | null; memberId: number | null; sectorId: number | null; tick: number; expires: number; /** event chains: the world the matter concerns */ planetId?: number | null }
 
 /** A noble house of the realm (sim/governance.ts). */
 export interface GreatHouse {
@@ -314,7 +314,34 @@ export interface Empire {
   /** civilisational era index (see data/eras.ts) */
   era: number;
   aiNextTick: number;
+  /** ambitions fulfilled (sim/ambitions.ts) */
+  ambitions?: string[];
+  /** wars ended on favourable terms */
+  warsWon?: number;
+  /** event-chain stages scheduled to come before the council (sim/chains.ts) */
+  pendingChains?: { def: string; at: number; planetId: number | null }[];
+  /** chain root id -> tick before which it cannot start again */
+  chainCooldowns?: Record<string, number>;
+  /** AI realms: the current strategic goal (sim/strategy.ts) */
+  aiPlan?: AIPlan;
+  /** tick from which the realm has met the domination thresholds (sim/victory.ts) */
+  dominationSince?: number | null;
+  /** victories this realm has been announced as nearing */
+  victoryWarned?: string[];
   stats: EmpireStats; // cached each month for UI/AI
+}
+
+export type AIGoal = 'expand' | 'develop' | 'arm' | 'war' | 'recover' | 'ascend';
+export interface AIPlan {
+  goal: AIGoal;
+  /** tick the goal was adopted */
+  since: number;
+  /** rival the realm is arming against or fighting */
+  target: number | null;
+  /** tick of the next strategic review */
+  review: number;
+  /** most systems held (to notice heavy losses) */
+  peakSystems: number;
 }
 
 export interface EmpireStats {
@@ -451,7 +478,7 @@ export interface GameState {
   patrolled: Record<string, number>; // `${empire}:${system}` -> tick last patrolled
   disruptedRoutes: Record<string, number>; // colony planet id -> tick disrupted (for event dedupe)
   playerId: number;
-  gameOver: null | { won: boolean; reason: string };
+  gameOver: null | { won: boolean; reason: string; kind?: 'domination' | 'supremacy' | 'ascension'; winner?: number };
   /** @deprecated legacy guided first-reign progress; migrated to `guidance` on load */
   tutorial?: { step: number; base: { explored: number; buildings: number; ships: number } } | null;
   /** tutorial lessons, first-visit cards and hint snoozes (UI only, never read by the simulation) */

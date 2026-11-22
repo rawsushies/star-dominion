@@ -37,6 +37,7 @@ export function useGuidanceController() {
       if (st.planetId != null && st.planetId !== prev.planetId) recordFlag(g, 'sel:planet');
       if (st.fleetId != null && st.fleetId !== prev.fleetId) recordFlag(g, 'sel:fleet');
       if (st.windows !== prev.windows) for (const w of st.windows) if (!prev.windows.some((p) => p.id === w.id)) recordFlag(g, `win:${w.id}`);
+      if (st.view === 'capital' && prev.view !== 'capital') recordFlag(g, 'win:capital');
     });
     return () => { offCmd(); offStore(); };
   }, []);
@@ -159,12 +160,23 @@ function HintCard() {
   const ui = useUI();
   const prefs = usePrefs();
   const [open, setOpen] = useState(false);
-  if (!prefs.hints) return null;
+  const [, setWake] = useState(0);
   // recompute at most every 1.5 s of real time, or when the day changes after a pause
   const now = performance.now();
-  if (hintCache.tick !== g.tick && now - hintCache.at > 1500 || hintCache.rev === -1 || (ui.speed === 0 && hintCache.rev !== ui.rev && now - hintCache.at > 400)) {
+  const stale = prefs.hints && (hintCache.tick !== g.tick || (ui.speed === 0 && hintCache.rev !== ui.rev));
+  if (prefs.hints && (hintCache.tick !== g.tick && now - hintCache.at > 1500 || hintCache.rev === -1 || (ui.speed === 0 && hintCache.rev !== ui.rev && now - hintCache.at > 400))) {
     hintCache = { tick: g.tick, rev: ui.rev, at: now, hints: g.tick < 5 ? [] : currentHints(g) };
   }
+  // a change that arrived inside the throttle window must still be seen: while paused nothing
+  // else re-renders the card, so wake it once the window has passed
+  const pending = stale && (hintCache.tick !== g.tick || hintCache.rev !== ui.rev);
+  useEffect(() => {
+    if (!pending) return;
+    const wait = Math.max(50, (ui.speed === 0 ? 400 : 1500) - (performance.now() - hintCache.at) + 20);
+    const t = setTimeout(() => setWake((n) => n + 1), wait);
+    return () => clearTimeout(t);
+  });
+  if (!prefs.hints) return null;
   // during a lesson only urgent matters interrupt
   const lesson = guidanceOf(g).active && !guidanceOf(g).paused;
   const hints = hintCache.hints.filter((h) => !lesson || h.severity === 'danger');

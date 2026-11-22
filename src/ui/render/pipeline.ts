@@ -164,6 +164,28 @@ export class RenderPipeline {
     });
   }
 
+  /**
+   * Replace the procedural sky with a photographed one: an equirectangular image on a sky dome
+   * (turned by `rotationY`, so its sun can be lined up with the light) that is also pre-filtered
+   * into the scene environment. Returns the dome for the caller to add to the scene.
+   */
+  setSkyMap(tex: THREE.Texture, rotationY = 0, radius = 2000): THREE.Mesh {
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(radius, 48, 24), new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide, fog: false, depthWrite: false, toneMapped: false }));
+    dome.rotation.y = rotationY;
+    dome.renderOrder = -1;
+    this.sky.visible = false;
+    const envScene = new THREE.Scene();
+    const envDome = new THREE.Mesh(dome.geometry, dome.material);
+    envDome.rotation.y = rotationY;
+    envScene.add(envDome);
+    const target = this.pmrem.fromScene(envScene, 0, 1, radius * 2);
+    this.envTarget?.dispose();
+    this.envTarget = target;
+    this.scene.environment = target.texture;
+    return dome;
+  }
+
   /** Fit the sun's shadow camera tightly around `bounds`, seen from the sun. */
   fitShadow(bounds: THREE.Box3) {
     const centre = bounds.getCenter(new THREE.Vector3());

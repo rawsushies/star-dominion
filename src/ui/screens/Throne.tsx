@@ -17,6 +17,9 @@ import { HeroView3D } from '../render/hero3d';
 import { ScreenIcon } from '../components/icons';
 import { Sheet, Section, fmt, cls } from '../components/common';
 import type { Character, GameState } from '../../sim/types';
+import { victoryProgress, VICTORY_LABEL, type VictoryKind } from '../../sim/victory';
+import { ambitionList, phaseOf, PHASE_LABEL } from '../../sim/ambitions';
+import { intelLevel } from '../../sim/diplomacy';
 
 interface Matter { text: string; screen: ScreenId; tone: 'danger' | 'warn' | 'info' }
 
@@ -27,6 +30,9 @@ export function pendingMatters(g: GameState): Matter[] {
   const out: Matter[] = [];
   const wars = g.wars.filter((w) => w.attackers.includes(e.id) || w.defenders.includes(e.id));
   for (const w of wars) out.push({ text: `${w.name}: war score ${w.attackers.includes(e.id) ? w.score : -w.score}`, screen: 'warroom', tone: 'danger' });
+  // rivals visibly massing against us (the same intelligence that sends the warning dispatch)
+  for (const r of g.empires) if (r.alive && r.aiPlan?.goal === 'arm' && r.aiPlan.target === e.id && intelLevel(g, e.id, r.id) >= 30) out.push({ text: `${r.name} is arming against us`, screen: 'diplomacy', tone: 'danger' });
+  for (const r of g.empires) if (r.alive && r.kind === 'major' && r.id !== e.id && r.dominationSince != null) out.push({ text: `${r.name} holds a dominion: ${Math.max(0, 24 - Math.floor((g.tick - r.dominationSince) / 30))} months until they win`, screen: 'throne', tone: 'danger' });
   for (const r of L.shortages) out.push({ text: `Shortage of ${r}`, screen: 'economy', tone: 'danger' });
   for (const h of e.houses ?? []) if (inRevolt(g, h)) out.push({ text: `House ${h.name} is in revolt`, screen: 'council', tone: 'danger' });
   if (e.petitions?.length) out.push({ text: `${e.petitions.length} ${e.petitions.length === 1 ? 'matter awaits' : 'matters await'} the council`, screen: 'council', tone: 'warn' });
@@ -89,6 +95,60 @@ function Succession() {
   );
 }
 
+const VICTORY_HOW: Record<VictoryKind, string> = {
+  domination: 'Hold half of all claimed systems and two fifths of all people, then keep it for two years.',
+  supremacy: 'Leave no rival great realm independent: defeat them, or make them your vassals in peace terms.',
+  ascension: 'Advance through the eras to Omega Sovereignty: research, power, great works and the Continuum Engine.',
+};
+
+/** How close the realm, and the most advanced rival we know of, are to each victory. */
+function RoadsToVictory({ g }: { g: GameState }) {
+  const e = g.empires[g.playerId];
+  const mine = victoryProgress(g, e);
+  const rivals = g.empires.filter((x) => x.alive && x.kind === 'major' && x.id !== e.id && intelLevel(g, e.id, x.id) > 0);
+  return (
+    <Section guide="throne-victory" title="Roads to victory" aside="Any great realm can win; a rival's victory ends your reign">
+      <div className="list" data-testid="victory">
+        {mine.map((v) => {
+          let lead: { name: string; p: number } | null = null;
+          for (const r of rivals) { const p = victoryProgress(g, r).find((x) => x.kind === v.kind)!.progress; if (!lead || p > lead.p) lead = { name: r.name, p }; }
+          return (
+            <div key={v.kind} className="li" style={{ display: 'block' }} title={VICTORY_HOW[v.kind]}>
+              <div className="row between"><b>{VICTORY_LABEL[v.kind]}</b><span className="hint">{Math.round(v.progress * 100)}%{lead ? ` · leading rival: ${lead.name} ${Math.round(lead.p * 100)}%` : ''}</span></div>
+              <div className="meter v" style={{ margin: '4px 0' }}><i style={{ width: `${v.progress * 100}%` }} /></div>
+              {lead && <div className="meter" style={{ marginBottom: 4 }}><i style={{ width: `${lead.p * 100}%`, background: 'var(--bad)' }} /></div>}
+              <div className="hint">{v.detail}. {VICTORY_HOW[v.kind]}</div>
+            </div>
+          );
+        })}
+      </div>
+    </Section>
+  );
+}
+
+/** Optional milestones for the current phase of the reign. */
+function Ambitions({ g }: { g: GameState }) {
+  const e = g.empires[g.playerId];
+  const phase = phaseOf(e);
+  const list = ambitionList(g, e);
+  const now = list.filter((a) => a.def.phase === phase);
+  const done = list.filter((a) => a.done).length;
+  return (
+    <Section title="Ambitions" aside={`${PHASE_LABEL[phase]} · ${done} of ${list.length} fulfilled`}>
+      <p className="hint" style={{ margin: '0 0 6px' }}>Optional goals for this stage of your reign. Pursue any of them, or none; each pays a modest reward when met.</p>
+      <div className="list" data-testid="ambitions">
+        {now.map((a) => (
+          <div key={a.def.id} className="li" style={{ display: 'block', opacity: a.done ? 0.6 : 1 }}>
+            <div className="row between"><span><span className={cls('sev', a.done ? 'good' : 'info')} /> <b>{a.def.title}</b></span><span className="hint">{a.done ? 'Fulfilled' : `${fmt(a.have)} / ${fmt(a.need)}`}</span></div>
+            {!a.done && <div className="meter" style={{ margin: '4px 0' }}><i style={{ width: `${a.frac * 100}%` }} /></div>}
+            <div className="hint">{a.def.how} Reward: {a.def.rewardText}.</div>
+          </div>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
 export function ThroneScreen() {
   const g = useGame();
   const ui = useUI();
@@ -121,6 +181,8 @@ export function ThroneScreen() {
               {!matters.length && <div className="empty">The realm is quiet. Your ministers have nothing to put before you.</div>}
             </div>
           </Section>
+          <Ambitions g={g} />
+          <RoadsToVictory g={g} />
           <Succession />
           <Section title="Ministries">
             <div className="ministries">
