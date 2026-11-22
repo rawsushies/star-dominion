@@ -56,6 +56,25 @@ What the baseline showed:
   - Winners settled for tribute after 18 months.
   - By year 40, everlasting non-aggression pacts left no realm with a legal target. This is the high passive count.
 
+## Third pass: decisive wars
+
+These results come after the war fixes: escorted landings sized to the garrison, winners press on, pacts lapse after 15 years or are renounced, vassals break free, counter-building. They come before the coalition fixes. Three seeds, 100 years.
+
+| Difficulty | Year | Wars | On the player | Falls | Player rank | Top share | Snowball | Passive | Victories |
+|---|---|---|---|---|---|---|---|---|---|
+| Relaxed | 30 | 11.3 | 0.0 | 1.3 | 1.3 | 39% | 2.6× | 0.7 | |
+| Relaxed | 100 | 22.7 | 0.0 | 1.7 | 1.0 | 54% | 4.6× | 9.0 | domination at 35 and 36 (the player), ascension at 60 (AI) |
+| Standard | 30 | 9.7 | 1.3 | 0.3 | 2.0 | 36% | 2.9× | 0.7 | |
+| Standard | 100 | 25.7 | 4.0 | 1.7 | 2.3 | 62% | 5.0× | 8.0 | domination at 30 (AI), ascension at 69 and 72 (AI) |
+| Hard | 30 | 12.7 | 0.3 | 1.3 | 2.0 | 34% | 1.9× | 2.3 | |
+| Hard | 100 | 31.0 | 2.7 | 1.7 | 1.7 | 51% | 4.9× | 5.0 | domination at 52 (the player), ascension at 55 (AI) and 70 (the player) |
+
+- **Falls:** realms are now eliminated, on average 1.7 per campaign (minor and great realms). Two great realms fell in two of the nine runs.
+- **Passive rival-years:** these fell from 14–67 to 5–9.
+- **Victory variety:** four domination victories and five ascension victories, won by the player's realm and by AI rivals alike. Supremacy was achieved in earlier passes, but there it came too easily: one realm vassalised every rival by year 36. Great realms are now vassalised only when broken, and vassals rise again when they can.
+- **Remaining problem: runaway leaders.** The leader ends with about 5× the median realm's systems, and one standard rival won by domination at year 30. This led to the coalition fixes: rivals of the feared leader count each other's wars against it, and need less strength to join in.
+- **Difficulty:** this pass does not show a clean gradient. Hard rivals fight each other more (31 wars against 23 on relaxed), which weakens them. Three seeds are few.
+
 ## Current
 
-(Filled in from the latest suite; see below.)
+(Filled in from the latest suite.)
