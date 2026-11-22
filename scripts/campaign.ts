@@ -37,7 +37,7 @@ function play(seed: number, diff: GameState['settings']['difficulty']): Run[] {
     passiveRivalYears: 0, vassalYears: 0, aliveMajors: 0, majors: 0, victory: null, firstContactYear: null, firstWarYear: null, firstWarOnPlayerYear: null,
   };
   let seen = 0;
-  const lastActive: Record<number, { sys: number; tick: number }> = {};
+  const lastActive: Record<number, { sys: number; tick: number; era: number; stages: number }> = {};
   for (let y = 1; y <= years; y++) {
     for (let d = 0; d < 360; d++) {
       step(s);
@@ -66,7 +66,11 @@ function play(seed: number, diff: GameState['settings']['difficulty']): Run[] {
       if (e.kind !== 'major' || !e.alive) continue;
       const fighting = s.wars.some((w) => w.attackers.includes(e.id) || w.defenders.includes(e.id));
       const la = lastActive[e.id];
-      if (!la || fighting || e.stats.systems > la.sys) lastActive[e.id] = { sys: Math.max(e.stats.systems, la?.sys ?? 0), tick: s.tick };
+      // active: gained a system, fought, reached a new era or built a megastructure stage
+      let stages = 0;
+      for (const sys of s.galaxy.systems) for (const m of sys.megastructures) if (m.ownerId === e.id) stages += m.stage;
+      const era = e.era ?? 0;
+      if (!la || fighting || e.stats.systems > la.sys || era > la.era || stages > la.stages) lastActive[e.id] = { sys: Math.max(e.stats.systems, la?.sys ?? 0), tick: s.tick, era, stages };
       else if (s.tick - la.tick >= 3600 && !run.victory) {
         // a vassal that sits still is subordinate, not passive: counted apart
         if (s.treaties.some((t) => t.type === 'vassal' && t.b === e.id)) run.vassalYears++;
