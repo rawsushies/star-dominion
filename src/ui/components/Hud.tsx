@@ -27,6 +27,7 @@ import { MuteButton } from './AudioSettings';
 import { usePrefs } from './Guidance';
 import { resourceHelp } from '../../guidance/codex';
 import { SCREEN_INFO } from '../../guidance/screens';
+import { visibleScreens, hiddenCount, setSimple } from '../../guidance/path';
 
 // ---------------------------------------------------------------- neocom
 
@@ -52,12 +53,14 @@ export function Neocom() {
   const idleResearch = !e.research.current && !e.research.queue.length;
   const label = (id: ScreenId) => NAV.find((n) => n.id === id)?.label ?? id;
   const prefs = usePrefs();
+  const vis = visibleScreens(g);
+  const hidden = hiddenCount(g);
   return (
     <nav className="neocom" aria-label="Screens">
       <button className="neo-crest" onClick={() => open('kingdom')} aria-label="Kingdom overview" title={e.name}>
         <Emblem empire={e} size={28} />
       </button>
-      {GROUPS.map((grp, gi) => (
+      {GROUPS.map((grp) => grp.filter((id) => !vis || vis.has(id))).filter((grp) => grp.length).map((grp, gi) => (
         <div key={gi} className="neo-group">
           {grp.map((id) => {
             const isOpen = windows.some((w) => w.id === id) || (id === 'capital' && view === 'capital');
@@ -72,6 +75,12 @@ export function Neocom() {
           })}
         </div>
       ))}
+      {hidden > 0 && (
+        <button className="neo-btn neo-more" onClick={() => { setSimple(g, false); useUI.getState().bump(); }} aria-label="Show all screens">
+          <svg width="20" height="20" viewBox="0 0 20 20"><path d="M10 4v12M4 10h12" stroke="currentColor" strokeWidth="1.5" /></svg>
+          <span className="neo-flyout">Show all screens<small>{hidden} more screens appear by themselves as you need them. Click to show them all now.</small></span>
+        </button>
+      )}
       <div className="grow" />
       <MuteButton />
       <button className="neo-btn" onClick={() => set({ menuOpen: true, speed: 0 })} aria-label="Chancery: save, load and options">

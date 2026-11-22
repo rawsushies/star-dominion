@@ -11,7 +11,7 @@ import { ERAS } from '../src/sim/data/eras';
 import { availableTechs } from '../src/sim/research';
 import type { GameState } from '../src/sim/types';
 import type { UIState } from '../src/ui/store';
-import { CHAPTERS } from '../src/guidance/chapters';
+import { CHAPTERS, CHAPTER_BY_ID } from '../src/guidance/chapters';
 import { activeStep, chapterStatus, declineOffer, evaluateLesson, finishLesson, nextStep, prevStep, recommendation, recordFlag, resetGuidance, setPaused, skipLesson, startLesson } from '../src/guidance/lessons';
 import { guidanceOf } from '../src/guidance/state';
 import { currentHints, snoozeHint } from '../src/guidance/hints';
@@ -23,8 +23,9 @@ const ui = (p: Partial<UIState> = {}) => ({ speed: 0, windows: [], view: 'galaxy
 const fresh = () => newGame({ seed: 7, galaxySize: 'small', aiCount: 2 });
 
 describe('lessons', () => {
-  it('has ten chapters whose references resolve', () => {
-    expect(CHAPTERS.map((c) => c.n)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  it('has twelve chapters, beginner path first, whose references resolve', () => {
+    expect(CHAPTERS.map((c) => c.n)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+    expect(CHAPTERS.slice(0, 3).map((c) => c.id)).toEqual(['welcome', 'grow', 'conquest']);
     for (const c of CHAPTERS) {
       expect(c.steps.length).toBeGreaterThanOrEqual(4);
       for (const id of c.codex) expect(codexEntry(id), `${c.id} → ${id}`).not.toBeNull();
@@ -84,13 +85,14 @@ describe('lessons', () => {
     setPaused(g, false);
     nextStep(g); prevStep(g);
     expect(guidanceOf(g).step).toBe(0);
+    const cap = CHAPTER_BY_ID.capital;
     skipLesson(g);
-    expect(chapterStatus(g, CHAPTERS[2])).toBe('skipped');
+    expect(chapterStatus(g, cap)).toBe('skipped');
     startLesson(g, 'capital');
     finishLesson(g);
-    expect(chapterStatus(g, CHAPTERS[2])).toBe('done');
+    expect(chapterStatus(g, cap)).toBe('done');
     startLesson(g, 'capital'); // replay
-    expect(chapterStatus(g, CHAPTERS[2])).toBe('active');
+    expect(chapterStatus(g, cap)).toBe('active');
     resetGuidance(g);
     expect(guidanceOf(g)).toMatchObject({ active: null, done: [], skipped: [] });
   });
@@ -101,9 +103,14 @@ describe('lessons', () => {
     expect(chapterStatus(g, CHAPTERS[1])).toBe('locked');
     startLesson(g, 'welcome'); finishLesson(g);
     expect(chapterStatus(g, CHAPTERS[1])).toBe('available');
-    expect(recommendation(g)?.id).toBe('galaxy');
-    declineOffer(g, 'galaxy');
-    expect(recommendation(g)?.id).not.toBe('galaxy');
+    expect(recommendation(g)?.id).toBe('grow');
+    declineOffer(g, 'grow');
+    expect(recommendation(g)?.id).not.toBe('grow');
+    // later lessons wait until the game makes them matter, not just until the previous one is done
+    startLesson(g, 'grow'); finishLesson(g);
+    expect(chapterStatus(g, CHAPTER_BY_ID.characters)).toBe('locked');
+    g.tick = 360 * 2;
+    expect(chapterStatus(g, CHAPTER_BY_ID.characters)).toBe('available');
   });
 
   it('persists through save and load, and migrates the old advisor', () => {

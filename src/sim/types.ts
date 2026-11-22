@@ -505,4 +505,8 @@ export interface GuidanceState {
   snoozed: Record<string, number>;
   /** counters captured when the current step began (objectives compare against them) */
   base: Record<string, number>;
+  /** beginner mode: show a few screens and one tip at a time, adding the rest as they matter */
+  simple?: boolean;
+  /** the world the conquest lesson is about */
+  focus?: { empireId: number; planetId: number };
 }

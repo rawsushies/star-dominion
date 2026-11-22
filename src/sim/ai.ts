@@ -498,7 +498,7 @@ function scouting(state: GameState, e: Empire) {
 
 // ---------------------------------------------------------------- operations
 
-function enemyStrengthAt(state: GameState, e: Empire, sid: number): number {
+export function enemyStrengthAt(state: GameState, e: Empire, sid: number): number {
   let p = 0;
   for (const id in state.fleets) {
     const f = state.fleets[id];

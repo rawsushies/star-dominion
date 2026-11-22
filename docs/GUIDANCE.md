@@ -2,20 +2,46 @@
 
 The audit behind this work is in `docs/GUIDANCE_AUDIT.md`. All guidance is UI-side (`src/guidance`); the simulation never reads it.
 
+## Built for a complete beginner
+
+A guided reign assumes the player knows nothing about strategy games. It teaches one thing at a time and only when it matters:
+
+- **Few screens at first** (`src/guidance/path.ts`). A guided reign starts with only five screens on the left bar: Galaxy, Research, Planets, Fleets and Codex. Each other screen joins the bar when the game makes it matter. Meeting a realm adds Diplomacy, a war adds Military and the War room, and running out of something adds Economy; others come with time. Each new screen arrives with a one-line card saying what it is for. A "Show all screens" button on the bar turns this off. The setting is saved with the reign (`GameState.guidance.simple`), and an unguided reign shows every screen.
+- **One tip at a time.** In a guided reign the panel is called "Next step" and shows the single most useful action. "Show other ideas" shows more. Tips about screens the player does not have yet are held back.
+- **"What just happened?" cards** (`src/guidance/moments.ts`). The first time each of these happens, a short card explains it in plain words and says what to do:
+  - meeting a realm;
+  - a war declared on you;
+  - enemy warships in your space;
+  - your first battle;
+  - a peace offer;
+  - running out of a resource;
+  - your first outpost finishing;
+  - a rival getting ready to attack you;
+  - a new screen joining the bar.
+
+  Cards about danger pause the game. While a lesson runs, only danger cards and first contact interrupt it. Each card is shown once per reign.
+- **"Do it for me".** Steps that ask for an order have a button that gives exactly that order through the normal command path (`LessonStep.auto`). Examples are picking the cheapest research, building the district for the lowest resource, sending the scout, declaring war, and offering peace terms from best to least. The player sees the result, and the step still completes from the real game state. If an order cannot be given (not enough influence, no shipyard), the panel says why.
+- **Exact pointing.** A step can light up one specific button by its text (`text:<selector>|<text>`), for example the Send construction ship, Declare war and Invade buttons. If that button is not on screen, it falls back to the screen's button on the bar.
+- **Plain words.** Lesson texts explain each game word the first time it is used: district, outpost, influence, alloys, troops.
+
 ## Lessons
 
 | # | Lesson | Steps | What the player does (objectives are checked against real state) | Recommended when |
 |---|---|---|---|---|
-| 1 | Your First Reign | 8 | Learn the goal and the three victories; run and pause time; then five real orders: choose research, build on the homeworld, send the construction ship to claim a neighbouring system ("Show me" selects it), send the scout exploring, let two months pass; finally, where to look from now on | Start of a guided reign |
-| 2 | Understanding the Galaxy | 5 | Select a system; enter a system and select a planet; explore a new system with the scout | After 1 |
-| 3 | The Imperial Capital | 4 | Open the capital; queue a capital building or upgrade | After 2 |
-| 4 | Economy and Resources | 5 | Open Economy and Industry; trade on the market (optional) | After 3, or after three months |
-| 5 | Expansion and Colonization | 5 | Queue a district or building; claim a second system; assign a governor (optional) | After 4, or five systems charted |
-| 6 | Fleets and Warfare | 5 | Queue a ship; give a fleet an order or stance | After 5, or when war comes |
-| 7 | Research and Civilization | 4 | Set research; queue or open the tech tree; open the Kingdom window | After 1 |
-| 8 | Diplomacy and Great Houses | 5 | Open Diplomacy; send a proposal (optional); open the Council; name an heir (optional) | First contact, or after 7 |
-| 9 | Characters and Leadership | 4 | Open the Hall of Heroes; recruit or assign someone | After 5, or after six months |
-| 10 | Megastructures and Long-Term Ambition | 4 | Open Construction | A new era or a megastructure technology |
+| 1 | The Basics | 6 | Start and stop the clock; pick something to research; order a district; let a month pass; learn where the Next step box is | Start of a guided reign |
+| 2 | Getting Bigger | 5 | Learn what a star system is; explore with the scout; send the construction ship to claim a free system; own a second system | After 1 |
+| 3 | Your First War | 10 | Learn the five parts of a conquest; get a target picked for you (the weakest known realm's world, small realms first); build warships to the strength shown; build troop transports for the soldiers needed; declare war; send the fleet; clear the orbit; land the soldiers; make peace | After 2, once a neighbour is known (or after two years) |
+| 4 | Where Resources Come From | 5 | Open Economy and Industry; trade on the market (optional) | After 2, when something runs out or after a year |
+| 5 | Settling New Planets | 5 | Queue a district or building; claim a second system; assign a governor (optional) | After 2, nine months in |
+| 6 | Your Capital City | 4 | Open the capital; queue a capital building or upgrade | After 2, half a year in |
+| 7 | Friends, Rivals and Your Court | 5 | Open Diplomacy; send a proposal (optional); open the Council; name an heir (optional) | After 2, on meeting a great realm |
+| 8 | Research and Eras | 4 | Set research; queue research or open the tech tree; open the Kingdom window | After 2, after a year |
+| 9 | Map Controls and Words | 5 | Select a system; enter a system and select a planet; explore a new system | After 2 |
+| 10 | Ships in Detail | 5 | Queue a ship; give a fleet an order or stance | After 3, or when war comes |
+| 11 | Your People | 4 | Open the Hall of Heroes; recruit or assign someone | After 2, after two years |
+| 12 | Great Works | 4 | Open Construction | A new era or a megastructure technology |
+
+The war lesson is tested end to end (`tests/beginner.test.ts`). The test gives a fresh realm money and supplies, then uses only the lesson's own "Do it for me" orders and the passage of time. In about three and a half game years it takes a small realm's planet and makes peace.
 
 How lessons behave:
 - Each step highlights the control it names. If that control's window is closed, the highlight falls back to the ministries button.
@@ -24,6 +50,7 @@ How lessons behave:
 - **Codex → Settings** resets all progress for the current reign.
 - Progress lives in `GameState.guidance`, so it is saved with the game, including autosaves and cloud saves.
 - Saves made with the old ten-step advisor (`GameState.tutorial`) migrate to Lesson 1.
+- Lesson numbers follow the order in `CHAPTERS`; the beginner path comes first.
 
 ## Contextual guidance
 

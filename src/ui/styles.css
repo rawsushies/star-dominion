@@ -528,6 +528,13 @@ table.t tr.sel td { background: var(--ice-dim); }
 .lesson-offer { padding: 10px 14px 12px; border-left: 2px solid var(--ice); }
 .lesson-offer-k { font-size: 11.5px; color: var(--ice); letter-spacing: 0.04em; }
 .lesson-offer .lesson-title { margin-top: 2px; }
+.moment { padding: 10px 14px 12px; border-left: 2px solid var(--crown); overflow-y: auto; max-height: 34vh; flex-shrink: 0; }
+.moment.danger { border-left-color: var(--bad); }
+.moment-k { font-size: 11.5px; color: var(--crown); letter-spacing: 0.04em; }
+.moment.danger .moment-k { color: var(--bad); }
+.moment p { margin: 6px 0 0; font-size: 13px; line-height: 1.55; color: var(--text); }
+.lesson-note { margin-top: 8px; color: var(--ice); }
+.neo-more { opacity: 0.7; }
 .hints { padding: 2px 0; overflow-y: auto; max-height: 46vh; }
 .hints-head { display: flex; align-items: center; justify-content: space-between; padding: 6px 10px 2px; }
 .hints-head .hint-t { text-transform: none; letter-spacing: 0.02em; font-size: 13px; }

@@ -12,6 +12,8 @@ import { guidanceOf, guidancePrefs, onPrefsChange } from '../../guidance/state';
 import { currentHints, snoozeHint, reignGoal, type Hint } from '../../guidance/hints';
 import { SCREEN_INFO } from '../../guidance/screens';
 import { codexEntry } from '../../guidance/codex';
+import { currentMoment, dismissMoment, type Moment } from '../../guidance/moments';
+import { isSimple, setSimple, visibleScreens } from '../../guidance/path';
 
 export function usePrefs() {
   const [, setN] = useState(0);
@@ -58,12 +60,20 @@ function useHighlight(step: LessonStep | null, enabled: boolean) {
     if (!step?.target || !enabled) return;
     let el: Element | null = null;
     for (const sel of step.target) {
-      const hit = document.querySelector(sel);
+      const hit = findTarget(sel);
       if (hit && (hit as HTMLElement).offsetParent !== null) { el = hit; break; }
     }
     el?.classList.add('coach');
     return () => el?.classList.remove('coach');
   }, [step, enabled, ui.windows, ui.screen, ui.view, ui.rev]);
+}
+
+/** A CSS selector, or `text:<selector>|<text>`: the first visible match whose text contains <text>. */
+function findTarget(sel: string): Element | null {
+  if (!sel.startsWith('text:')) return document.querySelector(sel);
+  const [css, text] = sel.slice(5).split('|');
+  for (const el of document.querySelectorAll(css)) if ((el as HTMLElement).offsetParent !== null && el.textContent?.includes(text)) return el;
+  return null;
 }
 
 // ---------------------------------------------------------------- lessons
@@ -84,6 +94,7 @@ export function GuidanceStack() {
   }, []);
   return (
     <div className="guide-stack" ref={ref}>
+      <MomentCard />
       <HintCard />
       <LessonPanel />
     </div>
@@ -98,6 +109,7 @@ function LessonPanel() {
   const chapter = activeChapter(g);
   const step = activeStep(g);
   useHighlight(step, !!chapter && !s.paused);
+  const [note, setNote] = useState<{ step: LessonStep; text: string } | null>(null);
   if (!chapter || !step) return prefs.lessons ? <LessonOffer /> : null;
   const bump = () => ui.bump();
   if (s.paused) {
@@ -111,6 +123,15 @@ function LessonPanel() {
   const text = typeof step.text === 'function' ? step.text(ctx) : step.text;
   const last = s.step === chapter.steps.length - 1;
   const met = !!step.done?.(ctx);
+  const goal = typeof step.goal === 'function' ? step.goal(ctx) : step.goal;
+  const doIt = () => {
+    const cmds = step.auto?.(g) ?? [];
+    if (!cmds.length) { setNote({ step, text: 'There is nothing that can be done for this step right now.' }); return; }
+    let ok = 0; let why = '';
+    for (const c of cmds) { const r = ui.cmd(c); if (r.ok) ok++; else why ||= r.message ?? ''; if (step.autoFirst && r.ok) break; }
+    setNote({ step, text: ok ? (step.autoFirst ? 'Done.' : `Done: ${ok} order${ok > 1 ? 's' : ''} given.`) + (why && !step.autoFirst ? ` Some could not be given: ${why}.` : '') : `It could not be done yet: ${why || 'not possible right now'}.` });
+    bump();
+  };
   return (
     <aside className="lesson glass" aria-live="polite" aria-label="Lesson">
       <div className="whead">
@@ -126,9 +147,10 @@ function LessonPanel() {
         {step.goal && (
           <div className={cls('lesson-goal', met && 'met')} data-testid="lesson-goal">
             <span className="box" aria-hidden>{met ? '✓' : ''}</span>
-            <span>{step.goal}</span>
+            <span>{goal}</span>
           </div>
         )}
+        {note && note.step === step && <div className="hint lesson-note" role="status">{note.text}</div>}
         <div className="row between" style={{ marginTop: 10, gap: 6 }}>
           <button className="btn small" disabled={s.step === 0} onClick={() => { prevStep(g); bump(); }}>Back</button>
           <span className="grow" />
@@ -140,6 +162,7 @@ function LessonPanel() {
             const scr = sh?.screen ?? step.open;
             if (scr) ui.openScreen(scr);
           }}>Show me</button>}
+          {step.auto && !met && <button className="btn small" onClick={doIt} title="Give the orders for this step">Do it for me</button>}
           {last ? <button className="btn small primary" onClick={() => { finishLesson(g); bump(); }}>Finish lesson</button>
             : <button className={cls('btn small', !step.goal && 'primary')} onClick={() => { nextStep(g); bump(); }}>{step.goal ? 'Skip step' : 'Continue'}</button>}
         </div>
@@ -165,6 +188,42 @@ function LessonOffer() {
         <button className="btn small" onClick={() => { declineOffer(g, next.id); ui.bump(); }}>Not now</button>
         <span className="grow" />
         <button className="btn small" onClick={() => ui.openCodex(null, 'lessons')}>All lessons</button>
+      </div>
+    </aside>
+  );
+}
+
+// ---------------------------------------------------------------- "what just happened?" cards
+
+let momentCache: { tick: number; rev: number; m: Moment | null } = { tick: -1, rev: -1, m: null };
+
+function MomentCard() {
+  const g = useGame();
+  const ui = useUI();
+  const prefs = usePrefs();
+  if (momentCache.tick !== g.tick || momentCache.rev !== ui.rev) momentCache = { tick: g.tick, rev: ui.rev, m: prefs.lessons ? currentMoment(g) : null };
+  const m = momentCache.m;
+  const id = m?.id;
+  // danger stops the clock so there is time to read and act
+  useEffect(() => { if (m?.pause && useUI.getState().speed > 0) useUI.getState().setSpeed(0); }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!m) return null;
+  const close = () => { dismissMoment(g, m); momentCache.rev = -1; ui.bump(); };
+  const act = () => {
+    const a = m.action!;
+    if (a.fleetId != null) ui.selectFleet(a.fleetId);
+    if (a.systemId != null) { ui.set({ systemId: a.systemId, view: 'galaxy', screen: 'map' }); focusSystem(a.systemId); }
+    if (a.planetId != null) ui.selectPlanet(a.planetId);
+    if (a.screen) ui.openScreen(a.screen);
+    close();
+  };
+  return (
+    <aside className={cls('moment glass', m.danger && 'danger')} aria-label="What just happened" data-testid="moment">
+      <div className="moment-k">{m.danger ? 'Important' : 'Something new'}</div>
+      <div className="lesson-title">{m.title}</div>
+      <p>{m.text}</p>
+      <div className="row" style={{ gap: 6, marginTop: 8 }}>
+        {m.action && <button className="btn small primary" onClick={act}>{m.action.label}</button>}
+        <button className="btn small" onClick={close}>Got it</button>
       </div>
     </aside>
   );
@@ -199,10 +258,14 @@ function HintCard() {
   if (!prefs.hints) return null;
   // during a lesson only urgent matters interrupt
   const lesson = guidanceOf(g).active && !guidanceOf(g).paused;
-  const hints = hintCache.hints.filter((h) => !lesson || h.severity === 'danger');
+  // a beginner sees one thing at a time, and only about screens they already have
+  const simple = isSimple(g);
+  const vis = visibleScreens(g);
+  const hints = hintCache.hints.filter((h) => (!lesson || h.severity === 'danger') && (!vis || !h.action?.screen || vis.has(h.action.screen)));
   if (lesson && !hints.length) return null;
   const goal = reignGoal(g);
-  const shown = open ? hints.slice(0, 7) : hints.slice(0, 3);
+  const few = simple ? 1 : 3;
+  const shown = open ? hints.slice(0, 7) : hints.slice(0, few);
   const act = (h: Hint) => {
     const a = h.action;
     if (!a) return;
@@ -215,7 +278,7 @@ function HintCard() {
   return (
     <aside className="hints glass" aria-label="Next steps">
       <div className="hints-head">
-        <span className="hint-t">Next steps</span>
+        <span className="hint-t">{simple ? 'Next step' : 'Next steps'}</span>
         <button className="hint-fold" onClick={() => setFold(!fold)} aria-expanded={!fold} title={fold ? 'Show next steps' : 'Fold away'}>{fold ? '▸' : '▾'}</button>
       </div>
       {!fold && <div className="hint-goal" data-testid="reign-goal">{goal.text}</div>}
@@ -229,7 +292,7 @@ function HintCard() {
           </div>
         </div>
       ))}
-      {!fold && hints.length > 3 && <button className="hint-more" onClick={() => setOpen(!open)}>{open ? 'Show fewer' : `${Math.min(7, hints.length) - 3} more`}</button>}
+      {!fold && hints.length > few && <button className="hint-more" onClick={() => setOpen(!open)}>{open ? 'Show fewer' : simple ? 'Show other ideas' : `${Math.min(7, hints.length) - few} more`}</button>}
     </aside>
   );
 }
@@ -305,6 +368,7 @@ export function Term({ entry, children, extra }: { entry: string; children: Reac
 export function beginGuidedReign() {
   const g = useUI.getState().game;
   if (!g) return;
+  setSimple(g, true);
   startLesson(g, 'welcome');
   useUI.getState().bump();
 }

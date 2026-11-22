@@ -153,9 +153,9 @@ export function snoozeHint(g: GameState, id: string, days = SNOOZE_DAYS) {
 
 /** The current stage of the reign, in a sentence: what the player is trying to do now. */
 export const PHASE_GOAL: Record<Phase, string> = {
-  early: 'Grow your home world, explore your neighbourhood and claim the systems around you.',
-  mid: 'Specialise your worlds, find allies, and hold your own against your rivals.',
-  late: 'Go for victory: domination, supremacy or ascension. The Throne room shows how close you and your rivals are.',
+  early: 'Make your realm bigger: build on your planet, explore nearby stars and claim the free ones.',
+  mid: 'Get stronger than your neighbours: settle more planets, build a fleet, and make friends or take land.',
+  late: 'Go for the win: own half of all claimed space, make every rival bow to you, or reach the last era. The Throne room shows how close everyone is.',
 };
 export function reignGoal(g: GameState): { phase: Phase; text: string } {
   const phase = phaseOf(g.empires[g.playerId]);
