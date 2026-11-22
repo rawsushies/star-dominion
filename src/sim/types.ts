@@ -359,6 +359,8 @@ export interface AIPlan {
   review: number;
   /** most systems held (to notice heavy losses) */
   peakSystems: number;
+  /** when the realm last grew (a new system); a realm that stops growing grows restless */
+  grewTick?: number;
   /** troops the current invasion target needs (set by fleet operations) */
   troopsWanted?: number;
 }

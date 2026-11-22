@@ -199,6 +199,7 @@ export function reviewStrategy(state: GameState, e: Empire) {
   const preset = aiPreset(state, e);
   if (state.tick < plan.review) return;
   plan.review = state.tick + preset.reviewDays;
+  if (e.stats.systems > plan.peakSystems || plan.grewTick == null) plan.grewTick = state.tick;
   plan.peakSystems = Math.max(plan.peakSystems, e.stats.systems);
   const L = getLedger(state, e);
   const pers = e.personality;
@@ -241,7 +242,10 @@ export function reviewStrategy(state: GameState, e: Empire) {
   // 3) Plan a war when a worthwhile rival is within reach and the temperament allows.
   if (e.kind === 'major' && state.tick > 360 * 4 && e.warExhaustion < 20 && atWarCount(state, e.id, true) < preset.maxWars) {
     const best = warCandidates(state, e)[0];
-    const appetite = pers.aggression * 0.7 + pers.expansion * 0.3 + (freeSystemsNear(state, e) === 0 ? 0.25 : 0);
+    // restlessness: a realm that has stopped growing looks outward (scholars find other outlets)
+    const stalledYears = (state.tick - (planOf(e).grewTick ?? state.tick)) / 360;
+    const restless = Math.min(0.6, Math.max(0, stalledYears - 4) * 0.08) * (victoryAim(e) === 'ascension' ? 0.4 : 1);
+    const appetite = pers.aggression * 0.7 + pers.expansion * 0.3 + (freeSystemsNear(state, e) === 0 ? 0.25 : 0) + restless;
     // against a runaway leader the bar is lower: everyone else is a potential ally
     const lead = hegemon(state);
     const minRatio = (lead && best && lead.id === best.id ? 0.8 - 0.35 * lead.fear * preset.coalition : 0.8) + (best?.id === state.playerId ? preset.playerBias * 0.5 : 0);
