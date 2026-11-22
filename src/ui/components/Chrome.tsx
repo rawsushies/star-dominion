@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { slotForName } from '../../persistence/slots';
+import { APP_VERSION } from '../../version';
 import { useUI, saveGame, loadGame, type ScreenId } from '../store';
 import { formatDate } from '../../sim/util';
 import { serialize, deserialize } from '../../sim/save';
@@ -91,10 +92,13 @@ export function AssetNotice() {
 export function useHotkeys() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement)?.tagName === 'INPUT' || (e.target as HTMLElement)?.tagName === 'SELECT') return;
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable) return;
+      // leave browser and system shortcuts (Ctrl+1 switches tabs, ...) alone
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
       const ui = useUI.getState();
       if (!ui.game) return;
-      if (e.code === 'Space') { e.preventDefault(); ui.togglePause(); }
+      if (e.code === 'Space') { e.preventDefault(); (e.target as HTMLElement)?.blur?.(); ui.togglePause(); }
       else if (e.key === '1' || e.key === '2' || e.key === '3') ui.setSpeed(+e.key);
       else if (e.key === 'Escape') {
         if (ui.pendingOrder) ui.set({ pendingOrder: null });
@@ -130,10 +134,11 @@ export function GameMenu() {
     a.href = URL.createObjectURL(blob);
     a.download = `star-dominion-${formatDate(g.tick)}.json`;
     a.click();
-    URL.revokeObjectURL(a.href);
+    // revoking at once can cancel the download in some browsers
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   };
   const importFile = (f: File) => {
-    f.text().then((t) => { try { ui.load(deserialize(t)); } catch (err) { setMsg(`Could not load: ${(err as Error).message}`); } });
+    f.text().then((t) => { try { ui.load(deserialize(t)); } catch (err) { setMsg(`Could not load that file: ${(err as Error).message}. Choose a save exported from Star Dominion.`); } }, () => setMsg('Could not read that file.'));
   };
   return (
     <div className="modal-back" onClick={() => ui.set({ menuOpen: false })}>
@@ -165,7 +170,7 @@ export function GameMenu() {
             <h3><span>Files</span></h3>
             <div className="row wrap">
               <button className="btn" onClick={exportFile}>Export save file</button>
-              <label className="btn">Import save file<input type="file" accept="application/json" hidden onChange={(e) => e.target.files?.[0] && importFile(e.target.files[0])} /></label>
+              <label className="btn">Import save file<input type="file" accept="application/json" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) importFile(f); }} /></label>
             </div>
           </div>
           <div className="section">
@@ -181,6 +186,21 @@ export function GameMenu() {
             <label className="row"><input type="checkbox" checked={ui.pauseOnEvents} onChange={(e) => ui.set({ pauseOnEvents: e.target.checked })} /> Pause automatically on war, invasion and rebellion</label>
             <div className="row" style={{ marginTop: 8 }}><button className="btn small" onClick={() => { ui.set({ menuOpen: false }); ui.openCodex(null, 'settings'); }}>Guidance settings and lessons</button></div>
           </div>
+          <div className="section">
+            <h3><span>Controls</span></h3>
+            <table className="tbl keys-tbl">
+              <tbody>
+                <tr><td><kbd>Space</kbd></td><td>Pause or resume time</td></tr>
+                <tr><td><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></td><td>Game speed: slow, normal, fast</td></tr>
+                <tr><td><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd>, <kbd>Q</kbd> <kbd>E</kbd></td><td>Move and turn the map camera (or drag with the mouse; scroll to zoom)</td></tr>
+                <tr><td><kbd>Esc</kbd></td><td>Close the open window, cancel an order, or step back out</td></tr>
+                <tr><td><kbd>F1</kbd> / <kbd>F2</kbd></td><td>Back to the map / open the Codex</td></tr>
+                <tr><td><kbd>M</kbd></td><td>Mute or unmute sound</td></tr>
+                <tr><td>Right-click</td><td>Send the selected fleet to a star</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div className="hint" style={{ marginTop: 10 }}>Star Dominion {APP_VERSION} · single-player · saves stay in this browser unless you sign in or export them.</div>
           {msg && <div className="hint" style={{ marginTop: 10, color: 'var(--brass)' }}>{msg}</div>}
           <div className="row between" style={{ marginTop: 18 }}>
             <button className="btn danger" onClick={() => ui.quit()}>Quit to title</button>

@@ -256,7 +256,12 @@ export const PEACE_LABEL: Record<PeaceTerm, string> = {
 };
 
 export function signTreaty(state: GameState, a: number, b: number, type: TreatyType) {
-  if (hasTreaty(state, a, b, type)) return;
+  if (a === b || hasTreaty(state, a, b, type)) return;
+  // pacts are not signed across a battle line; a new vassal leaves its other wars with its overlord
+  if (warBetween(state, a, b)) {
+    if (type !== 'vassal') return;
+    withdrawFromWarsWith(state, b, a);
+  }
   state.treaties.push({ type, a, b, since: state.tick });
   const ea = state.empires[a];
   const eb = state.empires[b];
@@ -343,6 +348,7 @@ export function canDeclareWar(state: GameState, a: number, b: number): { ok: boo
 export function joinWar(state: GameState, war: War, id: number, side: 'attackers' | 'defenders'): boolean {
   if (war.attackers.includes(id) || war.defenders.includes(id)) return false;
   const foes = side === 'attackers' ? war.defenders : war.attackers;
+  if (foes.some((f) => f === id || hasTreaty(state, id, f, 'vassal'))) return false;
   for (const f of foes) {
     for (const t of ['nap', 'trade', 'research', 'defense', 'alliance'] as TreatyType[]) if (hasTreaty(state, id, f, t)) breakTreaty(state, id, f, t);
     addMemory(state, f, id, 'joined_war', -40, 1, 'Joined a war against us');
@@ -379,6 +385,8 @@ export function declareWar(state: GameState, a: number, b: number): War | null {
     if (!((t.type === 'alliance' || t.type === 'vassal') && (t.a === a || t.b === a))) continue;
     const ally = t.a === a ? t.b : t.a;
     if (war.defenders.includes(ally) || war.attackers.includes(ally) || !state.empires[ally].alive) continue;
+    // a realm bound to the other side by alliance or vassalage stays out
+    if (war.defenders.some((d) => hasTreaty(state, ally, d, 'alliance') || hasTreaty(state, ally, d, 'vassal'))) continue;
     if (t.type === 'vassal' || opinion(state, ally, b) < 10) {
       war.attackers.push(ally);
       for (const tt of ['nap', 'trade', 'research', 'defense'] as TreatyType[]) if (hasTreaty(state, ally, b, tt)) breakTreaty(state, ally, b, tt, true);
@@ -439,7 +447,37 @@ export function makePeace(state: GameState, war: War, term: PeaceTerm, winnerSid
   });
 }
 
+/** A realm leaves every war it fights against `foe` (a war left with one side empty ends, with a truce). */
+function withdrawFromWarsWith(state: GameState, id: number, foe: number) {
+  for (const w of state.wars.slice()) {
+    const mine = w.attackers.includes(id) ? w.attackers : w.defenders.includes(id) ? w.defenders : null;
+    const theirs = mine === w.attackers ? w.defenders : w.attackers;
+    if (!mine || !theirs.includes(foe)) continue;
+    mine.splice(mine.indexOf(id), 1);
+    for (const x of theirs) state.truces.push({ a: id, b: x, until: state.tick + 360 * 5 });
+    if (!w.attackers.length || !w.defenders.length) state.wars = state.wars.filter((x) => x !== w);
+    log(state, { kind: 'peace', severity: 'info', title: `${state.empires[id].name} leaves the ${w.name}`, text: `Bound to ${state.empires[foe].name}, it can no longer fight on.`, empires: [] });
+  }
+}
+
+/**
+ * Keep the diplomatic web consistent: no pact with oneself or with a fallen realm, no pact between
+ * realms at war (a vassal fighting its overlord withdraws from that war), and no open offers to or
+ * from a fallen realm.
+ */
+export function reconcileDiplomacy(state: GameState) {
+  const alive = (id: number) => !!state.empires[id]?.alive;
+  state.treaties = state.treaties.filter((t) => t.a !== t.b && alive(t.a) && alive(t.b));
+  for (const t of state.treaties.slice()) {
+    if (!warBetween(state, t.a, t.b)) continue;
+    if (t.type === 'vassal') withdrawFromWarsWith(state, t.b, t.a);
+    else breakTreaty(state, t.a, t.b, t.type, true);
+  }
+  state.proposals = state.proposals.filter((p) => alive(p.from) && alive(p.to) && p.from !== p.to);
+}
+
 export function monthlyDiplomacy(state: GameState) {
+  reconcileDiplomacy(state);
   for (const k in state.opinions) {
     const list = state.opinions[k];
     for (const m of list) {

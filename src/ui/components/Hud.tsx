@@ -2,7 +2,8 @@
 // a resource strip, the throne dial (time, speed and lenses), the dispatches
 // log, the overview and a floating window manager for management screens.
 
-import { useRef, useState, type ReactNode } from 'react';
+import { ErrorBoundary } from './ErrorBoundary';
+import { Suspense, useRef, useState, type ReactNode } from 'react';
 import { useUI, useGame, SPEEDS, type ScreenId, type MapMode, type Win } from '../store';
 import { getLedger } from '../../sim/engine';
 import { formatDate } from '../../sim/util';
@@ -458,7 +459,7 @@ function WindowFrame({ win }: { win: Win }) {
       </header>
       {!win.min && info && <ScreenInfoPanel id={win.id} onClose={() => setInfo(false)} />}
       {!win.min && !info && <FirstVisit id={win.id} onMore={() => setInfo(true)} />}
-      {!win.min && <div className="wbody"><Screen /></div>}
+      {!win.min && <div className="wbody"><ErrorBoundary where={`window ${win.id}`} key={win.id}><Suspense fallback={<div className="empty">Loading…</div>}><Screen /></Suspense></ErrorBoundary></div>}
       {!win.min && <div className="wsize" onPointerDown={(e) => startDrag(e, 'size')} aria-hidden />}
     </section>
   );

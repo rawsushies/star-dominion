@@ -112,6 +112,8 @@ export class FrameGate {
   poke(ms = 900) { this.activeUntil = performance.now() + ms; this.forced = true; }
   /** something visible changed: render on the next frame */
   invalidate() { this.forced = true; }
+  /** is the view in a full-frame-rate burst (the player is handling it)? */
+  active(t: number) { return t < this.activeUntil; }
   /** should this frame render? `running` is true while game time advances */
   due(t: number, running: boolean): boolean {
     if (typeof document !== 'undefined' && document.hidden) return false;
@@ -121,5 +123,35 @@ export class FrameGate {
     this.forced = false;
     this.last = t;
     return true;
+  }
+}
+
+/**
+ * Adaptive resolution for the map (quality "auto" only): while the player is handling the map and
+ * frames should come at 60 per second, measure how long they actually take. If the device cannot
+ * keep up, render at a lower resolution (down to 60% of the screen's pixels); raise it again when
+ * there is headroom. Changes are gradual and at most every half second.
+ */
+export class ResolutionGovernor {
+  scale = 1;
+  private avg = 16.7;
+  private n = 0;
+  private lastFrame = -1;
+  constructor(private enabled: () => boolean = () => graphics().quality === 'auto') {}
+  /** call on every rendered frame; `burst` is true when the frame belongs to a full-rate burst */
+  frame(t: number, burst: boolean) {
+    if (!this.enabled()) { this.scale = 1; this.lastFrame = -1; return; }
+    if (!burst) { this.lastFrame = -1; return; }
+    if (this.lastFrame >= 0) {
+      const dt = t - this.lastFrame;
+      if (dt < 250) {
+        this.avg = this.avg * 0.9 + dt * 0.1;
+        if (++this.n % 30 === 0) {
+          if (this.avg > 30 && this.scale > 0.6) this.scale = Math.max(0.6, +(this.scale * 0.85).toFixed(3));
+          else if (this.avg < 19 && this.scale < 1) this.scale = Math.min(1, +(this.scale * 1.08).toFixed(3));
+        }
+      }
+    }
+    this.lastFrame = t;
   }
 }

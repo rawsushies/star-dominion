@@ -1,7 +1,7 @@
 {
   "name": "star-dominion",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Star Dominion: an interstellar kingdom grand strategy simulator.",
   "type": "module",
   "scripts": {
@@ -15,7 +15,9 @@
     "candidates:fetch": "node scripts/fetch-candidates.mjs",
     "test:e2e": "playwright test",
     "candidates:capture": "node scripts/capture-candidates.mjs",
-    "lab:capture": "node scripts/capture-capital-lab.mjs"
+    "lab:capture": "node scripts/capture-capital-lab.mjs",
+    "fuzz": "vite-node scripts/audit.ts",
+    "fuzz:browser": "node scripts/browser-audit.cjs"
   },
   "dependencies": {
     "@fontsource/barlow-condensed": "5.1.0",
