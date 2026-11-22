@@ -9,6 +9,7 @@ import { releaseCaptive } from './characters';
 import { BUILDINGS } from './data/buildings';
 import type { DealItem, Empire, GameState, PeaceTerm, Proposal, TreatyType, War, BuildingId } from './types';
 import { networkBonus } from './espionage';
+import { hegemon } from './victory';
 
 export const TREATY_LABEL: Record<TreatyType, string> = {
   nap: 'Non-Aggression Pact', trade: 'Trade Agreement', research: 'Research Cooperation',
@@ -46,6 +47,11 @@ export function opinionBreakdown(state: GameState, a: number, b: number): [strin
   const pa = ea.stats.militaryPower || 1;
   const pb = eb.stats.militaryPower || 1;
   if (border && pb > pa * 1.8) out.push(['Fears their military', -10]);
+  // a realm racing towards victory frightens everyone else
+  if (ea.kind === 'major') {
+    const lead = hegemon(state);
+    if (lead && lead.id === b) out.push(['Fears their ambition', -Math.round(10 + lead.fear * 25)]);
+  }
   for (const m of state.opinions[key(a, b)] ?? []) out.push([m.label, Math.round(m.value)]);
   return out;
 }
@@ -180,7 +186,8 @@ function treatyAppetite(state: GameState, ai: number, other: number, t: TreatyTy
     case 'trade': return ['Commercial interest', Math.round(-10 + pers.mercantile * 30 + (op > 0 ? 5 : -10))];
     case 'research': return ['Scientific interest', Math.round(-20 + pers.science * 30 + (op > 20 ? 5 : -10))];
     case 'defense': {
-      const common = state.empires.some((x) => x.alive && x.kind === 'major' && x.id !== ai && x.id !== other && opinion(state, ai, x.id) < -20 && opinion(state, other, x.id) < -10);
+      const lead = hegemon(state);
+      const common = (lead != null && lead.id !== ai && lead.id !== other && lead.fear > 0.3) || state.empires.some((x) => x.alive && x.kind === 'major' && x.id !== ai && x.id !== other && opinion(state, ai, x.id) < -20 && opinion(state, other, x.id) < -10);
       return ['Shared security concerns', Math.round(-30 + pers.diplomacy * 20 + (common ? 25 : 0) + (op > 40 ? 10 : 0))];
     }
     case 'alliance': return ['Alliance requires deep trust', Math.round(-60 + pers.diplomacy * 25 + (op > 60 ? 30 : 0))];
@@ -362,6 +369,7 @@ export function makePeace(state: GameState, war: War, term: PeaceTerm, winnerSid
   const losers = winnerSide === 'attackers' ? war.defenders : war.attackers;
   const wl = winners[0];
   const ll = losers[0];
+  if (term !== 'status_quo' && state.empires[wl]) state.empires[wl].warsWon = (state.empires[wl].warsWon ?? 0) + 1;
   if (term === 'tribute') {
     const loser = state.empires[ll];
     state.tributes.push({ from: ll, to: wl, perMonth: Math.round(8 + (loser.stats.population || 10) * 0.25), until: state.tick + 360 * 8 });
@@ -421,6 +429,28 @@ export function monthlyDiplomacy(state: GameState) {
     const m = empireMods(state, e);
     if (atWar) e.warExhaustion = Math.min(100, e.warExhaustion + 0.8 * (1 + mod(m, 'warExhaustion')));
     else e.warExhaustion = Math.max(0, e.warExhaustion - 3);
+  }
+  // Occupation: each enemy colony system held by a side's warships with no defending fleet there
+  // moves the war score by one point a month (up to three per side per month).
+  for (const w of state.wars) {
+    let net = 0;
+    for (const side of ['attackers', 'defenders'] as const) {
+      const us = new Set(side === 'attackers' ? w.attackers : w.defenders);
+      const them = new Set(side === 'attackers' ? w.defenders : w.attackers);
+      let held = 0;
+      for (const s of state.galaxy.systems) {
+        if (s.owner == null || !them.has(s.owner) || !s.planetIds.some((pid) => state.planets[pid].colony && them.has(state.planets[pid].colony!.ownerId))) continue;
+        let ours = false, theirs = false;
+        for (const id in state.fleets) {
+          const f = state.fleets[id];
+          if (f.systemId !== s.id || !f.ships.some((x) => x.cls !== 'transport' && x.cls !== 'scout' && x.cls !== 'constructor' && x.cls !== 'colony')) continue;
+          if (us.has(f.ownerId)) ours = true; else if (them.has(f.ownerId)) theirs = true;
+        }
+        if (ours && !theirs) held++;
+      }
+      net += (side === 'attackers' ? 1 : -1) * Math.min(3, held);
+    }
+    w.score = Math.max(-100, Math.min(100, w.score + net));
   }
   // Exhausted belligerents are forced to the table.
   for (const w of [...state.wars]) {

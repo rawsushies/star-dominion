@@ -1,3 +1,4 @@
+import { CHAIN_STAGES } from './chains';
 // Governance content: royal decrees, the noble houses of a realm and the
 // matters brought before the royal council. Effects use empire modifier keys
 // (see sim/modifiers.ts); values are scaled by the council member named in
@@ -72,6 +73,18 @@ export interface PetitionOption {
   member?: number;
   /** resources gained, scaled by the presenting member's attribute */
   gain?: Record<string, number>;
+  /** event chains: effects on the world the matter concerns */
+  planet?: { pops?: number; stability?: number; resistance?: number };
+  /** research progress gained on the current project */
+  research?: number;
+  /** corsair bands that gather on the realm's border */
+  raiders?: number;
+  /** opinion of every other great realm */
+  reputation?: number;
+  /** ships that join the realm at its capital */
+  fleet?: import('../types').ShipClass[];
+  /** the next stage of the chain, raised after `days` (with `chance`, else the `else` stage if any) */
+  next?: { def: string; days: number; chance?: number; else?: string };
 }
 export interface PetitionDef {
   id: string;
@@ -83,6 +96,8 @@ export interface PetitionDef {
   attr: Attr;
   /** only if the realm is at war / at peace */
   war?: boolean;
+  /** a stage of an event chain (sim/chains.ts), never raised at random */
+  chain?: boolean;
 }
 
 export const PETITIONS: PetitionDef[] = [
@@ -107,4 +122,4 @@ export const PETITIONS: PetitionDef[] = [
   { id: 'war_weariness', from: 'chancellor', title: 'The people tire of war', text: 'The provinces send word through {member}: the war has gone on too long.', attr: 'diplomacy', war: true,
     options: [{ label: 'Promise victory and pay for it', cost: { credits: 300 }, timed: { days: 180, mods: { stability: 6 }, label: 'Wartime largesse' } }, { label: 'Silence the complainers', allHouses: -5, timed: { days: 180, mods: { stability: -4 }, label: 'Wartime censorship' } }] },
 ];
-export const PETITION_BY_ID: Record<string, PetitionDef> = Object.fromEntries(PETITIONS.map((p) => [p.id, p]));
+export const PETITION_BY_ID: Record<string, PetitionDef> = Object.fromEntries([...PETITIONS, ...CHAIN_STAGES].map((p) => [p.id, p]));

@@ -2,6 +2,10 @@
 // Order of a day: combat -> movement -> orders -> supply -> construction ->
 // economy/population/research per empire -> monthly systems -> AI.
 
+import { victoryMonthly } from './victory';
+import { ambitionsMonthly } from './ambitions';
+import { chainsMonthly } from './chains';
+import { aiPreset } from './strategy';
 import { eraMonthly } from './eras';
 import { recordYear } from './chronicle';
 import { operationsMonthly } from './operations';
@@ -9,7 +13,6 @@ import { ensureCapital, progressCapitals } from './capital';
 import { governanceMonthly, ensureHouses } from './governance';
 import { createCharacter, assign, charactersMonthly, refreshCandidates } from './characters';
 import { civilisationPower } from './power';
-import { MAX_ERA } from './data/eras';
 import { makeRng, int, pick, chance, range, next } from './rng';
 import { generateGalaxy, jumpDistances, jumpsWithin, adjacency, ensureBodies } from './galaxy';
 import { CIV_TEMPLATES, MINOR_NAMES, RULER_FIRST, RULER_LAST } from './data/names';
@@ -343,7 +346,7 @@ export function step(state: GameState) {
     if (!e.alive || e.isPlayer) continue;
     if ((e.kind === 'major' || e.kind === 'minor' || e.kind === 'rebels') && state.tick >= e.aiNextTick) {
       runAI(state, e);
-      e.aiNextTick = state.tick + 5;
+      e.aiNextTick = state.tick + aiPreset(state, e).turnDays;
     }
   }
   if (state.tick % 3 === 0) runRaiders(state);
@@ -379,6 +382,7 @@ function monthly(state: GameState) {
   eliminationCheck(state);
   charactersMonthly(state, (a, b, v, label) => addMemory(state, a, b, 'envoy', v, 0.5, label));
   governanceMonthly(state);
+  chainsMonthly(state);
   successionMonthly(state);
   espionageTick(state, 30);
   operationsMonthly(state);
@@ -386,7 +390,8 @@ function monthly(state: GameState) {
   updateStats(state);
   if (state.tick % 360 === 0) recordYear(state);
   eraMonthly(state);
-  victoryCheck(state);
+  ambitionsMonthly(state);
+  victoryMonthly(state);
 }
 
 function colonyMonthly(state: GameState) {
@@ -490,8 +495,9 @@ function randomEvents(state: GameState) {
       case 0: p.deposits.minerals += 2; ev('good', 'Mineral vein discovered', `Surveyors on ${p.name} found a rich ore body. Mining districts there yield more.`); break;
       case 1: e.timedMods.push({ key: 'output.energy', value: -0.2, until: state.tick + 180, label: 'Solar storms' }); ev('warn', 'Solar storms', 'Stellar flares disrupt power generation across the realm (-20% energy for 6 months).'); break;
       case 2: {
+        // epidemics are now the fever chain (sim/chains.ts); a realm with regenerative medicine shrugs off minor ones
         if (e.research.done.includes('bio_medicine')) { ev('info', 'Epidemic contained', `Regenerative medicine halted an outbreak on ${p.name}.`); break; }
-        c.pops = Math.max(1, c.pops * 0.9); ev('danger', 'Epidemic', `A plague swept ${p.name}, killing a tenth of the population.`); break;
+        c.stability -= 5; ev('warn', 'Sickness', `A seasonal sickness keeps the workers of ${p.name} at home (-5 stability).`); break;
       }
       case 3: e.timedMods.push({ key: 'stability', value: 6, until: state.tick + 360, label: 'Cultural renaissance' }); ev('good', 'Cultural renaissance', 'A flowering of the arts lifts spirits across the realm (+6 stability for a year).'); break;
       case 4: e.timedMods.push({ key: 'tradeValue', value: 0.25, until: state.tick + 360, label: 'Trade boom' }); ev('good', 'Trade boom', 'Merchant houses report record profits (+25% trade value for a year).'); break;
@@ -562,28 +568,6 @@ export function updateStats(state: GameState) {
       avgStability: col ? Math.round(stab / col) : 0,
     };
     if (e.kind === 'major') { const pw = civilisationPower(state, e); e.stats.kardashev = Math.round(pw.k * 1000) / 1000; e.stats.powerW = pw.watts; }
-  }
-}
-
-function victoryCheck(state: GameState) {
-  const player = state.empires[state.playerId];
-  if (!player.alive) {
-    state.gameOver = { won: false, reason: 'Your realm has fallen. The last of your worlds is lost.' };
-    log(state, { kind: 'gameover', severity: 'danger', title: 'The reign has ended', text: state.gameOver.reason, empires: [] });
-    return;
-  }
-  if (state.gameOver) return;
-  const total = state.galaxy.systems.length;
-  const mine = player.stats.systems;
-  const rivalsStanding = state.empires.filter((e) => e.alive && e.kind === 'major' && !e.isPlayer && !state.treaties.some((t) => t.type === 'vassal' && t.a === player.id && t.b === e.id));
-  if ((player.era ?? 0) >= MAX_ERA) {
-    state.gameOver = { won: true, reason: 'Your civilisation has reached Omega Sovereignty and transcended the age of kingdoms.' };
-    log(state, { kind: 'victory', severity: 'good', title: 'Ascension achieved', text: `${state.gameOver.reason} You may continue to rule.`, empires: [] });
-    return;
-  }
-  if (mine / total >= 0.6 || rivalsStanding.length === 0) {
-    state.gameOver = { won: true, reason: rivalsStanding.length === 0 ? 'Every rival kingdom has fallen or kneels before your throne.' : 'Your banners fly over three fifths of the galaxy.' };
-    log(state, { kind: 'victory', severity: 'good', title: 'Galactic Dominion achieved', text: `${state.gameOver.reason} You may continue to rule.`, empires: [] });
   }
 }
 

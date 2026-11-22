@@ -8,6 +8,7 @@ import { charById, effectiveAttrs, effectiveness, governorBonus } from './charac
 import { warBetweenAny } from './territory';
 import { chance, int, pick } from './rng';
 import { log, nextId } from './util';
+import { applyChainEffects } from './chains';
 import type { Empire, GameState, GreatHouse, Petition } from './types';
 
 const AMBITIONS: HouseAmbition[] = ['seat', 'war', 'low_taxes', 'province', 'wealth', 'piety'];
@@ -153,7 +154,8 @@ function petitionText(state: GameState, e: Empire, p: Petition, s: string): stri
   const h = houseById(e, p.houseId);
   const m = charById(state, p.memberId);
   return s.replace(/\{house\}/g, h?.name ?? 'a noble house').replace(/\{member\}/g, m?.name ?? 'A councillor')
-    .replace(/\{province\}/g, p.sectorId != null ? state.galaxy.sectors?.[p.sectorId]?.name ?? 'the provinces' : 'the provinces');
+    .replace(/\{province\}/g, p.sectorId != null ? state.galaxy.sectors?.[p.sectorId]?.name ?? 'the provinces' : 'the provinces')
+    .replace(/\{planet\}/g, p.planetId != null ? state.planets[p.planetId]?.name ?? 'a distant world' : 'a distant world');
 }
 
 export function describePetition(state: GameState, e: Empire, p: Petition) {
@@ -209,11 +211,13 @@ export function resolvePetition(state: GameState, e: Empire, petitionId: number,
   const m = charById(state, p.memberId);
   if (m && o.member) m.loyalty = clamp(m.loyalty + o.member);
   e.petitions = e.petitions!.filter((x) => x !== p);
+  applyChainEffects(state, e, p, o);
 }
 
 function raisePetition(state: GameState, e: Empire) {
   const atWar = warBetweenAny(state, e.id);
   const eligible = PETITIONS.filter((d) => {
+    if (d.chain) return false;
     if (d.war != null && d.war !== atWar) return false;
     if (e.petitions!.some((p) => p.def === d.id)) return false;
     if (d.from === 'house') return (e.houses?.length ?? 0) > 0;
