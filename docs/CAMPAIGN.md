@@ -77,4 +77,44 @@ These results come after the war fixes: escorted landings sized to the garrison,
 
 ## Current
 
-(Filled in from the latest suite.)
+All fixes are in: decisive wars, lapsing and renounced pacts, vassal risings, counter-building and coalitions against the leader. Four seeds (101–404), 100 years, snapshots at 30, 60 and 100.
+
+| Difficulty | Year | Wars | On the player | Falls | Player rank | Mean K | Top share | Passive | Victories so far |
+|---|---|---|---|---|---|---|---|---|---|
+| Relaxed | 30 | 12.0 | 0.0 | 1.0 | 1.0 | 1.07 | 38% | 0.3 | none |
+| Relaxed | 60 | 21.0 | 0.0 | 2.0 | 1.0 | 2.01 | 52% | 3.0 | 3 |
+| Relaxed | 100 | 25.5 | 0.3 | 2.0 | 1.0 | 2.42 | 56% | 3.5 | domination at 40, 50 and 70 (the player), ascension at 58 (AI) |
+| Standard | 30 | 12.8 | 0.8 | 0.3 | 2.0 | 1.00 | 39% | 1.0 | none |
+| Standard | 60 | 21.3 | 2.0 | 1.3 | 2.0 | 1.70 | 50% | 3.3 | 2 |
+| Standard | 100 | 26.8 | 2.8 | 1.3 | 1.5 | 2.77 | 51% | 11.8 | domination at 33 (AI) and 36 (the player), ascension at 61 (the player) and 95 (AI) |
+| Hard | 30 | 12.5 | 0.3 | 0.8 | 2.8 | 0.96 | 33% | 2.0 | none |
+| Hard | 60 | 23.5 | 3.0 | 2.0 | 1.8 | 1.66 | 45% | 2.8 | 1 |
+| Hard | 100 | 37.5 | 6.0 | 2.0 | 1.8 | 2.59 | 46% | 2.8 | domination at 37 (AI), ascension at 60 and 90 (AI) and 83 (the player) |
+
+### What the numbers say
+
+- **Difficulty is a real gradient.** Every preset plays by the same rules and receives the same resources.
+
+  | Difficulty | Player's realm wins | Wars declared on it per century |
+  |---|---|---|
+  | Relaxed | 3 of 4 | 0.3 |
+  | Standard | 2 of 4 | 2.8 |
+  | Hard | 1 of 4 | 6.0 |
+
+  The player's realm survived every run.
+- **Wars decide things.** About 25–38 wars per century, against about 66 for the old AI. They are fewer but larger: two realms fall per campaign on average, and great realms were eliminated in several runs.
+- **No passive late game.** Passive rival-years are 3–12 per campaign, against 10–67 before.
+- **Every road to victory is reachable.**
+  - Domination: 7 of 12 victories, between years 33 and 70.
+  - Ascension: 5 of 12, between years 58 and 95.
+  - Supremacy: achieved in an earlier pass (too early, now fixed), and not in this suite.
+  - Every campaign ended in a victory within 100 years. The AI won 6 of 12, the player's realm 6 of 12.
+- **Runaway leaders are checked, not eliminated.** Coalitions now form (8–21 defensive pacts against a leader per campaign). Hard rivals gang up on the leader hardest. Seed 101 still produces an early AI domination at year 33 on standard and year 37 on hard. The two-year hold and the warnings give a human player time to act; the AI stand-in does not use it.
+- **Snowball** is now dominated by realms shrinking: the median realm can fall to 1–2 systems. The leader's share of all systems is the better measure; it ends at 46–56% of the galaxy.
+
+### Known limits of this evidence
+
+- Twelve campaigns on one galaxy size. The 10,000-system Milky Way was checked for speed (13.9 ms per day under load, against a limit of 20), not for balance.
+- The player's realm is AI-driven. A human will play differently, especially in using the warnings: rivals arming, a domination hold starting.
+- The numbers move between seeds. Read the trends, not the exact values.
+
