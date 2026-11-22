@@ -267,7 +267,7 @@ export function reviewStrategy(state: GameState, e: Empire) {
   }
   // 4) Peaceful goals.
   if (freeSystemsNear(state, e) > 0 && e.stats.systems < (L.adminCap ?? 0) + 3 + pers.expansion * 4) setGoal(state, e, 'expand');
-  else if ((e.era ?? 0) >= 2 || (e.era ?? 0) >= 1 && e.research.done.length >= (victoryAim(e) === 'ascension' ? 14 : 24)) setGoal(state, e, 'ascend');
+  else if ((e.era ?? 0) >= 2 || (e.era ?? 0) >= 1 && e.research.done.length >= (victoryAim(e) === 'ascension' ? 20 : 24)) setGoal(state, e, 'ascend');
   else setGoal(state, e, 'develop');
 }
 
@@ -305,7 +305,7 @@ export function militaryFill(state: GameState, e: Empire): number {
     case 'war': fill = 1.05; break;
     case 'arm': fill = 1.0; break;
     case 'recover': fill = threatened ? 0.9 : 0.35; break;
-    case 'ascend': fill = (victoryAim(e) === 'ascension' ? 0.35 : 0.45) + a * 0.3; break;
+    case 'ascend': fill = (victoryAim(e) === 'ascension' ? 0.42 : 0.45) + a * 0.3; break;
     default: fill = 0.4 + a * 0.4;
   }
   // a runaway neighbour is cause for more ships
