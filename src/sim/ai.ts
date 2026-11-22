@@ -27,7 +27,7 @@ import { opsOf, OP_MAX_LEVEL } from './operations';
 import { canQueueCapital, openPlots, plotOccupant, capitalCost, plannedLevel } from './capital';
 import { CAPITAL_BUILDINGS } from './data/capital';
 import { next, chance } from './rng';
-import type { BuildingId, Empire, Fleet, GameState, PeaceTerm, Planet, ShipClass, TreatyType , OpMode } from './types';
+import type { BuildingId, DealItem, Empire, Fleet, GameState, PeaceTerm, Planet, ShipClass, TreatyType , OpMode } from './types';
 import type { TechCategory } from './data/techs';
 import type { DesignationId } from './data/designations';
 import { rulerAge, heirOf, HEIR_COST } from './succession';
@@ -731,7 +731,7 @@ function diplomacy(state: GameState, e: Empire) {
     // a winning side presses on while it still has worlds to take and the people will bear it
     const pressOn = myScore > 0 && myScore < 85 && e.warExhaustion < 55 && years < 8 && !losing && canStillTake(state, e, foes);
     if (pressOn) term = null;
-    else if (myScore > 70 && years > 1) term = otherMajor && myScore > 80 && (state.empires[other].stats.militaryPower || 1) * 4 < (e.stats.militaryPower || 1) && state.empires[other].stats.systems * 3 <= e.stats.systems ? 'vassalize' : otherMajor ? 'cede' : 'vassalize';
+    else if (myScore > 70 && years > 1) { const ratio = (e.stats.militaryPower || 1) / (state.empires[other].stats.militaryPower || 1); term = !otherMajor || (myScore > 75 && (ratio >= 3 || (ratio >= 2 && e.personality.diplomacy >= 0.45))) ? 'vassalize' : 'cede'; }
     else if (myScore > 40 && years > 1) term = 'cede';
     else if (myScore > 25 && years > 1.5) term = 'tribute';
     else if (e.warExhaustion > 50 || myScore < -25 || (losing && myScore < 5) || years > 6) term = 'status_quo';    if (!term) continue;
@@ -795,6 +795,24 @@ function diplomacy(state: GameState, e: Empire) {
       state.proposals.push({ id: nextId(state), from: e.id, to: weak.id, give: [], receive: [{ kind: 'credits', amount }], tick: state.tick, kind: 'deal', demand: true });
       log(state, { kind: 'diplomacy', severity: 'warn', title: `${e.name} demands tribute`, text: `They want ${amount} credits. Refuse, and they will remember it: expect them to arm against you. Answer in Diplomacy.`, empires: [weak.id] });
       sendLetter(state, e, 'ultimatum', amount, 0);
+    }
+  }
+  // Demands of fealty: a much stronger realm offers a weak neighbour protection for its submission.
+  // This is the diplomatic road to supremacy, distinct from conquest (vassal space is not your own).
+  if (planOf(e).goal !== 'war' && chance(state.rng, 0.08 + e.personality.diplomacy * 0.08)) {
+    for (const o of majors) {
+      if (o.kind !== 'major' || !bordering(state, e.id, o.id) || warBetween(state, e.id, o.id)) continue;
+      if (state.treaties.some((t) => t.type === 'vassal' && (t.b === o.id || t.b === e.id))) continue;
+      const ratio = (e.stats.militaryPower || 1) / (estimatePower(state, e.id, o.id) ?? (o.stats.militaryPower || 1));
+      if (ratio < 2.5) continue;
+      const prop = { id: nextId(state), from: e.id, to: o.id, give: [] as DealItem[], receive: [{ kind: 'treaty' as const, treaty: 'vassal' as TreatyType }], tick: state.tick, kind: 'deal' as const };
+      if (o.isPlayer) {
+        if (prologueActive(state) || state.proposals.some((p) => p.from === e.id && p.to === o.id)) continue;
+        state.proposals.push({ ...prop, demand: true });
+        log(state, { kind: 'diplomacy', severity: 'warn', title: `${e.name} demands your fealty`, text: 'They want you as their vassal: they would protect you, you would follow them to war and could not win alone. Refuse, and they will remember it. Answer in Diplomacy.', empires: [o.id] });
+        sendLetter(state, e, 'fealty', undefined, 0);
+      } else if (evaluateProposal(state, prop).accept) applyDeal(state, prop);
+      break;
     }
   }
   // Wars are declared by the strategic plan (strategy.ts). While arming, secure the other flanks.

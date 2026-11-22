@@ -62,6 +62,19 @@ function start(state: GameState, e: Empire, root: string, planetId: number | nul
   raiseStage(state, e, root, planetId);
 }
 
+/**
+ * Exploration anomalies: the first time a realm charts a system, it may find something that asks
+ * for a decision: a sleeper ark, a signal near a strange star, a ghost fleet in derelict space.
+ */
+export function anomalyOnExplore(state: GameState, e: Empire, sysId: number) {
+  if (e.kind !== 'major' || e.capitalPlanetId == null || state.tick < 60 || (e.petitions?.length ?? 0) >= 3) return;
+  const sys = state.galaxy.systems[sysId];
+  const strange = sys.features.includes('pulsar') || sys.features.includes('nebula') || sys.star === 'black_hole' || sys.star === 'neutron';
+  const root = sys.features.includes('derelict') ? 'anomaly_ghosts' : strange ? 'anomaly_signal' : sys.owner == null && sys.planetIds.length >= 3 ? 'anomaly_ark' : null;
+  if (!root || !canStart(state, e, root) || !chance(state.rng, 0.35)) return;
+  start(state, e, root, e.capitalPlanetId);
+}
+
 /** Monthly: raise stages that are due, and start new chains when the situation calls for one. */
 export function chainsMonthly(state: GameState) {
   for (const e of state.empires) {

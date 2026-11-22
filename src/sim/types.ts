@@ -339,6 +339,8 @@ export interface Empire {
   relicLog?: { tick: number; rarity: 'common' | 'rare' | 'epic' | 'legendary'; kind: 'cache' | 'ship' | 'hero'; title: string; text: string }[];
   /** tick from which the realm has met the domination thresholds (sim/victory.ts) */
   dominationSince?: number | null;
+  /** when the realm last became supreme (every rival fallen or its vassal) */
+  supremacySince?: number | null;
   /** victories this realm has been announced as nearing */
   victoryWarned?: string[];
   stats: EmpireStats; // cached each month for UI/AI

@@ -4,7 +4,7 @@ import { deserialize, serialize, fingerprint } from '../src/sim/save';
 import { execute } from '../src/sim/commands';
 import { empireMods } from '../src/sim/modifiers';
 import { AI_PRESETS, aiPreset, estimatePower, planOf } from '../src/sim/strategy';
-import { victoryMonthly, victoryStatus, DOMINATION } from '../src/sim/victory';
+import { victoryMonthly, victoryStatus, DOMINATION, SUPREMACY_HOLD_MONTHS } from '../src/sim/victory';
 import { ambitionsMonthly, AMBITIONS } from '../src/sim/ambitions';
 import { raiseStage, chainsMonthly } from '../src/sim/chains';
 import { signTreaty } from '../src/sim/diplomacy';
@@ -53,6 +53,11 @@ describe('victory', () => {
     const me = s.empires[s.playerId];
     expect(victoryStatus(s, me).achieved).toBeNull();
     for (const r of rivals(s)) signTreaty(s, me.id, r.id, 'vassal');
+    victoryMonthly(s);
+    // it must be held for a year, so the galaxy can answer
+    expect(me.supremacySince).toBe(s.tick);
+    expect(s.gameOver).toBeNull();
+    s.tick += SUPREMACY_HOLD_MONTHS * 30;
     expect(victoryStatus(s, me).achieved).toBe('supremacy');
     victoryMonthly(s);
     expect(s.gameOver).toMatchObject({ won: true, kind: 'supremacy' });
@@ -122,5 +127,23 @@ describe('event chains', () => {
     const other = s.planets.find((p) => p.colony && p.colony.ownerId !== me.id)!;
     raiseStage(s, me, 'separatists', other.id);
     expect(me.petitions!.some((x) => x.def === 'separatists')).toBe(false);
+  });
+});
+
+describe('exploration anomalies', () => {
+  it('a ghost fleet found while exploring can be recommissioned into real ships', async () => {
+    const { anomalyOnExplore } = await import('../src/sim/chains');
+    const s = newGame({ seed: 81 });
+    const me = s.empires[s.playerId];
+    s.tick = 400;
+    const sys = s.galaxy.systems.find((x) => x.owner == null)!;
+    sys.features.push('derelict');
+    for (let i = 0; i < 40 && !me.petitions?.some((p) => p.def === 'anomaly_ghosts'); i++) anomalyOnExplore(s, me, sys.id);
+    const p = me.petitions!.find((x) => x.def === 'anomaly_ghosts')!;
+    expect(p).toBeTruthy();
+    Object.assign(me.stock, { alloys: 500, credits: 500 });
+    const ships = Object.values(s.fleets).filter((f) => f.ownerId === me.id).reduce((a, f) => a + f.ships.length, 0);
+    expect(execute(s, me.id, { type: 'resolvePetition', petitionId: p.id, option: 0 }).ok).toBe(true);
+    expect(Object.values(s.fleets).filter((f) => f.ownerId === me.id).reduce((a, f) => a + f.ships.length, 0)).toBe(ships + 3);
   });
 });

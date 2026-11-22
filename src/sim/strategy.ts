@@ -196,7 +196,9 @@ export function reviewStrategy(state: GameState, e: Empire) {
     const lord = state.empires[bond.a];
     const lordP = estimatePower(state, e.id, lord.id) ?? lord.stats.militaryPower;
     const distracted = atWarCount(state, lord.id) > 0;
-    if ((e.stats.militaryPower || 1) >= lordP * (distracted ? 0.5 : 0.8) * (1.2 - pers.aggression * 0.4)) {
+    // a well-treated vassal stays loyal; a resentful one waits for its chance
+    const content = opinion(state, e.id, lord.id) >= 25;
+    if (!content && (e.stats.militaryPower || 1) >= lordP * (distracted ? 0.5 : 0.8) * (1.2 - pers.aggression * 0.4)) {
       execute(state, e.id, { type: 'breakTreaty', target: lord.id, treaty: 'vassal' });
       setGoal(state, e, 'war', lord.id);
       return;

@@ -18,6 +18,8 @@ export type VictoryKind = 'domination' | 'supremacy' | 'ascension';
 export const VICTORY_LABEL: Record<VictoryKind, string> = { domination: 'Domination', supremacy: 'Supremacy', ascension: 'Ascension' };
 
 export const DOMINATION = { systems: 0.5, population: 0.4, holdMonths: 24 };
+/** supremacy must be held this long, so the galaxy has a chance to answer */
+export const SUPREMACY_HOLD_MONTHS = 12;
 /** progress at which the galaxy is warned that a realm nears victory */
 export const VICTORY_WARNING = 0.75;
 
@@ -56,7 +58,7 @@ export function victoryProgress(state: GameState, e: Empire): VictoryProgress[] 
   const era = e.era ?? 0;
   return [
     { kind: 'domination', progress: domFrac, detail: `${Math.round(d.systems * 100)}% of claimed systems (need ${DOMINATION.systems * 100}%), ${Math.round(d.population * 100)}% of all population (need ${DOMINATION.population * 100}%)${e.dominationSince != null ? `, held ${Math.floor((state.tick - e.dominationSince) / 30)} of ${DOMINATION.holdMonths} months` : ''}` },
-    { kind: 'supremacy', progress: majors.length ? subdued / majors.length : 1, detail: `${subdued} of ${majors.length} rival great realms fallen or vassals` },
+    { kind: 'supremacy', progress: majors.length ? Math.min(1, subdued / majors.length * 0.9 + (e.supremacySince != null ? Math.min(1, (state.tick - e.supremacySince) / (SUPREMACY_HOLD_MONTHS * 30)) * 0.1 : 0)) : 1, detail: `${subdued} of ${majors.length} rival great realms fallen or your vassals${independentRivals(state, e).length ? `; still independent: ${independentRivals(state, e).map((o) => o.name).join(', ')}` : ''}` },
     { kind: 'ascension', progress: era >= MAX_ERA ? 1 : (era + eraProgress(state, e)) / MAX_ERA, detail: `Era ${era} of ${MAX_ERA}` },
   ];
 }
@@ -66,7 +68,7 @@ export function victoryStatus(state: GameState, e: Empire): { achieved: VictoryK
   const progress = victoryProgress(state, e);
   let achieved: VictoryKind | null = null;
   if ((e.era ?? 0) >= MAX_ERA) achieved = 'ascension';
-  else if (independentRivals(state, e).length === 0 && state.empires.some((o) => o.kind === 'major' && o.id !== e.id)) achieved = 'supremacy';
+  else if (e.supremacySince != null && state.tick - e.supremacySince >= SUPREMACY_HOLD_MONTHS * 30) achieved = 'supremacy';
   else if (e.dominationSince != null && state.tick - e.dominationSince >= DOMINATION.holdMonths * 30) achieved = 'domination';
   return { achieved, progress };
 }
@@ -92,7 +94,9 @@ export function hegemon(state: GameState): { id: number; fear: number } | null {
     if (!e.alive || e.kind !== 'major') continue;
     const d = dominationShares(state, e);
     // territory and people dominate fear; the ascension race only late
-    const p = Math.max(Math.min(1, d.systems / DOMINATION.systems) * 0.6 + Math.min(1, d.population / DOMINATION.population) * 0.4, (e.era ?? 0) >= 3 ? 0.5 + ((e.era ?? 0) - 3) * 0.25 : 0);
+    const majors = state.empires.filter((o) => o.kind === 'major' && o.id !== e.id).length;
+    const subdued = majors ? (majors - independentRivals(state, e).length) / majors : 0;
+    const p = Math.max(Math.min(1, d.systems / DOMINATION.systems) * 0.6 + Math.min(1, d.population / DOMINATION.population) * 0.4, (e.era ?? 0) >= 3 ? 0.5 + ((e.era ?? 0) - 3) * 0.25 : 0, subdued >= 0.5 ? 0.3 + subdued * 0.5 : 0);
     if (!best || p > best.p) { if (best) second = Math.max(second, best.p); best = { id: e.id, p }; }
     else second = Math.max(second, p);
   }
@@ -115,6 +119,14 @@ export function victoryMonthly(state: GameState) {
     } else if (e.dominationSince != null) {
       e.dominationSince = null;
       log(state, { kind: 'victory_threat', severity: e.isPlayer ? 'warn' : 'good', title: e.isPlayer ? 'Dominion slips away' : `${e.name}'s dominion is broken`, text: e.isPlayer ? 'Your hold on the galaxy has fallen below the threshold.' : `${e.name} no longer holds enough of the galaxy to win.`, empires: [] });
+    }
+    const supreme = independentRivals(state, e).length === 0 && state.empires.some((o) => o.kind === 'major' && o.id !== e.id);
+    if (supreme && e.supremacySince == null) {
+      e.supremacySince = state.tick;
+      log(state, { kind: 'victory_threat', severity: e.isPlayer ? 'good' : 'danger', title: e.isPlayer ? 'Supremacy within reach' : `${e.name} stands supreme`, text: e.isPlayer ? `Every rival great realm has fallen or kneels to you. Keep it so for ${SUPREMACY_HOLD_MONTHS} months to win.` : `Every other great realm has fallen or kneels to ${e.name}. Unless a vassal breaks free within ${SUPREMACY_HOLD_MONTHS} months, they win.`, empires: [] });
+    } else if (!supreme && e.supremacySince != null) {
+      e.supremacySince = null;
+      log(state, { kind: 'victory_threat', severity: e.isPlayer ? 'warn' : 'good', title: e.isPlayer ? 'Supremacy slips away' : `${e.name}'s supremacy is broken`, text: e.isPlayer ? 'A rival great realm is independent again.' : `A realm has broken free of ${e.name}.`, empires: [] });
     }
     // a one-off warning when a rival gets close to any victory
     if (!e.isPlayer) {

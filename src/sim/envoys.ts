@@ -7,7 +7,7 @@
 import type { Empire, GameState } from './types';
 import { log } from './util';
 
-export type LetterKind = 'greeting' | 'border' | 'threat' | 'ultimatum' | 'refused' | 'paid' | 'war' | 'peace' | 'thanks' | 'fear' | 'call' | 'joined' | 'losing';
+export type LetterKind = 'fealty' | 'greeting' | 'border' | 'threat' | 'ultimatum' | 'refused' | 'paid' | 'war' | 'peace' | 'thanks' | 'fear' | 'call' | 'joined' | 'losing';
 
 type Temper = 'warlike' | 'courtly' | 'merchant' | 'scholar';
 
@@ -21,6 +21,12 @@ function temper(e: Empire): Temper {
 
 /** {me} = the player's realm, {us} = the writer's realm, {x} = a third party or a sum. */
 const LINES: Record<LetterKind, Record<Temper, string[]>> = {
+  fealty: {
+    warlike: ['Kneel, and we will protect you. Refuse, and we will not need to.', 'Swear fealty to us. It is the only safe place left for you.'],
+    courtly: ['The galaxy grows dangerous. Shelter under our banner, as our vassal, and none will touch you.', 'We offer you our protection, in return for your loyalty. Think on it carefully.'],
+    merchant: ['Join us as a vassal. Our markets, our fleets, our protection. The price is your independence; a fair trade, we think.', 'Vassalage is just a long-term contract. The terms are generous.'],
+    scholar: ['Every model says you cannot stand alone. Become our vassal and survive.', 'Submit, and your people will prosper under our guidance. The alternative is less pleasant.'],
+  },
   greeting: {
     warlike: ['So the {me} has crawled out of the dark. Keep to your stars and we will keep to ours. For now.', 'We have seen your little fleet. Ours is larger. Remember that, and we will get along.'],
     courtly: ['The {us} greets the {me}. May our borders be quiet and our envoys busy.', 'Welcome, neighbour. The galaxy is wide enough for friends; let us be two of them.'],

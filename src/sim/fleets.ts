@@ -2,6 +2,7 @@
 // supply & repair, patrols and order execution (outposts, colonisation,
 // invasions). Combat itself lives in combat.ts.
 
+import { anomalyOnExplore } from './chains';
 import { SHIPS, SIZE_WEIGHT } from './data/ships';
 import { sackCapital } from './capital';
 import { empireMods, mod } from './modifiers';
@@ -184,6 +185,7 @@ function arrive(state: GameState, f: Fleet) {
 function discover(state: GameState, e: Empire, f: Fleet) {
   const sys = state.galaxy.systems[f.systemId];
   if (e.kind !== 'major') return;
+  anomalyOnExplore(state, e, sys.id);
   const disc = 1 + fleetLeaderBonus(state, f).discovery;
   const lead = fleetLeader(state, f);
   if (lead) grantXp(state, lead, 25);

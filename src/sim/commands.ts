@@ -657,7 +657,7 @@ export function execute(state: GameState, empireId: number, cmd: Command): Comma
       const sys = state.galaxy.systems[cmd.systemId];
       if (!def || !sys) return fail('Invalid project');
       if (sys.owner !== empireId) return fail('System not owned');
-      if (!hasTech(e, def.tech)) return fail('Requires research');
+      if (!hasTech(e, def.tech)) return fail(`Requires research: ${TECH_BY_ID[def.tech!]?.name ?? def.tech}`);
       if (def.starReq && !def.starReq.includes(sys.star)) return fail('Unsuitable star');
       if (sys.megastructures.length >= 2) return fail('System can host at most two megastructures');
       if (sys.megastructures.some((m) => m.id === def.id)) return fail('Already present in this system');

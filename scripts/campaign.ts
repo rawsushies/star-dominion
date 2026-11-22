@@ -17,7 +17,7 @@ const size = (argv[3] ?? 'medium') as GameState['settings']['galaxySize'];
 const CHECKPOINTS = [30, 60, 100];
 interface Run {
   seed: number; diff: string; year: number;
-  wars: number; warsOnPlayer: number; joins: number; letters: number; demands: number; conquests: number; falls: number; revolts: number; betrayals: number; coalitions: number;
+  wars: number; warsOnPlayer: number; joins: number; letters: number; demands: number; vassals: number; conquests: number; falls: number; revolts: number; betrayals: number; coalitions: number;
   playerAlive: boolean; playerRank: number; playerK: number; playerSys: number; playerEra: number;
   meanK: number; topK: number; minK: number; maxEra: number; megaStages: number; topShare: number; snowball: number;
   passiveRivalYears: number; aliveMajors: number; majors: number;
@@ -32,7 +32,7 @@ function play(seed: number, diff: GameState['settings']['difficulty']): Run[] {
   const s = newGame({ seed, galaxySize: size, aiCount: 4, difficulty: diff });
   s.empires[0].isPlayer = false; // the AI plays the player's realm at standard skill
   const run: Run = {
-    seed, diff, year: 0, wars: 0, warsOnPlayer: 0, joins: 0, letters: 0, demands: 0, conquests: 0, falls: 0, revolts: 0, betrayals: 0, coalitions: 0,
+    seed, diff, year: 0, wars: 0, warsOnPlayer: 0, joins: 0, letters: 0, demands: 0, vassals: 0, conquests: 0, falls: 0, revolts: 0, betrayals: 0, coalitions: 0,
     playerAlive: true, playerRank: 0, playerK: 0, playerSys: 0, playerEra: 0, meanK: 0, topK: 0, minK: 0, maxEra: 0, megaStages: 0, topShare: 0, snowball: 0,
     passiveRivalYears: 0, aliveMajors: 0, majors: 0, victory: null, firstContactYear: null, firstWarYear: null, firstWarOnPlayerYear: null,
   };
@@ -89,6 +89,7 @@ function snapshot(s: GameState, run: Run): Run {
   const sysTotal = s.galaxy.systems.length;
   const p = s.empires[0];
   run.majors = majors.length;
+  run.vassals = s.treaties.filter((t) => t.type === 'vassal' && s.empires[t.b].kind === 'major').length;
   run.aliveMajors = alive.length;
   run.playerAlive = p.alive;
   run.playerK = p.stats.kardashev ?? 0;
@@ -120,5 +121,5 @@ console.log('\nsummary');
 for (const year of [...new Set(all.map((r) => r.year))].sort((a, b) => a - b)) for (const diff of diffs) {
   const rs = all.filter((r) => r.diff === diff && r.year === year);
   const avg = (f: (r: Run) => number) => rs.reduce((a, r) => a + f(r), 0) / rs.length;
-  console.log(`${String(year).padStart(3)}y ${diff.padEnd(8)} n=${rs.length} wars ${fmt(avg((r) => r.wars), 1)} joins ${fmt(avg((r) => r.joins), 1)} letters ${fmt(avg((r) => r.letters), 1)} on-player ${fmt(avg((r) => r.warsOnPlayer), 1)} falls ${fmt(avg((r) => r.falls), 1)} player survival ${fmt(avg((r) => +r.playerAlive) * 100, 0)}% rank ${fmt(avg((r) => r.playerRank), 1)} player K ${fmt(avg((r) => r.playerK))} | mean K ${fmt(avg((r) => r.meanK))} top K ${fmt(avg((r) => r.topK))} max era ${fmt(avg((r) => r.maxEra), 1)} mega ${fmt(avg((r) => r.megaStages), 1)} top share ${fmt(avg((r) => r.topShare) * 100, 0)}% snowball ${fmt(avg((r) => r.snowball), 1)}x passive ${fmt(avg((r) => r.passiveRivalYears), 1)} | victories ${rs.filter((r) => r.victory).map((r) => `${r.victory!.kind}/${r.victory!.who === 'player' ? 'P' : 'AI'}@${r.victory!.year}`).join(' ') || 'none'}`);
+  console.log(`${String(year).padStart(3)}y ${diff.padEnd(8)} n=${rs.length} vassals ${fmt(avg((r) => r.vassals), 1)} wars ${fmt(avg((r) => r.wars), 1)} joins ${fmt(avg((r) => r.joins), 1)} letters ${fmt(avg((r) => r.letters), 1)} on-player ${fmt(avg((r) => r.warsOnPlayer), 1)} falls ${fmt(avg((r) => r.falls), 1)} player survival ${fmt(avg((r) => +r.playerAlive) * 100, 0)}% rank ${fmt(avg((r) => r.playerRank), 1)} player K ${fmt(avg((r) => r.playerK))} | mean K ${fmt(avg((r) => r.meanK))} top K ${fmt(avg((r) => r.topK))} max era ${fmt(avg((r) => r.maxEra), 1)} mega ${fmt(avg((r) => r.megaStages), 1)} top share ${fmt(avg((r) => r.topShare) * 100, 0)}% snowball ${fmt(avg((r) => r.snowball), 1)}x passive ${fmt(avg((r) => r.passiveRivalYears), 1)} | victories ${rs.filter((r) => r.victory).map((r) => `${r.victory!.kind}/${r.victory!.who === 'player' ? 'P' : 'AI'}@${r.victory!.year}`).join(' ') || 'none'}`);
 }

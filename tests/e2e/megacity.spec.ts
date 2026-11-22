@@ -1,6 +1,11 @@
 import { test, expect } from '@playwright/test';
 import { watchErrors, startReign, openScreen } from './helpers';
 
+// The megacity runs for minutes on SwiftShader and can leave the shared GPU process wedged, which
+// made the *next* spec time out creating its browser context (CI, 2026-11-22). Distinct launch
+// options give this file its own worker and browser process; later specs start a fresh one.
+test.use({ launchOptions: { args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--disable-gpu-shader-disk-cache'] } });
+
 // The megacity is heavy for SwiftShader (each frame takes about a second), so the browser's
 // automatic choice here is the classic city; these tests choose the megacity explicitly.
 test('automatic graphics fall back to the classic city in a software renderer', async ({ page }) => {
