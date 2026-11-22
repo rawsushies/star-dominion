@@ -71,7 +71,8 @@ export function chainsMonthly(state: GameState) {
       e.pendingChains = e.pendingChains.filter((x) => x.at > state.tick);
       for (const d of due) raiseStage(state, e, d.def, d.planetId);
     }
-    if ((e.petitions?.length ?? 0) >= 3 || !chance(state.rng, 0.06)) continue;
+    // a young reign has enough to learn: chains begin after the first two years
+    if (state.tick < 360 * 2 || (e.petitions?.length ?? 0) >= 3 || !chance(state.rng, 0.06)) continue;
     const worlds = state.planets.filter((p) => p.colony?.ownerId === e.id);
     if (!worlds.length) continue;
     const options: [string, number | null][] = [];

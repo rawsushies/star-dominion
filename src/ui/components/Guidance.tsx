@@ -9,7 +9,7 @@ import { focusSystem } from './MapView';
 import { CHAPTERS, CHAPTER_BY_ID, type LessonStep } from '../../guidance/chapters';
 import { activeChapter, activeStep, declineOffer, evaluateLesson, lessonCtx, nextStep, prevStep, recommendation, recordFlag, setPaused, skipLesson, startLesson, finishLesson } from '../../guidance/lessons';
 import { guidanceOf, guidancePrefs, onPrefsChange } from '../../guidance/state';
-import { currentHints, snoozeHint, type Hint } from '../../guidance/hints';
+import { currentHints, snoozeHint, reignGoal, type Hint } from '../../guidance/hints';
 import { SCREEN_INFO } from '../../guidance/screens';
 import { codexEntry } from '../../guidance/codex';
 
@@ -120,7 +120,14 @@ function LessonPanel() {
         <div className="row between" style={{ marginTop: 10, gap: 6 }}>
           <button className="btn small" disabled={s.step === 0} onClick={() => { prevStep(g); bump(); }}>Back</button>
           <span className="grow" />
-          {step.open && <button className="btn small" onClick={() => ui.openScreen(step.open!)}>Show me</button>}
+          {(step.open || step.show) && <button className="btn small" onClick={() => {
+            const sh = step.show?.(g);
+            if (sh?.fleetId != null) ui.selectFleet(sh.fleetId);
+            if (sh?.systemId != null) { if (sh.fleetId == null) ui.selectSystem(sh.systemId); ui.set({ view: 'galaxy', screen: 'map' }); focusSystem(sh.systemId); }
+            if (sh?.planetId != null) ui.selectPlanet(sh.planetId);
+            const scr = sh?.screen ?? step.open;
+            if (scr) ui.openScreen(scr);
+          }}>Show me</button>}
           {last ? <button className="btn small primary" onClick={() => { finishLesson(g); bump(); }}>Finish lesson</button>
             : <button className={cls('btn small', !step.goal && 'primary')} onClick={() => { nextStep(g); bump(); }}>{step.goal ? 'Skip step' : 'Continue'}</button>}
         </div>
@@ -160,12 +167,13 @@ function HintCard() {
   const ui = useUI();
   const prefs = usePrefs();
   const [open, setOpen] = useState(false);
+  const [fold, setFold] = useState(false);
   const [, setWake] = useState(0);
   // recompute at most every 1.5 s of real time, or when the day changes after a pause
   const now = performance.now();
   const stale = prefs.hints && (hintCache.tick !== g.tick || (ui.speed === 0 && hintCache.rev !== ui.rev));
   if (prefs.hints && (hintCache.tick !== g.tick && now - hintCache.at > 1500 || hintCache.rev === -1 || (ui.speed === 0 && hintCache.rev !== ui.rev && now - hintCache.at > 400))) {
-    hintCache = { tick: g.tick, rev: ui.rev, at: now, hints: g.tick < 5 ? [] : currentHints(g) };
+    hintCache = { tick: g.tick, rev: ui.rev, at: now, hints: currentHints(g) };
   }
   // a change that arrived inside the throttle window must still be seen: while paused nothing
   // else re-renders the card, so wake it once the window has passed
@@ -180,8 +188,9 @@ function HintCard() {
   // during a lesson only urgent matters interrupt
   const lesson = guidanceOf(g).active && !guidanceOf(g).paused;
   const hints = hintCache.hints.filter((h) => !lesson || h.severity === 'danger');
-  if (!hints.length) return null;
-  const shown = open ? hints.slice(0, 6) : hints.slice(0, 1);
+  if (lesson && !hints.length) return null;
+  const goal = reignGoal(g);
+  const shown = open ? hints.slice(0, 7) : hints.slice(0, 3);
   const act = (h: Hint) => {
     const a = h.action;
     if (!a) return;
@@ -192,8 +201,13 @@ function HintCard() {
   };
   const dismiss = (h: Hint) => { snoozeHint(g, h.id); hintCache.rev = -1; hintCache.hints = hintCache.hints.filter((x) => x.id !== h.id); ui.bump(); };
   return (
-    <aside className="hints glass" aria-label="Advisor">
-      {shown.map((h) => (
+    <aside className="hints glass" aria-label="Next steps">
+      <div className="hints-head">
+        <span className="hint-t">Next steps</span>
+        <button className="hint-fold" onClick={() => setFold(!fold)} aria-expanded={!fold} title={fold ? 'Show next steps' : 'Fold away'}>{fold ? '▸' : '▾'}</button>
+      </div>
+      {!fold && <div className="hint-goal" data-testid="reign-goal">{goal.text}</div>}
+      {!fold && shown.map((h) => (
         <div key={h.id} className={cls('hint-row', h.severity)} data-testid="hint">
           <div className="hint-t">{h.title}</div>
           <div className="hint-x">{h.text}</div>
@@ -203,7 +217,7 @@ function HintCard() {
           </div>
         </div>
       ))}
-      {hints.length > 1 && <button className="hint-more" onClick={() => setOpen(!open)}>{open ? 'Show fewer' : `${hints.length - 1} more ${hints.length - 1 === 1 ? 'matter' : 'matters'}`}</button>}
+      {!fold && hints.length > 3 && <button className="hint-more" onClick={() => setOpen(!open)}>{open ? 'Show fewer' : `${Math.min(7, hints.length) - 3} more`}</button>}
     </aside>
   );
 }

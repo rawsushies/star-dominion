@@ -526,7 +526,11 @@ table.t tr.sel td { background: var(--ice-dim); }
 .lesson-offer { padding: 10px 14px 12px; border-left: 2px solid var(--ice); }
 .lesson-offer-k { font-size: 11.5px; color: var(--ice); letter-spacing: 0.04em; }
 .lesson-offer .lesson-title { margin-top: 2px; }
-.hints { padding: 2px 0; overflow-y: auto; max-height: 40vh; }
+.hints { padding: 2px 0; overflow-y: auto; max-height: 46vh; }
+.hints-head { display: flex; align-items: center; justify-content: space-between; padding: 6px 10px 2px; }
+.hints-head .hint-t { text-transform: none; letter-spacing: 0.02em; font-size: 13px; }
+.hint-fold { background: none; border: 0; color: var(--text-2); cursor: pointer; font-size: 13px; padding: 2px 6px; }
+.hint-goal { padding: 0 10px 6px; font-size: 12px; color: var(--text-2); border-bottom: 1px solid var(--rule); }
 .hint-row { padding: 8px 12px 9px 12px; border-left: 2px solid var(--edge-3); }
 .hint-row + .hint-row { border-top: 1px solid var(--edge); }
 .hint-row.warn { border-left-color: var(--amber); }

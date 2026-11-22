@@ -179,8 +179,11 @@ export function MapView() {
       }
     };
     const onUp = (e: MouseEvent) => {
+      // only a press that began on the map is a map click: releasing the mouse over a panel or a
+      // button must not pick the star behind it (that changed the selection and ate the click)
+      if (!drag) return;
       if (e.button !== 0) { drag = null; return; }
-      const wasDrag = drag?.moved;
+      const wasDrag = drag.moved;
       drag = null;
       if (wasDrag) return;
       const ui = useUI.getState();

@@ -16,6 +16,14 @@ import { charactersOf } from '../sim/characters';
 import { rulerAge } from '../sim/succession';
 import { availableTechs } from '../sim/research';
 import { guidanceOf } from './state';
+import { planetHab } from '../sim/economy';
+import { empireMods } from '../sim/modifiers';
+import { intelLevel, hasContact, opinion } from '../sim/diplomacy';
+import { bordering, hasTreaty } from '../sim/territory';
+import { eraRequirements } from '../sim/eras';
+import { ERAS, MAX_ERA } from '../sim/data/eras';
+import { ambitionList, phaseOf, type Phase } from '../sim/ambitions';
+import { SHIPS } from '../sim/data/ships';
 
 export type HintSeverity = 'info' | 'warn' | 'danger';
 
@@ -134,10 +142,91 @@ export function currentHints(g: GameState): Hint[] {
     if (exposed) out.push({ id: `exposed-${exposed.id}`, severity: 'warn', rank: 85, title: `${exposed.name} is unprotected`, text: `Hostile warships are one jump from ${exposed.name}, and none of your warships guard it.`, action: { label: 'Open War room', screen: 'warroom' } });
   }
 
+  out.push(...growthSteps(g));
   const sn = guidanceOf(g).snoozed;
   return out.filter((h) => (sn[h.id] ?? -1) <= g.tick).sort((a, b) => b.rank - a.rank);
 }
 
 export function snoozeHint(g: GameState, id: string, days = SNOOZE_DAYS) {
   guidanceOf(g).snoozed[id] = g.tick + days;
+}
+
+/** The current stage of the reign, in a sentence: what the player is trying to do now. */
+export const PHASE_GOAL: Record<Phase, string> = {
+  early: 'Grow your home world, explore your neighbourhood and claim the systems around you.',
+  mid: 'Specialise your worlds, find allies, and hold your own against your rivals.',
+  late: 'Go for victory: domination, supremacy or ascension. The Throne room shows how close you and your rivals are.',
+};
+export function reignGoal(g: GameState): { phase: Phase; text: string } {
+  const phase = phaseOf(g.empires[g.playerId]);
+  return { phase, text: PHASE_GOAL[phase] };
+}
+
+/**
+ * Proactive advice: the next useful step to grow the realm, derived from its real situation.
+ * Ranked below problems, so a shortage or a threat always comes first.
+ */
+export function growthSteps(g: GameState): Hint[] {
+  const e = g.empires[g.playerId];
+  const out: Hint[] = [];
+  const colonies = g.planets.filter((p) => p.colony?.ownerId === g.playerId);
+  const yard = colonies.find((p) => (p.colony!.buildings.shipyard ?? 0) > 0) ?? null;
+  const myFleets = Object.values(g.fleets).filter((f) => f.ownerId === g.playerId);
+  const has = (cls: string) => myFleets.some((f) => f.ships.some((s) => s.cls === cls)) || colonies.some((p) => p.colony!.shipQueue.some((q) => q.id === cls));
+  const owned = new Set(g.galaxy.systems.filter((s) => s.owner === g.playerId).map((s) => s.id));
+  const adj = adjacency(g.galaxy);
+  const m = empireMods(g, e);
+
+  // a rival visibly arming against us comes first among these
+  for (const r of g.empires) {
+    if (r.alive && r.aiPlan?.goal === 'arm' && r.aiPlan.target === g.playerId && intelLevel(g, g.playerId, r.id) >= 30) {
+      out.push({ id: `arming-${r.id}`, severity: 'danger', rank: 90, title: `${r.name} is preparing war on you`, text: 'Build warships and keep them at home, sign a defence pact with a neighbour, or offer them a non-aggression pact in Diplomacy.', action: { label: 'Open Diplomacy', screen: 'diplomacy' } });
+    }
+  }
+
+  // settle a habitable world we can reach
+  const target = g.planets
+    .filter((p) => !p.colony && !p.colonizing && (owned.has(p.systemId) || (g.galaxy.systems[p.systemId].owner == null && adj[p.systemId].some((v) => owned.has(v)))) && e.explored.includes(p.systemId))
+    .map((p) => ({ p, h: planetHab(g, p, e, m) }))
+    .filter((x) => x.h >= 0.5)
+    .sort((a, b) => b.h * b.p.size - a.h * a.p.size)[0];
+  if (target && yard && !has('colony')) {
+    out.push({ id: 'grow-colony', severity: 'info', rank: 48, title: `Settle ${target.p.name}`, text: `${target.p.name} is ${Math.round(target.h * 100)}% habitable for your people. Build a Colony Ship at ${yard.name}'s shipyard; when it is ready, select ${target.p.name} on the map and press Send colony ship.`, action: { label: `Open ${yard.name}`, screen: 'planets', planetId: yard.id } });
+  }
+
+  // claim more systems: a construction ship
+  const freeNear = [...owned].flatMap((s) => adj[s]).some((s) => g.galaxy.systems[s].owner == null && !g.galaxy.systems[s].features.includes('guardian'));
+  if (freeNear && yard && !has('constructor') && e.stats.systems < (e.stats.adminCap || 0) + 2) {
+    out.push({ id: 'grow-ctor', severity: 'info', rank: 46, title: 'Claim more systems', text: `Unclaimed systems border your space. Build a Construction Ship at ${yard.name}'s shipyard; each outpost costs influence and 40 alloys and extends your borders, resources and supply.`, action: { label: `Open ${yard.name}`, screen: 'planets', planetId: yard.id } });
+  }
+
+  // explore: a scout
+  const frontierUnknown = e.explored.some((s) => adj[s].some((n) => !e.explored.includes(n)));
+  if (frontierUnknown && yard && !has('scout')) {
+    out.push({ id: 'grow-scout', severity: 'info', rank: 36, title: 'Chart the unknown', text: 'Systems at your frontier are uncharted and you have no survey ship. Build a Scout: it reveals planets to settle and rivals to watch.', action: { label: `Open ${yard.name}`, screen: 'planets', planetId: yard.id } });
+  }
+
+  // defence: a neighbour much stronger than our fleets
+  const strongest = g.empires.filter((r) => r.alive && r.kind === 'major' && r.id !== g.playerId && bordering(g, g.playerId, r.id)).sort((a, b) => b.stats.militaryPower - a.stats.militaryPower)[0];
+  if (strongest && yard && (e.stats.militaryPower || 0) < strongest.stats.militaryPower * 0.5 && intelLevel(g, g.playerId, strongest.id) > 0) {
+    const cls = (['destroyer', 'frigate', 'corvette'] as const).find((c) => !SHIPS[c].tech || e.research.done.includes(SHIPS[c].tech!)) ?? 'corvette';
+    out.push({ id: 'grow-navy', severity: 'warn', rank: 44, title: 'Your fleet is weak beside your neighbours', text: `${strongest.name} fields more than twice your strength. Build warships (a ${SHIPS[cls].label} is a good start) before they notice.`, action: { label: `Open ${yard.name}`, screen: 'planets', planetId: yard.id } });
+  }
+
+  // friends: a neighbour who would sign
+  const friend = g.empires.find((r) => r.alive && r.kind === 'major' && r.id !== g.playerId && hasContact(g, g.playerId, r.id) && !g.treaties.some((t) => (t.a === r.id && t.b === g.playerId) || (t.b === r.id && t.a === g.playerId)) && opinion(g, r.id, g.playerId) >= 0 && !hasTreaty(g, g.playerId, r.id, 'nap'));
+  if (friend) out.push({ id: `grow-pact-${friend.id}`, severity: 'info', rank: 28, title: `Make a friend of ${friend.name}`, text: `${friend.name} thinks well enough of you to consider a treaty. A non-aggression pact protects a border; trade and research agreements pay every month.`, action: { label: 'Open Diplomacy', screen: 'diplomacy' } });
+
+  // the next era: the first requirement still missing
+  if ((e.era ?? 0) < MAX_ERA) {
+    const next = ERAS[(e.era ?? 0) + 1];
+    const miss = eraRequirements(g, e, next).find((q) => !q.done);
+    if (miss) out.push({ id: `grow-era-${e.era}`, severity: 'info', rank: 22, title: `Toward the ${next.name}`, text: `Still needed: ${miss.label} (${miss.have} of ${miss.need}). Each era brings permanent bonuses.`, action: { label: 'Open Kingdom', screen: 'kingdom' } });
+  }
+
+  // the closest unfinished ambition of this stage
+  const phase = phaseOf(e);
+  const amb = ambitionList(g, e).filter((a) => !a.done && a.def.phase === phase).sort((a, b) => b.frac - a.frac)[0];
+  if (amb) out.push({ id: `grow-amb-${amb.def.id}`, severity: 'info', rank: 20, title: `Ambition: ${amb.def.title}`, text: `${amb.def.how} Reward: ${amb.def.rewardText}.`, action: { label: 'Open Throne room', screen: 'throne' } });
+  return out;
 }

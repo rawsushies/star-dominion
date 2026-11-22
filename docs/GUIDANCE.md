@@ -6,7 +6,7 @@ The audit behind this work is in `docs/GUIDANCE_AUDIT.md`. All guidance is UI-si
 
 | # | Lesson | Steps | What the player does (objectives are checked against real state) | Recommended when |
 |---|---|---|---|---|
-| 1 | Welcome to the Empire | 5 | Run time and pause it; open the Codex | Start of a guided reign |
+| 1 | Your First Reign | 8 | Learn the goal and the three victories; run and pause time; then five real orders: choose research, build on the homeworld, send the construction ship to claim a neighbouring system ("Show me" selects it), send the scout exploring, let two months pass; finally, where to look from now on | Start of a guided reign |
 | 2 | Understanding the Galaxy | 5 | Select a system; enter a system and select a planet; explore a new system with the scout | After 1 |
 | 3 | The Imperial Capital | 4 | Open the capital; queue a capital building or upgrade | After 2 |
 | 4 | Economy and Resources | 5 | Open Economy and Industry; trade on the market (optional) | After 3, or after three months |
@@ -33,11 +33,24 @@ How lessons behave:
 
   The content is in `src/guidance/screens.ts` and covers all 22 windows.
 - **First-visit card.** The first time a window opens in a reign, a one-line explanation appears with "How it works" and "Got it" buttons. It is not shown while the active lesson already covers that window, and never again once dismissed.
-- **Advisor hints** (`src/guidance/hints.ts`).
-  - Every hint is computed from the ledger and state at the moment it is shown, with real numbers.
-  - Each hint has an action that goes to the fix. "Dismiss" hides it for 180 game days.
-  - Hints are ranked and shown one at a time, with the rest behind "N more matters".
-  - During a lesson only danger-level hints appear, and nothing appears in the first few days.
+- **Next steps panel** (`src/guidance/hints.ts`).
+  - It opens with the goal for the current stage of the reign:
+    - early: grow, explore, claim;
+    - mid: specialise, find allies, hold your own;
+    - late: go for one of the three victories.
+  - Below the goal are the two or three most useful things to do now. "N more" reveals up to seven.
+  - **Problems** come first: shortages, a rival arming against you, threatened worlds, idle research, unrest and waiting matters.
+  - **Growth steps** follow:
+    - settle a named habitable world with a colony ship;
+    - build a construction ship to claim nearby systems;
+    - build a scout to chart the frontier;
+    - strengthen a fleet that is weak beside a neighbour;
+    - make a pact with a realm that would sign;
+    - the first missing requirement of the next era;
+    - the closest ambition.
+  - Every item is computed from the ledger and state at the moment it is shown, with real numbers. Each has a button that goes to the place where it is done. "Dismiss" hides an item for 180 game days.
+  - During a lesson only danger-level items appear. The panel can be folded away.
+- **"Show me"** in a lesson step opens the right window or selects the right thing on the map: the homeworld, a free neighbouring system, the survey ship.
 - **Tooltips.** `Term` wraps a word with its Codex summary; clicking it opens the entry. They are used on resources, ministry flyouts, section titles, technologies, ship classes, roles, decrees, treaties, seats and capital buildings.
 - **Preferences.** Lessons, hints and tooltips can each be turned off, or all at once ("I know the game"). They are stored per browser in `sd.guidance.v1`, and the title screen's guided checkbox follows them.
 

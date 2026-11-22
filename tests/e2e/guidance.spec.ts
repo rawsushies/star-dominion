@@ -8,7 +8,7 @@ const lesson = (page: Page) => page.getByRole('complementary', { name: 'Lesson',
 test('a new player completes the first lesson by doing what it asks, and progress survives save and reload', async ({ page }) => {
   const errors = watchErrors(page);
   await startReign(page); // "Guided first reign" is on by default
-  await expect(lesson(page)).toContainText('You are the sovereign');
+  await expect(lesson(page)).toContainText('What you are here to do');
   await lesson(page).getByRole('button', { name: 'Continue' }).click();
   // the time step only completes once time has actually run and been paused
   await expect(lesson(page)).toContainText('Command the flow of time');
@@ -16,11 +16,32 @@ test('a new player completes the first lesson by doing what it asks, and progres
   await page.keyboard.press('Space');
   await page.waitForTimeout(700);
   await page.keyboard.press('Space');
-  await expect(lesson(page)).toContainText('Read the treasury');
-  await lesson(page).getByRole('button', { name: 'Continue' }).click();
-  // open the Codex from the ministries column
-  await page.locator('.neo-btn[aria-label="Imperial Codex"]').click();
-  await expect(lesson(page)).toContainText('Your agenda');
+  // order 1: research, through the Research window that "Show me" opens
+  await expect(lesson(page)).toContainText('Order 1');
+  await lesson(page).getByRole('button', { name: 'Show me' }).click();
+  await page.locator('section.win[aria-label="Research"]').getByRole('button', { name: 'Research', exact: true }).first().click();
+  // order 2: build on the homeworld ("Show me" opens it in Planets)
+  await expect(lesson(page)).toContainText('Order 2');
+  await lesson(page).getByRole('button', { name: 'Show me' }).click();
+  await page.locator('section.win[aria-label="Planets"] [data-guide="planet-build"] button:not([disabled])').first().click();
+  // order 3: "Show me" selects a free neighbouring system; its panel sends the construction ship
+  await expect(lesson(page)).toContainText('Order 3');
+  await lesson(page).getByRole('button', { name: 'Show me' }).click();
+  await page.getByRole('button', { name: 'Send construction ship' }).click();
+  // order 4: "Show me" selects the survey ship
+  await expect(lesson(page)).toContainText('Order 4');
+  await lesson(page).getByRole('button', { name: 'Show me' }).click();
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __sd: { getState(): { fleetId: number | null } } }).__sd.getState().fleetId)).not.toBeNull();
+  await page.evaluate(() => {
+    const s = (window as unknown as { __sd: { getState(): any } }).__sd.getState();
+    const g = s.game; const f = g.fleets[s.fleetId]; const e = g.empires[0];
+    const t = g.galaxy.systems.find((x: { id: number }) => !e.explored.includes(x.id)).id;
+    s.cmd({ type: 'moveFleet', fleetId: f.id, target: t });
+    s.setSpeed(3);
+  });
+  // orders 4 and 5 complete as time runs: the scout charts a system, two months pass
+  await expect(lesson(page)).toContainText('Where to look from now on', { timeout: 60000 });
+  await page.evaluate(() => (window as unknown as { __sd: { getState(): any } }).__sd.getState().setSpeed(0));
   await lesson(page).getByRole('button', { name: 'Finish lesson' }).click();
   expect((await guidance(page))!.done).toContain('welcome');
   // the next lesson is offered, not forced
@@ -147,4 +168,24 @@ test('advisor hints reflect real conditions and lead to the fix; guidance can be
   // preferences persist in this browser
   await page.reload();
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('sd.guidance.v1') ?? '{}'))).toMatchObject({ lessons: false, hints: false, tooltips: false });
+});
+
+test('the Next steps panel states the goal and the useful next actions, and a panel button over the map works', async ({ page }) => {
+  const errors = watchErrors(page);
+  await startReign(page);
+  await lesson(page).getByRole('button', { name: 'Leave the lesson' }).click();
+  const next = page.getByRole('complementary', { name: 'Next steps' });
+  await expect(page.getByTestId('reign-goal')).toContainText('Grow your home world');
+  await expect(next.getByTestId('hint').first()).toBeVisible();
+  // regression: releasing the mouse over a side-panel button must not also click the star behind it
+  await page.evaluate(() => {
+    const s = (window as unknown as { __sd: { getState(): any } }).__sd.getState();
+    const g = s.game;
+    const own = new Set(g.galaxy.systems.filter((x: { owner: number | null }) => x.owner === 0).map((x: { id: number }) => x.id));
+    const free = g.galaxy.lanes.flatMap(([a, b]: [number, number]) => own.has(a) ? [b] : own.has(b) ? [a] : []).find((id: number) => g.galaxy.systems[id].owner == null);
+    s.selectSystem(free);
+  });
+  await page.getByRole('button', { name: 'Send construction ship' }).click();
+  await expect.poll(() => page.evaluate(() => Object.values((window as unknown as { __sd: { getState(): any } }).__sd.getState().game.fleets as Record<string, { ownerId: number; order: { type: string } }>).some((f) => f.ownerId === 0 && f.order.type === 'outpost'))).toBe(true);
+  expect(errors).toEqual([]);
 });

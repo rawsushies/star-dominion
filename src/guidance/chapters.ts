@@ -35,6 +35,8 @@ export interface LessonStep {
   target?: string[];
   /** "Show me" opens this screen */
   open?: ScreenId;
+  /** "Show me" selects these on the map (and opens a screen), when the step is about one thing */
+  show?: (g: GameState) => { screen?: ScreenId; systemId?: number; planetId?: number; fleetId?: number } | null;
 }
 
 export interface Chapter {
@@ -58,37 +60,72 @@ const me = (g: GameState) => g.empires[g.playerId];
 
 export const CHAPTERS: Chapter[] = [
   {
-    id: 'welcome', n: 1, title: 'Welcome to the Empire', brief: 'Your role as sovereign, the command interface and the flow of time.',
-    unlock: () => true, unlockText: 'Available from the start.', codex: ['mech.sovereign', 'mech.time'],
+    id: 'welcome', n: 1, title: 'Your First Reign', brief: 'What you are trying to do, and your first real orders: research, building, claiming space and exploring.',
+    unlock: () => true, unlockText: 'Available from the start.', codex: ['mech.sovereign', 'mech.time', 'mech.victory'],
     steps: [
       {
-        title: 'You are the sovereign',
-        text: (c) => `You rule the ${me(c.g).name}: one inhabited world, a few ships and a court of advisers. Your aim is to establish your realm, develop its worlds, expand across the stars and preserve your dynasty against rivals, rebels and time itself. Nobody gives you turns: the galaxy runs in real time, and you decide when to pause.`,
+        title: 'What you are here to do',
+        text: (c) => `You rule the ${me(c.g).name}: one world, a few ships and a court. Four other great realms start nearby, and the galaxy runs in real time. You grow by building up your worlds, claiming and settling nearby systems, researching, and dealing with your rivals by treaty or by war. You win by domination (hold half of all claimed space), supremacy (no rival left independent) or ascension (reach the final era). A rival can win the same ways. This lesson gives your first five orders; after it, the Next steps panel on the right always tells you what to do next.`,
       },
       {
         title: 'Command the flow of time',
-        text: 'The dial at the bottom is the throne clock. Its ring counts the days of the month. Click its centre or press Space to pause and resume; the three arrows below set the speed (2, 6 or 15 days a second, or keys 1–3). The left gauge is average stability, the right one naval capacity.',
+        text: 'Time only moves when you let it. The dial at the bottom is the throne clock: click its centre or press Space to pause and resume. The arrows (or keys 1, 2, 3) set the speed: 2, 6 or 15 days a second. Pause whenever you need to think: every order can be given while paused.',
         goal: 'Let time run, then pause again',
         done: (c) => c.has('ran') && c.ui.speed === 0,
         target: ['.dial-center'],
       },
       {
-        title: 'Read the treasury',
-        text: 'The strip at the top shows every stockpile: the number is what you hold, the coloured figure is the monthly change, and the thin bar shows how full your storage is. Hover any resource for a line-by-line account of where it comes from and where it goes.',
-        target: ['.res-strip'],
+        title: 'Order 1: set your scholars to work',
+        text: 'Research makes everything better: more output, new buildings, new ships, and the eras that lead to ascension. Open Research and pick a technology; anything cheap in Industry or Energy is a good start. Queue a second one so they never sit idle.',
+        goal: 'Choose a technology to research',
+        done: (c) => !!me(c.g).research.current || me(c.g).research.queue.length > 0,
+        target: [neo('Research')],
+        open: 'research',
       },
       {
-        title: 'Your ministries',
-        text: 'The column on the left opens your ministries as windows: the throne room, council, capital, planets, fleets, economy, research, diplomacy and more. Windows can be moved, minimised and stacked. Every window has a ? button that explains it, and the book icon at the bottom opens the Imperial Codex.',
-        goal: 'Open the Imperial Codex',
-        done: opened('codex'),
-        target: [neo('Imperial Codex'), '.neocom'],
-        open: 'codex',
+        title: 'Order 2: build on your homeworld',
+        text: 'Your worlds produce resources from districts and buildings. Your homeworld is open in the Planets window: queue a district. Mining districts give minerals (which build everything), generator districts give energy, farms give food, housing gives room for your people to grow. The resource strip at the top shows what you hold and the monthly change; build what is lowest.',
+        goal: 'Queue a district or building on your homeworld',
+        done: grew('buildings'),
+        target: [guide('planet-build'), neo('Planets')],
+        show: (g) => ({ screen: 'planets', planetId: me(g).capitalPlanetId ?? undefined }),
       },
       {
-        title: 'Your agenda',
-        text: 'The panel at top left follows what matters: your realm and government, your civilisation\'s era, the selected system, current research, construction and wars. Click any line to go there. News arrives in the Dispatches log at bottom left; anything urgent also appears as a notice.',
-        target: ['.loc-hud'],
+        title: 'Order 3: claim a neighbouring system',
+        text: (c) => {
+          const e = me(c.g);
+          const ctor = Object.values(c.g.fleets).find((f) => f.ownerId === e.id && f.ships.some((s) => s.cls === 'constructor'));
+          return `More systems mean more resources, room to settle and a longer border to defend. Your construction ship can raise an outpost. Press Show me: it selects a free system next to yours. In the panel on the right press Send construction ship. An outpost costs influence${ctor ? '' : ' (build a Construction Ship at your shipyard first)'} and 40 alloys.`;
+        },
+        goal: 'Send a construction ship to claim a system',
+        done: (c) => Object.values(c.g.fleets).some((f) => f.ownerId === c.g.playerId && f.order.type === 'outpost') || c.g.galaxy.systems.some((s) => s.outpostProject?.empireId === c.g.playerId) || grew('systems')(c),
+        target: ['.right-col'],
+        show: (g) => {
+          const e = me(g);
+          const owned = new Set(g.galaxy.systems.filter((s) => s.owner === e.id).map((s) => s.id));
+          const free = g.galaxy.lanes.flatMap(([a, b]) => owned.has(a) ? [b] : owned.has(b) ? [a] : []).find((id) => g.galaxy.systems[id].owner == null && !g.galaxy.systems[id].features.includes('guardian') && e.explored.includes(id));
+          return free != null ? { systemId: free } : null;
+        },
+      },
+      {
+        title: 'Order 4: send your scout exploring',
+        text: 'Beyond your borders the map is dark: you only know the planets of systems you have explored. Press Show me to select your survey ship, then right-click any star to send it there. Each system it reaches is charted, and you meet your neighbours along the way.',
+        goal: 'Explore a new system',
+        done: grew('explored'),
+        target: ['.right-col'],
+        show: (g) => { const f = Object.values(g.fleets).find((x) => x.ownerId === g.playerId && x.ships.length && x.ships.every((s) => s.cls === 'scout')); return f ? { fleetId: f.id, systemId: f.systemId } : null; },
+      },
+      {
+        title: 'Order 5: let the realm grow',
+        text: 'Now let time run for two months and watch. Construction finishes, the outpost rises, the scout charts the dark. News appears in the Dispatches at bottom left. Anything urgent pauses the game and appears as a notice.',
+        goal: 'Let two months pass',
+        done: (c) => (c.now.tick ?? 0) >= (c.base.tick ?? 0) + 60,
+        target: ['.dial-center'],
+      },
+      {
+        title: 'Where to look from now on',
+        text: 'The Next steps panel on the right always shows your current goal and the two or three most useful things to do now. Each comes with a button that takes you there: a shortage to fix, a colony to found, a rival to watch. The Throne room shows your ambitions (optional milestones with rewards) and how close you and your rivals are to victory. More lessons are offered as your reign grows, and every window has a ? button that explains it.',
+        target: ['.hints', neo('Throne room')],
       },
     ],
   },

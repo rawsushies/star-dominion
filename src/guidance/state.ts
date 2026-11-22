@@ -83,5 +83,6 @@ export function counters(g: GameState): Record<string, number> {
     proposals: g.proposals.filter((p) => p.from === g.playerId).length,
     covert: (g.covert ?? []).filter((o) => o.ownerId === g.playerId).length,
     heir: e.heirId != null ? 1 : 0,
+    tick: g.tick,
   };
 }
