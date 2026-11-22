@@ -12,7 +12,7 @@ import type { GameEvent, GameSettings, GameState } from '../sim/types';
 
 export type ScreenId =
   | 'map' | 'kingdom' | 'planets' | 'system' | 'fleets' | 'military' | 'economy' | 'industry'
-  | 'research' | 'diplomacy' | 'intel' | 'construction' | 'trade' | 'journal' | 'techtree' | 'heroes' | 'council' | 'capital' | 'operations' | 'throne' | 'warroom' | 'chronicle' | 'codex';
+  | 'research' | 'diplomacy' | 'intel' | 'construction' | 'trade' | 'journal' | 'techtree' | 'heroes' | 'council' | 'capital' | 'operations' | 'throne' | 'warroom' | 'chronicle' | 'codex' | 'vault';
 
 export type MapMode = 'political' | 'resources' | 'military' | 'trade' | 'supply';
 

@@ -10,7 +10,9 @@ import { getLedger } from './engine';
 import { canBuild, buildingCost, shipCost } from './construction';
 import { availableTechs } from './research';
 import { fleetPower, isCivilianFleet, routeFleet, shipStats } from './fleets';
-import { evaluateProposal, opinion, hasContact, makePeace, intelLevel, applyDeal, PEACE_LABEL, systemValue } from './diplomacy';
+import { evaluateProposal, opinion, hasContact, makePeace, intelLevel, applyDeal, PEACE_LABEL, systemValue, joinWar } from './diplomacy';
+import { sendLetter } from './envoys';
+import { prologueActive } from './prologue';
 import { bordering, claimCost, hasTreaty, isHostile, ownedSystems, warBetween, armed, isExplored } from './territory';
 import { empireMods, hasTech } from './modifiers';
 import { planetHab } from './economy';
@@ -736,6 +738,7 @@ function diplomacy(state: GameState, e: Empire) {
     const pending = state.proposals.some((p) => p.from === e.id && p.kind === 'peace' && p.warId === w.id);
     if (state.empires[other].isPlayer) {
       if (!pending && chance(state.rng, 0.5)) {
+        if (term === 'status_quo' && (losing || myScore < -25)) sendLetter(state, e, 'losing', undefined, 360);
         state.proposals.push({ id: nextId(state), from: e.id, to: other, give: [], receive: [], tick: state.tick, kind: 'peace', peaceTerm: term, warId: w.id });
         log(state, { kind: 'diplomacy', severity: 'info', title: `${e.name} proposes peace`, text: `Terms: ${PEACE_LABEL[term]}. Review it in Diplomacy.`, empires: [other] });
       }
@@ -748,6 +751,14 @@ function diplomacy(state: GameState, e: Empire) {
     // minors accept but rarely initiate; they seek protection
     return;
   }
+  const player = state.empires[state.playerId];
+  // first words to the player, and a warning when the player grows feared
+  if (player?.alive && hasContact(state, e.id, player.id)) {
+    sendLetter(state, e, 'greeting', undefined, 1e9);
+    const lead = hegemon(state);
+    if (lead && lead.id === player.id && lead.fear > 0.5 && bordering(state, e.id, player.id)) sendLetter(state, e, 'fear', undefined, 1440);
+  }
+  callToArms(state, e);
   // Treaties
   const armTarget = planOf(e).goal === 'arm' || planOf(e).goal === 'war' ? planOf(e).target : null;
   for (const o of majors) {
@@ -779,9 +790,11 @@ function diplomacy(state: GameState, e: Empire) {
   // Tribute demands from weak neighbours (aggressive AIs, player included)
   if (e.personality.aggression > 0.6 && chance(state.rng, 0.08)) {
     const weak = majors.find((o) => o.isPlayer && bordering(state, e.id, o.id) && (e.stats.militaryPower > (estimatePower(state, e.id, o.id) ?? 1e9) * 2.5) && !warBetween(state, e.id, o.id));
-    if (weak && !state.proposals.some((p) => p.from === e.id && p.to === weak.id)) {
-      state.proposals.push({ id: nextId(state), from: e.id, to: weak.id, give: [], receive: [{ kind: 'credits', amount: Math.round(150 + e.stats.population * 4) }], tick: state.tick, kind: 'deal' });
-      log(state, { kind: 'diplomacy', severity: 'warn', title: `${e.name} demands tribute`, text: 'Their envoys hint that refusal would be unwise.', empires: [weak.id] });
+    if (weak && !prologueActive(state) && !state.proposals.some((p) => p.from === e.id && p.to === weak.id)) {
+      const amount = Math.round(150 + e.stats.population * 4);
+      state.proposals.push({ id: nextId(state), from: e.id, to: weak.id, give: [], receive: [{ kind: 'credits', amount }], tick: state.tick, kind: 'deal', demand: true });
+      log(state, { kind: 'diplomacy', severity: 'warn', title: `${e.name} demands tribute`, text: `They want ${amount} credits. Refuse, and they will remember it: expect them to arm against you. Answer in Diplomacy.`, empires: [weak.id] });
+      sendLetter(state, e, 'ultimatum', amount, 0);
     }
   }
   // Wars are declared by the strategic plan (strategy.ts). While arming, secure the other flanks.
@@ -791,6 +804,45 @@ function diplomacy(state: GameState, e: Empire) {
       if (o.id === plan.target || o.isPlayer || !bordering(state, e.id, o.id) || hasTreaty(state, e.id, o.id, 'nap') || warBetween(state, e.id, o.id)) continue;
       const prop = { id: nextId(state), from: e.id, to: o.id, give: [{ kind: 'treaty' as const, treaty: 'nap' as TreatyType }], receive: [], tick: state.tick, kind: 'deal' as const };
       if (evaluateProposal(state, prop).accept) applyDeal(state, prop);
+    }
+  }
+}
+
+/**
+ * Calls to arms: a war leader that is not clearly winning asks other realms with a grudge against
+ * its enemy to join. AI realms decide on opinion, grudges and the odds; the player gets an offer
+ * of payment and decides in Diplomacy. Each realm is asked once per war.
+ */
+function callToArms(state: GameState, e: Empire) {
+  for (const w of state.wars) {
+    const side = w.attackers[0] === e.id ? 'attackers' : w.defenders[0] === e.id ? 'defenders' : null;
+    if (!side) continue;
+    const myScore = side === 'attackers' ? w.score : -w.score;
+    if (myScore > 40) continue;
+    const enemy = state.empires[side === 'attackers' ? w.defenders[0] : w.attackers[0]];
+    if (!enemy?.alive || enemy.role === 'pretender') continue;
+    w.asked ??= [];
+    for (const c of state.empires) {
+      if (!c.alive || c.kind !== 'major' || c.id === e.id || w.asked.includes(c.id) || w.attackers.includes(c.id) || w.defenders.includes(c.id)) continue;
+      if (!hasContact(state, e.id, c.id) || !hasContact(state, c.id, enemy.id) || !bordering(state, c.id, enemy.id)) continue;
+      if (hasTreaty(state, c.id, enemy.id, 'alliance') || hasTreaty(state, c.id, enemy.id, 'defense') || hasTreaty(state, c.id, enemy.id, 'vassal')) continue;
+      if (state.truces.some((t) => ((t.a === c.id && t.b === enemy.id) || (t.b === c.id && t.a === enemy.id)) && t.until > state.tick)) continue;
+      if (c.id === state.playerId && (prologueActive(state) || enemy.id === state.playerId)) continue;
+      const grudge = opinion(state, c.id, enemy.id) < -10 || planOf(c).target === enemy.id;
+      if (!grudge || opinion(state, c.id, e.id) < 0) continue;
+      w.asked.push(c.id);
+      if (c.isPlayer) {
+        const amount = Math.round(100 + e.stats.population * 2);
+        if (e.stock.credits < amount) continue;
+        state.proposals.push({ id: nextId(state), from: e.id, to: c.id, give: [{ kind: 'credits', amount }], receive: [], tick: state.tick, kind: 'deal', joinWar: w.id });
+        log(state, { kind: 'diplomacy', severity: 'info', title: `${e.name} asks you to join the ${w.name}`, text: `They offer ${amount} credits if you go to war with the ${enemy.name} on their side. Answer in Diplomacy.`, empires: [c.id] });
+        sendLetter(state, e, 'call', enemy.name, 0);
+      } else {
+        const theirs = (side === 'attackers' ? w.defenders : w.attackers).reduce((a, id) => a + (estimatePower(state, c.id, id) ?? state.empires[id].stats.militaryPower), 0);
+        const ours = (side === 'attackers' ? w.attackers : w.defenders).reduce((a, id) => a + (estimatePower(state, c.id, id) ?? state.empires[id].stats.militaryPower), 0) + (c.stats.militaryPower || 0);
+        if (ours < theirs * 1.1 || c.warExhaustion > 30 || atWar(state, c.id)) continue;
+        joinWar(state, w, c.id, side);
+      }
     }
   }
 }

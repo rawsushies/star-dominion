@@ -686,3 +686,25 @@ table.t tr.sel td { background: var(--ice-dim); }
 .quest-bar { display: flex; gap: 3px; margin-top: 6px; }
 .quest-bar i { flex: 1; height: 3px; background: rgba(255, 255, 255, 0.1); }
 .quest-bar i.done { background: var(--crown); }
+
+/* Relic Vault */
+.vault-top { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; padding: 10px 0 4px; }
+.vault-count { display: flex; align-items: center; gap: 8px; color: var(--crown); }
+.vault-count .num { font-size: 30px; font-weight: 600; color: var(--text); }
+.vault-pity { flex-basis: 100%; }
+.relic-gem { color: var(--crown); }
+.relic-reveal { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-top: 10px; perspective: 900px; }
+.relic-card { --rc: #8b949e; position: relative; padding: 10px 11px 12px; min-height: 150px; border: 1px solid var(--rc); background: linear-gradient(160deg, rgba(255,255,255,0.05), rgba(0,0,0,0.25)); animation: relic-flip 0.55s cubic-bezier(.2,.7,.2,1) both; transform-origin: 50% 50%; overflow: hidden; }
+.relic-card.rare { --rc: var(--ice); }
+.relic-card.epic { --rc: #b48cff; box-shadow: 0 0 14px rgba(180, 140, 255, 0.25); }
+.relic-card.legendary { --rc: var(--crown); box-shadow: 0 0 22px rgba(220, 174, 98, 0.45); }
+.relic-card.legendary::after { content: ''; position: absolute; inset: 0; background: linear-gradient(115deg, transparent 30%, rgba(255, 236, 190, 0.35) 50%, transparent 70%); transform: translateX(-120%); animation: relic-shine 2.4s 0.7s ease-in-out infinite; pointer-events: none; }
+.relic-rarity { font-size: 11.5px; color: var(--rc); letter-spacing: 0.04em; }
+.relic-kind { font-size: 11px; color: var(--text-3); }
+.relic-title { font-size: 14px; font-weight: 600; margin-top: 6px; color: var(--text); }
+.relic-text { font-size: 12px; line-height: 1.45; color: var(--text-2); margin-top: 4px; }
+.relic-dot { display: inline-block; width: 9px; height: 9px; transform: rotate(45deg); background: #8b949e; margin-right: 6px; vertical-align: 1px; }
+.relic-dot.rare { background: var(--ice); } .relic-dot.epic { background: #b48cff; } .relic-dot.legendary { background: var(--crown); }
+@keyframes relic-flip { from { opacity: 0; transform: rotateY(90deg) scale(0.9); } to { opacity: 1; transform: none; } }
+@keyframes relic-shine { 0% { transform: translateX(-120%); } 60%, 100% { transform: translateX(120%); } }
+@media (prefers-reduced-motion: reduce) { .relic-card, .relic-card.legendary::after { animation: none; } }

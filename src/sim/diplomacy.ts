@@ -2,6 +2,8 @@
 // deal system (credits, resources, systems, treaties), AI acceptance logic
 // with itemised reasons, war declarations with alliances, and peace terms.
 
+import { grantRelics } from './relics';
+import { sendLetter } from './envoys';
 import { bordering, hasTreaty, ownedSystems, warBetween, visibleSystems, setSystemOwner } from './territory';
 import { empireMods, mod } from './modifiers';
 import { log, nextId } from './util';
@@ -329,6 +331,21 @@ export function canDeclareWar(state: GameState, a: number, b: number): { ok: boo
   return { ok: true };
 }
 
+/** A realm enters an existing war on one side (a call to arms answered). */
+export function joinWar(state: GameState, war: War, id: number, side: 'attackers' | 'defenders'): boolean {
+  if (war.attackers.includes(id) || war.defenders.includes(id)) return false;
+  const foes = side === 'attackers' ? war.defenders : war.attackers;
+  for (const f of foes) {
+    for (const t of ['nap', 'trade', 'research', 'defense', 'alliance'] as TreatyType[]) if (hasTreaty(state, id, f, t)) breakTreaty(state, id, f, t);
+    addMemory(state, f, id, 'joined_war', -40, 1, 'Joined a war against us');
+  }
+  for (const a of side === 'attackers' ? war.attackers : war.defenders) addMemory(state, a, id, 'war_ally', 25, 0.5, 'Fought beside us');
+  (side === 'attackers' ? war.attackers : war.defenders).push(id);
+  const e = state.empires[id];
+  log(state, { kind: 'war', severity: foes.includes(state.playerId) ? 'danger' : 'info', title: `${e.name} joins the ${war.name}`, text: `${e.name} enters the war against ${foes.map((f) => state.empires[f].name).join(', ')}.`, empires: [] });
+  return true;
+}
+
 export function declareWar(state: GameState, a: number, b: number): War | null {
   if (!canDeclareWar(state, a, b).ok) return null;
   const ea = state.empires[a];
@@ -373,7 +390,7 @@ export function makePeace(state: GameState, war: War, term: PeaceTerm, winnerSid
   const losers = winnerSide === 'attackers' ? war.defenders : war.attackers;
   const wl = winners[0];
   const ll = losers[0];
-  if (term !== 'status_quo' && state.empires[wl]) state.empires[wl].warsWon = (state.empires[wl].warsWon ?? 0) + 1;
+  if (term !== 'status_quo' && state.empires[wl]) { state.empires[wl].warsWon = (state.empires[wl].warsWon ?? 0) + 1; grantRelics(state, state.empires[wl], 2, 'A war won'); }
   if (term === 'tribute') {
     const loser = state.empires[ll];
     state.tributes.push({ from: ll, to: wl, perMonth: Math.round(8 + (loser.stats.population || 10) * 0.25), until: state.tick + 360 * 8 });
@@ -404,6 +421,7 @@ export function makePeace(state: GameState, war: War, term: PeaceTerm, winnerSid
     exchanged++;
   }
   state.wars = state.wars.filter((w) => w !== war);
+  if (wl === state.playerId || ll === state.playerId) sendLetter(state, state.empires[wl === state.playerId ? ll : wl], 'peace', undefined, 0);
   for (const a of war.attackers) for (const d of war.defenders) state.truces.push({ a, b: d, until: state.tick + 360 * 5 });
   for (const id of [...war.attackers, ...war.defenders]) state.empires[id].warExhaustion *= 0.5;
   log(state, {

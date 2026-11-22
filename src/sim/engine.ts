@@ -2,6 +2,7 @@
 // Order of a day: combat -> movement -> orders -> supply -> construction ->
 // economy/population/research per empire -> monthly systems -> AI.
 
+import { START_RELICS } from './relics';
 import { victoryMonthly } from './victory';
 import { ambitionsMonthly } from './ambitions';
 import { chainsMonthly } from './chains';
@@ -228,6 +229,8 @@ export function newGame(settings: Partial<GameSettings> = {}): GameState {
       return e;
     });
   }
+
+  state.empires[state.playerId].relics = START_RELICS;
 
   // Initial exploration & stats
   for (const e of state.empires) {

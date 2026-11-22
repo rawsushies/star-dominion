@@ -69,7 +69,8 @@ export function fleetPower(state: GameState, f: Fleet): number {
   let hp = 0;
   for (const sh of f.ships) {
     const st = shipStats(state, e, sh.cls, adm);
-    dmg += st.damage + st.strike * 0.8;
+    const rb = 1 + (sh.relic?.bonus ?? 0);
+    dmg += (st.damage + st.strike * 0.8) * rb;
     hp += sh.hull + (sh.armor ?? st.armor) + st.shields;
   }
   return Math.round(Math.sqrt(Math.max(0, dmg) * Math.max(0, hp)) / 4);
@@ -229,7 +230,8 @@ export function supplyAndRepair(state: GameState, engaged: Set<number>) {
     for (const s of f.ships) {
       const st = shipStats(state, e, s.cls, lb);
       if (repairRate > 0) {
-        s.hull = Math.min(st.hull, s.hull + st.hull * repairRate);
+        const cap = st.hull * (1 + (s.relic?.bonus ?? 0));
+        s.hull = Math.min(cap, s.hull + cap * repairRate);
         s.armor = Math.min(st.armor, (s.armor ?? st.armor) + st.armor * repairRate);
       }
       s.shields = Math.min(st.shields, s.shields + st.shields * 0.25);

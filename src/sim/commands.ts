@@ -1,4 +1,5 @@
 import { TECH_BY_ID } from './data/techs';
+import { drawRelics } from './relics';
 import { canBuildStationOn, defaultOp, OP_MAX_LEVEL, OP_MODES, opUpgradeCost } from './operations';
 import { canQueueCapital, queueCapital, cancelCapital } from './capital';
 import { canIssueDecree, issueDecree, revokeDecree, canResolvePetition, resolvePetition, houseById, canActOnHouse, actOnHouse } from './governance';
@@ -16,7 +17,9 @@ import { STARBASE } from './data/ships';
 import { buildingCost, buildingDays, canBuild, canBuildShip, shipCost, shipDays, starbaseUpgradeCost } from './construction';
 import { createFleet, isCivilianFleet, routeFleet, removeFleet } from './fleets';
 import { canResearch } from './research';
-import { addMemory, applyDeal, breakTreaty, declareWar, evaluateProposal, evaluateContract, makePeace, type Evaluation, canDeclareWar, hasContact } from './diplomacy';
+import { addMemory, applyDeal, breakTreaty, declareWar, evaluateProposal, evaluateContract, makePeace, type Evaluation, canDeclareWar, hasContact, joinWar } from './diplomacy';
+import { sendLetter } from './envoys';
+import { refusedUltimatum } from './strategy';
 import { computeLedger } from './economy';
 import { empireMods, hasTech, mod } from './modifiers';
 import { planetHab } from './economy';
@@ -77,7 +80,8 @@ export type Command =
   | { type: 'declareWar'; target: number }
   | { type: 'proposePeace'; warId: number; term: PeaceTerm }
   | { type: 'breakTreaty'; target: number; treaty: TreatyType }
-  | { type: 'startMegastructure'; systemId: number; mega: string };
+  | { type: 'startMegastructure'; systemId: number; mega: string }
+  | { type: 'drawRelic'; count: number };
 
 export interface CommandResult { ok: boolean; message?: string; evaluation?: Evaluation }
 
@@ -571,12 +575,37 @@ export function execute(state: GameState, empireId: number, cmd: Command): Comma
       }
       return { ok: ev.accept, message: ev.accept ? 'Contract signed' : 'Contract declined', evaluation: ev };
     }
+    case 'drawRelic': {
+      const n = Math.max(1, Math.min(10, Math.floor(cmd.count)));
+      if ((e.relics ?? 0) < n) return fail(`Needs ${n} relic${n > 1 ? 's' : ''}`);
+      const draws = drawRelics(state, e, n);
+      return { ok: true, message: draws.map((d) => `${d.rarity}: ${d.title}`).join('; ') };
+    }
     case 'respondProposal': {
       const i = state.proposals.findIndex((p) => p.id === cmd.id && p.to === empireId);
       if (i < 0) return fail('Proposal expired');
       const p = state.proposals[i];
       state.proposals.splice(i, 1);
+      const sender = state.empires[p.from];
       if (!cmd.accept) {
+        if (p.demand && sender?.alive) {
+          // a refused ultimatum is remembered, and the realm that made it prepares to collect
+          addMemory(state, p.from, empireId, 'refused_demand', -30, 0.5, 'Refused our demand');
+          sendLetter(state, sender, 'refused', undefined, 0);
+          if (!sender.isPlayer && sender.kind === 'major') refusedUltimatum(state, sender, empireId);
+        }
+        return OK;
+      }
+      if (sender && !sender.isPlayer) {
+        if (p.demand) { addMemory(state, p.from, empireId, 'paid_demand', 15, 0.5, 'Paid what we asked'); sendLetter(state, sender, 'paid', undefined, 0); }
+        else if (p.joinWar == null && p.kind === 'deal' && p.give.some((x) => x.kind === 'treaty')) sendLetter(state, sender, 'thanks', undefined, 180);
+      }
+      if (p.joinWar != null) {
+        const war = state.wars.find((w) => w.id === p.joinWar);
+        if (!war) return fail('That war is already over');
+        applyDeal(state, p);
+        joinWar(state, war, empireId, war.attackers.includes(p.from) ? 'attackers' : 'defenders');
+        if (sender) sendLetter(state, sender, 'joined', undefined, 0);
         return OK;
       }
       if (p.kind === 'peace') {

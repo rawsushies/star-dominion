@@ -5,6 +5,7 @@
 // player sees).
 
 import { prologueActive, protectedPrey } from './prologue';
+import { sendLetter } from './envoys';
 import { fuzz, intelLevel, opinion, systemValue, hasContact, canDeclareWar } from './diplomacy';
 import { bordering, hasTreaty, ownedSystems, warBetween } from './territory';
 import { adjacency, jumpDistances } from './galaxy';
@@ -121,6 +122,7 @@ function setGoal(state: GameState, e: Empire, goal: AIGoal, target: number | nul
   plan.goal = goal; plan.target = target; plan.since = state.tick;
   // telegraph a build-up against the player when the player can see it
   if (goal === 'arm' && target === state.playerId && intelLevel(state, state.playerId, e.id) >= 30) {
+    sendLetter(state, e, 'threat');
     log(state, { kind: 'threat', severity: 'warn', title: `${e.name} is arming`, text: `Envoys report ${e.adjective} shipyards working day and night, and ${e.adjective} fleets gathering near our border. A war may be coming. Strengthen the border, seek allies, or offer a pact.`, empires: [state.playerId] });
   }
   if (was === 'arm' && goal !== 'war' && plan.target == null && target == null) { /* stood down */ }
@@ -158,9 +160,21 @@ export function warCandidates(state: GameState, e: Empire): WarCandidate[] {
     if (o.kind !== 'major') score *= 0.6 + pers.expansion * 0.6; // easy prey for expansionists
     if (lead && lead.id === o.id) score *= 1 + preset.coalition * lead.fear; // cut a runaway leader down
     if (nap) score *= 0.6 + (1 - pers.diplomacy) * 0.3; // pacts restrain the honourable more
+    // opportunism: a realm already worn down by another war is easier prey
+    const busy = state.wars.find((w) => w.attackers.includes(o.id) || w.defenders.includes(o.id));
+    if (busy) { const theirs = busy.attackers.includes(o.id) ? busy.score : -busy.score; score *= 1 + Math.max(0, -theirs) / 100 + Math.min(0.4, o.warExhaustion / 100) + (1 - pers.diplomacy) * 0.2; }
     out.push({ id: o.id, score, ratio });
   }
   return out.sort((a, b) => b.score - a.score);
+}
+
+/** A rival whose ultimatum was refused starts arming against the realm that refused it. */
+export function refusedUltimatum(state: GameState, e: Empire, target: number) {
+  if (target === state.playerId && prologueActive(state)) return;
+  const plan = planOf(e);
+  if (plan.goal === 'war' || plan.goal === 'recover') return;
+  setGoal(state, e, 'arm', target);
+  plan.review = state.tick + 120;
 }
 
 /** The strategic review: pick the realm's goal for the coming months. */
@@ -246,6 +260,7 @@ function startWar(state: GameState, e: Empire, target: number) {
   // declared through the same command path as the player's
   if (!execute(state, e.id, { type: 'declareWar', target }).ok) return;
   setGoal(state, e, 'war', target);
+  if (t.isPlayer) sendLetter(state, e, 'war', undefined, 0);
   if (nap) log(state, { kind: 'betrayal', severity: 'danger', title: `${e.name} betrays ${t.name}`, text: `${e.name} tore up its non-aggression pact and attacked. Other realms will remember.`, empires: [] });
 }
 

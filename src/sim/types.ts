@@ -146,6 +146,8 @@ export interface Ship {
   armor: number;
   shields: number;
   xp: number;
+  /** a ship from the Relic Vault: a name and a combat bonus */
+  relic?: { name: string; rarity: 'common' | 'rare' | 'epic' | 'legendary'; bonus: number };
 }
 
 export type FleetOrder =
@@ -195,6 +197,8 @@ export interface Character {
   skills: Record<string, number>;
   attrs: Record<import('./data/characters').Attr, number>;
   traits: string[];
+  /** drawn from the Relic Vault */
+  rarity?: 'common' | 'rare' | 'epic' | 'legendary';
   loyalty: number;
   ambition: { kind: import('./data/characters').AmbitionKind; unmetMonths: number };
   status: 'candidate' | 'active' | 'captive' | 'dead' | 'retired';
@@ -326,6 +330,13 @@ export interface Empire {
   chainCooldowns?: Record<string, number>;
   /** AI realms: the current strategic goal (sim/strategy.ts) */
   aiPlan?: AIPlan;
+  /** when each kind of letter to the player was last sent (envoys.ts) */
+  letters?: Partial<Record<string, number>>;
+  /** Relic Vault (the player): relics to spend, pity counters, legendaries already drawn, recent draws */
+  relics?: number;
+  relicPity?: { sinceEpic: number; sinceLegend: number };
+  relicLegends?: string[];
+  relicLog?: { tick: number; rarity: 'common' | 'rare' | 'epic' | 'legendary'; kind: 'cache' | 'ship' | 'hero'; title: string; text: string }[];
   /** tick from which the realm has met the domination thresholds (sim/victory.ts) */
   dominationSince?: number | null;
   /** victories this realm has been announced as nearing */
@@ -383,6 +394,8 @@ export interface War {
   startTick: number;
   score: number; // positive favours attackers (-100..100)
   name: string;
+  /** realms already asked to join this war */
+  asked?: number[];
 }
 
 export interface Tribute { from: number; to: number; perMonth: number; until: number }
@@ -402,6 +415,10 @@ export interface Proposal {
   tick: number;
   kind: 'deal' | 'peace';
   peaceTerm?: PeaceTerm;
+  /** a demand backed by a threat: refusing it has consequences */
+  demand?: boolean;
+  /** accepting means joining this war on the proposer's side */
+  joinWar?: number;
   warId?: number;
 }
 

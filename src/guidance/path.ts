@@ -18,6 +18,7 @@ const years = (g: GameState) => g.tick / 360;
 
 /** When each further screen joins the bar, and the one-line reason it now matters. */
 export const SCREEN_UNLOCKS: { id: ScreenId; when: (g: GameState) => boolean; why: string }[] = [
+  { id: 'vault', when: (g) => (g.empires[g.playerId].relics ?? 0) > 0 && (did(g, 'grow') || (g.prologue?.stage ?? 0) >= 1 || years(g) >= 0.25), why: 'Spend the relics you earn on random draws: warships, heroes and supplies. You have some to try now.' },
   { id: 'throne', when: (g) => did(g, 'grow') || years(g) >= 1, why: 'Shows how close you, and your rivals, are to winning, plus optional goals that give rewards.' },
   { id: 'system', when: (g) => did(g, 'grow') || years(g) >= 1, why: 'A list of every star system you own.' },
   { id: 'diplomacy', when: (g) => g.empires.some((x) => x.id !== g.playerId && x.alive && x.kind !== 'guardian' && hasContact(g, g.playerId, x.id)), why: 'Talk to the realms you have met: make friends, sign treaties, or declare war.' },

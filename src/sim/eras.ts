@@ -1,6 +1,7 @@
 // Era progression: requirement tracking, the Kardashev rating shown to the
 // player, and the monthly check that advances a civilisation to its next age.
 
+import { grantRelics } from './relics';
 import { ERAS, MAX_ERA, type EraDef } from './data/eras';
 import { TECH_BY_ID } from './data/techs';
 import { MEGA_BY_ID } from './data/megastructures';
@@ -61,6 +62,7 @@ export function eraMonthly(state: GameState) {
     const next = ERAS[era + 1];
     if (eraRequirements(state, e, next).every((q) => q.done)) {
       e.era = era + 1;
+      grantRelics(state, e, 2, 'A new era');
       e.stats.kardashev = Math.round(kardashev(state, e) * 100) / 100;
       log(state, {
         kind: 'era', severity: e.isPlayer ? 'good' : 'warn',

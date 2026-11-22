@@ -6,6 +6,7 @@
 // Only reigns started with `settings.prologue` have one, so other games, saves and the campaign
 // statistics are untouched.
 
+import { grantRelics } from './relics';
 import type { Empire, GameState, Cost } from './types';
 import { jumpDistances } from './galaxy';
 import { fleetPower, createFleet } from './fleets';
@@ -129,11 +130,13 @@ export function prologueTick(state: GameState) {
     // taking the crown world early settles every stage before it
     if (!stageMet(state, st.id) && !stageMet(state, 'crown')) break;
     grant(me, st.reward);
+    grantRelics(state, me, 1, `Quest done: ${st.title}`);
     p.stage++;
     log(state, { kind: 'quest', severity: 'good', title: `Quest: ${st.title}`, text: `Done. Reward: ${st.rewardText}.`, empires: [me.id] });
     if (p.stage >= PROLOGUE_STAGES.length) {
       p.done = true;
       p.doneTick = state.tick;
+      grantRelics(state, me, 2, 'The Prologue is complete');
       log(state, { kind: 'quest', severity: 'good', title: 'The Prologue is over', text: 'The Pretender is broken and the great realms have taken notice of you. From here on, they may come for you too.', empires: [me.id] });
     }
   }

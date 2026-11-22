@@ -3,6 +3,7 @@
 // pursued or ignored, and each pays a modest one-time reward when met. Only the player's realm
 // tracks them (the AI follows its own plans in strategy.ts).
 
+import { grantRelics } from './relics';
 import { opsOf } from './operations';
 import { hasTreaty } from './territory';
 import { log } from './util';
@@ -75,6 +76,7 @@ export function ambitionsMonthly(state: GameState) {
     const p = a.progress(state, e);
     if (p.have < p.need) continue;
     e.ambitions.push(a.id);
+    grantRelics(state, e, 1, `Ambition achieved: ${a.title}`);
     for (const [k, v] of Object.entries(a.reward.stock ?? {})) (e.stock as Record<string, number>)[k] += v;
     if (a.reward.timed) for (const [k, v] of Object.entries(a.reward.timed.mods)) e.timedMods.push({ key: k, value: v, until: state.tick + a.reward.timed.days, label: a.reward.timed.label });
     log(state, { kind: 'ambition', severity: 'good', title: `Ambition fulfilled: ${a.title}`, text: `${a.rewardText}.`, empires: [e.id] });

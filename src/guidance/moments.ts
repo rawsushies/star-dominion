@@ -147,7 +147,7 @@ function candidates(g: GameState): Moment[] {
   // a screen joining the bar (beginner mode)
   const unl = freshUnlock(g);
   if (unl) out.push({
-    id: `unlock-${unl.id}`,
+    id: `unlock-${unl.id}`, ...(unl.id === 'vault' ? { voice: 'relics' as VoiceId } : {}),
     title: `New on your left bar: ${NAV_LABEL[unl.id] ?? unl.id}`,
     text: unl.why,
     action: { label: `Open ${NAV_LABEL[unl.id] ?? unl.id}`, screen: unl.id },
