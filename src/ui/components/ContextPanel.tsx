@@ -100,6 +100,28 @@ function SystemCtx({ s }: { s: StarSystem }) {
         {s.owner == null && <><span>Outpost claim cost</span><span>{claimCost(g, me, s.id)} influence</span></>}
       </div>
       {s.outpostProject && <div style={{ marginTop: 8 }}><div className="hint">Outpost under construction by {g.empires[s.outpostProject.empireId].name}</div><Meter value={s.outpostProject.progress} max={s.outpostProject.total} /></div>}
+      <Section title="Actions">
+        <div className="row wrap">
+          <button className="btn" onClick={() => ui.set({ view: 'system' })}>Enter system</button>
+          {s.owner == null && !s.outpostProject && ctors.length > 0 && (
+            <button className="btn primary" onClick={() => ui.cmd({ type: 'fleetOrder', fleetId: ctors[0].id, order: { type: 'outpost', systemId: s.id } })}>Send construction ship</button>
+          )}
+          {s.owner === g.playerId && upCost && !s.starbaseUpgrade && (
+            <Tip content={<div><h4>Upgrade to {STARBASE[s.starbase + 1]!.label}</h4><CostView cost={upCost} empire={me} /><div className="hint">Stronger defences; Starports and above protect trade routes from raiding.</div></div>}>
+              <button className="btn" onClick={() => ui.cmd({ type: 'upgradeStarbase', systemId: s.id })}>Upgrade starbase</button>
+            </Tip>
+          )}
+          {s.owner === g.playerId && <button className="btn" onClick={() => ui.set({ screen: 'construction' })}>Megastructures</button>}
+        </div>
+        {s.starbaseUpgrade && <div style={{ marginTop: 8 }}><div className="hint">Starbase upgrade in progress</div><Meter value={s.starbaseUpgrade.progress} max={s.starbaseUpgrade.total} /></div>}
+        {s.megastructures.map((m) => (
+          <div key={m.id} style={{ marginTop: 8 }}>
+            <div className="row between"><span>{MEGA_BY_ID[m.id].label}</span><span className="num">Stage {m.stage}/{MEGA_BY_ID[m.id].stages}</span></div>
+            {m.building && <Meter value={m.progress} max={MEGA_BY_ID[m.id].stageDays} />}
+          </div>
+        ))}
+        <OwnFleetQuickMove target={s.id} />
+      </Section>
       {s.features.length > 0 && (
         <Section title="Features">
           {s.features.map((f) => <div key={f} style={{ marginBottom: 4 }}><span className={cls('tag', f === 'guardian' ? 'bad' : 'gold')}>{FEATURE_INFO[f][0]}</span> <span className="hint">{FEATURE_INFO[f][1]}</span></div>)}
@@ -136,28 +158,6 @@ function SystemCtx({ s }: { s: StarSystem }) {
           </div>
         </Section>
       )}
-      <Section title="Actions">
-        <div className="row wrap">
-          <button className="btn" onClick={() => ui.set({ view: 'system' })}>Enter system</button>
-          {s.owner == null && !s.outpostProject && ctors.length > 0 && (
-            <button className="btn primary" onClick={() => ui.cmd({ type: 'fleetOrder', fleetId: ctors[0].id, order: { type: 'outpost', systemId: s.id } })}>Send construction ship</button>
-          )}
-          {s.owner === g.playerId && upCost && !s.starbaseUpgrade && (
-            <Tip content={<div><h4>Upgrade to {STARBASE[s.starbase + 1]!.label}</h4><CostView cost={upCost} empire={me} /><div className="hint">Stronger defences; Starports and above protect trade routes from raiding.</div></div>}>
-              <button className="btn" onClick={() => ui.cmd({ type: 'upgradeStarbase', systemId: s.id })}>Upgrade starbase</button>
-            </Tip>
-          )}
-          {s.owner === g.playerId && <button className="btn" onClick={() => ui.set({ screen: 'construction' })}>Megastructures</button>}
-        </div>
-        {s.starbaseUpgrade && <div style={{ marginTop: 8 }}><div className="hint">Starbase upgrade in progress</div><Meter value={s.starbaseUpgrade.progress} max={s.starbaseUpgrade.total} /></div>}
-        {s.megastructures.map((m) => (
-          <div key={m.id} style={{ marginTop: 8 }}>
-            <div className="row between"><span>{MEGA_BY_ID[m.id].label}</span><span className="num">Stage {m.stage}/{MEGA_BY_ID[m.id].stages}</span></div>
-            {m.building && <Meter value={m.progress} max={MEGA_BY_ID[m.id].stageDays} />}
-          </div>
-        ))}
-        <OwnFleetQuickMove target={s.id} />
-      </Section>
     </>
   );
 }

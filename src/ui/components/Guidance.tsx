@@ -2,7 +2,7 @@
 // each window's information drawer and first-visit card, and Codex-backed tooltips. Guidance
 // supports the player and never takes control: everything can be paused, dismissed or turned off.
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useUI, useGame, onCommand, type ScreenId } from '../store';
 import { cls, Tip } from './common';
 import { focusSystem } from './MapView';
@@ -70,8 +70,20 @@ function useHighlight(step: LessonStep | null, enabled: boolean) {
 
 export function GuidanceStack() {
   useGuidanceController();
+  const ref = useRef<HTMLDivElement>(null);
+  // the right column (selection and overview) ends above the stack, so the two never overlap
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const root = document.documentElement;
+    const set = () => root.style.setProperty('--guide-h', `${Math.ceil(el.getBoundingClientRect().height)}px`);
+    const ro = new ResizeObserver(set);
+    ro.observe(el);
+    set();
+    return () => { ro.disconnect(); root.style.setProperty('--guide-h', '0px'); };
+  }, []);
   return (
-    <div className="guide-stack">
+    <div className="guide-stack" ref={ref}>
       <HintCard />
       <LessonPanel />
     </div>
