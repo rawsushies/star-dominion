@@ -85,7 +85,7 @@ export function setupPrologue(state: GameState, makeRealm: (sysId: number) => Em
   site.starbase = 1;
   for (const f of Object.values(state.fleets)) if (f.ownerId === pr.id) delete state.fleets[f.id];
   createFleet(state, pr.id, site.id, ['corvette'], 'Pretender\'s Guard').stance = 'defensive';
-  state.prologue = { pretenderId: pr.id, stage: 0, done: false, startBuildings: buildingsOf(state, me) };
+  state.prologue = { pretenderId: pr.id, crownPlanetId: pr.capitalPlanetId ?? undefined, stage: 0, done: false, startBuildings: buildingsOf(state, me) };
 }
 
 function buildingsOf(state: GameState, e: Empire): number {
@@ -134,6 +134,9 @@ export function prologueTick(state: GameState) {
     p.stage++;
     log(state, { kind: 'quest', severity: 'good', title: `Quest: ${st.title}`, text: `Done. Reward: ${st.rewardText}.`, empires: [me.id] });
     if (p.stage >= PROLOGUE_STAGES.length) {
+      // the crown world welcomes its rightful ruler: no occupation resistance, no separatists
+      const crownWorld = p.crownPlanetId != null ? state.planets[p.crownPlanetId]?.colony : null;
+      if (crownWorld && crownWorld.ownerId === me.id) { crownWorld.resistance = 0; crownWorld.originalOwnerId = null; crownWorld.stability = Math.max(crownWorld.stability, 65); }
       p.done = true;
       p.doneTick = state.tick;
       grantRelics(state, me, 2, 'The Prologue is complete');

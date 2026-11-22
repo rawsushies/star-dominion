@@ -15,6 +15,7 @@ import { CAPITAL_BUILDINGS } from '../sim/data/capital';
 import { charactersOf } from '../sim/characters';
 import { rulerAge } from '../sim/succession';
 import { availableTechs } from '../sim/research';
+import { techCost } from '../sim/data/techs';
 import { guidanceOf } from './state';
 import { planetHab } from '../sim/economy';
 import { empireMods } from '../sim/modifiers';
@@ -24,6 +25,7 @@ import { eraRequirements } from '../sim/eras';
 import { ERAS, MAX_ERA } from '../sim/data/eras';
 import { ambitionList, phaseOf, type Phase } from '../sim/ambitions';
 import { SHIPS } from '../sim/data/ships';
+import type { Command } from '../sim/commands';
 import { currentStage } from '../sim/prologue';
 
 export type HintSeverity = 'info' | 'warn' | 'danger';
@@ -38,6 +40,8 @@ export interface Hint {
   action?: { label: string; screen?: ScreenId; systemId?: number; planetId?: number; fleetId?: number };
   /** higher is shown first */
   rank: number;
+  /** "Do it for me": the orders that carry out the advice */
+  doIt?: Command[];
 }
 
 const LABEL: Record<ResId, string> = { credits: 'Credits', minerals: 'Minerals', energy: 'Energy', food: 'Food', alloys: 'Alloys', electronics: 'Electronics', components: 'Components', rare: 'Rare elements', influence: 'Influence' };
@@ -54,7 +58,7 @@ export function currentHints(g: GameState): Hint[] {
 
   // research
   if (!e.research.current && !e.research.queue.length && availableTechs(e).length) {
-    out.push({ id: 'research-idle', severity: 'warn', rank: 80, title: 'The scholars are idle', text: `${Math.round(L.net.research)} research points a month are being wasted. Choose a technology to study.`, action: { label: 'Open Research', screen: 'research' } });
+    out.push({ id: 'research-idle', severity: 'warn', rank: 80, title: 'The scholars are idle', text: `${Math.round(L.net.research)} research points a month are being wasted. Choose a technology to study.`, action: { label: 'Open Research', screen: 'research' }, doIt: (() => { const t = availableTechs(e).slice().sort((a, b) => techCost(a) - techCost(b))[0]; return t ? [{ type: 'setResearch', tech: t } as Command] : undefined; })() });
   }
 
   // shortages and stockpiles running down
@@ -64,7 +68,7 @@ export function currentHints(g: GameState): Hint[] {
     const stock = e.stock[r];
     if (L.shortages.includes(r)) {
       const effect = r === 'food' ? 'Colonies are starving and populations will shrink.' : r === 'energy' ? 'Stability is falling across the realm.' : r === 'electronics' ? 'Consumer goods have run out; stability suffers.' : r === 'credits' ? 'The treasury is empty; upkeep and salaries go unpaid.' : `Factories that need ${LABEL[r].toLowerCase()} run at a quarter of their output.`;
-      out.push({ id: `short-${r}`, severity: 'danger', rank: 100, title: `${LABEL[r]} have run out`, text: `${LABEL[r]}: ${net.toFixed(1)} a month with nothing in store. ${effect} Raise production, cut consumption or buy on the market.`, action: { label: 'Open Economy', screen: 'economy' } });
+      out.push({ id: `short-${r}`, severity: 'danger', rank: 100, title: `${LABEL[r]} have run out`, text: `${LABEL[r]}: ${net.toFixed(1)} a month with nothing in store. ${effect} Raise production, cut consumption or buy on the market (“Do it for me” buys 100 now).`, action: { label: 'Open Economy', screen: 'economy' }, doIt: r === 'credits' ? undefined : [{ type: 'market', res: r, amount: 100 }] });
     } else if (net < -0.5 && stock / -net < 3) {
       out.push({ id: `low-${r}`, severity: 'warn', rank: 70, title: `${LABEL[r]} will run out in ${Math.max(1, Math.floor(stock / -net))} months`, text: `${LABEL[r]}: ${Math.round(stock)} in store, ${net.toFixed(1)} a month.`, action: { label: 'Open Economy', screen: 'economy' } });
     } else if (r !== 'credits' && net > 1 && stock >= L.cap[r] * 0.98) {
@@ -113,7 +117,7 @@ export function currentHints(g: GameState): Hint[] {
   // idle planetary construction (only when it can actually build and afford something basic)
   if (e.stock.minerals >= 100) {
     const idle = colonies.find((p) => !p.colony!.auto && !p.colony!.queue.length && (['residential', 'agri', 'mining', 'power'] as const).some((b) => canBuild(g, e, p, b).ok));
-    if (idle) out.push({ id: `idle-build-${idle.id}`, severity: 'info', rank: 40, title: `Nothing is being built on ${idle.name}`, text: `${idle.name} has free district space and ${Math.round(e.stock.minerals)} minerals are in store. New districts add jobs and housing. Or tick “Let the steward build here” and the world builds by itself.`, action: { label: 'Open the colony', screen: 'planets', planetId: idle.id } });
+    if (idle) out.push({ id: `idle-build-${idle.id}`, severity: 'info', rank: 40, title: `Nothing is being built on ${idle.name}`, text: `${idle.name} has free district space and ${Math.round(e.stock.minerals)} minerals are in store. New districts add jobs and housing. Or let its steward build: “Do it for me” hands the world to the steward.`, action: { label: 'Open the colony', screen: 'planets', planetId: idle.id }, doIt: [{ type: 'setAutoBuild', planetId: idle.id, on: true }] });
   }
 
   // capital builders idle
@@ -194,26 +198,31 @@ export function growthSteps(g: GameState): Hint[] {
     .filter((x) => x.h >= 0.5)
     .sort((a, b) => b.h * b.p.size - a.h * a.p.size)[0];
   if (target && yard && !has('colony')) {
-    out.push({ id: 'grow-colony', severity: 'info', rank: 48, title: `Settle ${target.p.name}`, text: `${target.p.name} is ${Math.round(target.h * 100)}% habitable for your people. Build a Colony Ship at ${yard.name}'s shipyard; when it is ready, select ${target.p.name} on the map and press Send colony ship.`, action: { label: `Open ${yard.name}`, screen: 'planets', planetId: yard.id } });
+    out.push({ id: 'grow-colony', severity: 'info', rank: 48, title: `Settle ${target.p.name}`, text: `${target.p.name} is ${Math.round(target.h * 100)}% habitable for your people. Build a Colony Ship at ${yard.name}'s shipyard; when it is ready, select ${target.p.name} on the map and press Send colony ship. “Do it for me” orders the ship.`, action: { label: `Open ${yard.name}`, screen: 'planets', planetId: yard.id }, doIt: [{ type: 'queueShip', planetId: yard.id, cls: 'colony' }] });
+  }
+  // a colony ship waiting for orders, with a world to settle
+  const settler = myFleets.find((f) => f.order.type === 'idle' && !f.path.length && f.ships.some((s) => s.cls === 'colony'));
+  if (settler && target) {
+    out.push({ id: `settle-${settler.id}`, severity: 'info', rank: 57, title: `A colony ship is ready for ${target.p.name}`, text: `${target.p.name} is ${Math.round(target.h * 100)}% habitable. Select it on the map and press Send colony ship, or press “Do it for me”. Settling takes about five months.`, action: { label: `Show ${target.p.name}`, systemId: target.p.systemId, planetId: target.p.id }, doIt: [{ type: 'fleetOrder', fleetId: settler.id, order: { type: 'colonize', planetId: target.p.id } }] });
   }
 
   // claim more systems: a construction ship
   const freeNear = [...owned].flatMap((s) => adj[s]).some((s) => g.galaxy.systems[s].owner == null && !g.galaxy.systems[s].features.includes('guardian'));
   if (freeNear && yard && !has('constructor') && e.stats.systems < (e.stats.adminCap || 0) + 2) {
-    out.push({ id: 'grow-ctor', severity: 'info', rank: 46, title: 'Claim more systems', text: `Unclaimed systems border your space. Build a Construction Ship at ${yard.name}'s shipyard; each outpost costs influence and 40 alloys and extends your borders, resources and supply.`, action: { label: `Open ${yard.name}`, screen: 'planets', planetId: yard.id } });
+    out.push({ id: 'grow-ctor', severity: 'info', rank: 46, title: 'Claim more systems', text: `Unclaimed systems border your space. Build a Construction Ship at ${yard.name}'s shipyard; each outpost costs influence and 40 alloys and extends your borders, resources and supply.`, action: { label: `Open ${yard.name}`, screen: 'planets', planetId: yard.id }, doIt: [{ type: 'queueShip', planetId: yard.id, cls: 'constructor' }] });
   }
 
   // explore: a scout
   const frontierUnknown = e.explored.some((s) => adj[s].some((n) => !e.explored.includes(n)));
   if (frontierUnknown && yard && !has('scout')) {
-    out.push({ id: 'grow-scout', severity: 'info', rank: 36, title: 'Chart the unknown', text: 'Systems at your frontier are uncharted and you have no survey ship. Build a Scout: it reveals planets to settle and rivals to watch.', action: { label: `Open ${yard.name}`, screen: 'planets', planetId: yard.id } });
+    out.push({ id: 'grow-scout', severity: 'info', rank: 36, title: 'Chart the unknown', text: 'Systems at your frontier are uncharted and you have no survey ship. Build a Scout: it reveals planets to settle and rivals to watch.', action: { label: `Open ${yard.name}`, screen: 'planets', planetId: yard.id }, doIt: [{ type: 'queueShip', planetId: yard.id, cls: 'scout' }] });
   }
 
   // defence: a neighbour much stronger than our fleets
   const strongest = g.empires.filter((r) => r.alive && r.kind === 'major' && r.id !== g.playerId && bordering(g, g.playerId, r.id)).sort((a, b) => b.stats.militaryPower - a.stats.militaryPower)[0];
   if (strongest && yard && (e.stats.militaryPower || 0) < strongest.stats.militaryPower * 0.5 && intelLevel(g, g.playerId, strongest.id) > 0) {
     const cls = (['destroyer', 'frigate', 'corvette'] as const).find((c) => !SHIPS[c].tech || e.research.done.includes(SHIPS[c].tech!)) ?? 'corvette';
-    out.push({ id: 'grow-navy', severity: 'warn', rank: 44, title: 'Your fleet is weak beside your neighbours', text: `${strongest.name} fields more than twice your strength. Build warships (a ${SHIPS[cls].label} is a good start) before they notice.`, action: { label: `Open ${yard.name}`, screen: 'planets', planetId: yard.id } });
+    out.push({ id: 'grow-navy', severity: 'warn', rank: 44, title: 'Your fleet is weak beside your neighbours', text: `${strongest.name} fields more than twice your strength. Build warships (a ${SHIPS[cls].label} is a good start) before they notice.`, action: { label: `Open ${yard.name}`, screen: 'planets', planetId: yard.id }, doIt: [0, 1, 2].map(() => ({ type: 'queueShip', planetId: yard.id, cls }) as Command) });
   }
 
   // friends: a neighbour who would sign

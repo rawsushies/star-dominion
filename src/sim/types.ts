@@ -508,7 +508,7 @@ export interface GameState {
   disruptedRoutes: Record<string, number>; // colony planet id -> tick disrupted (for event dedupe)
   playerId: number;
   /** the Prologue starter quest (src/sim/prologue.ts) */
-  prologue?: { pretenderId: number; stage: number; done: boolean; startBuildings?: number; doneTick?: number };
+  prologue?: { pretenderId: number; crownPlanetId?: number; stage: number; done: boolean; startBuildings?: number; doneTick?: number };
   gameOver: null | { won: boolean; reason: string; kind?: 'domination' | 'supremacy' | 'ascension'; winner?: number };
   /** @deprecated legacy guided first-reign progress; migrated to `guidance` on load */
   tutorial?: { step: number; base: { explored: number; buildings: number; ships: number } } | null;

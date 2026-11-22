@@ -306,7 +306,8 @@ function policies(state: GameState, e: Empire) {
   if (e.personality.science > 0.7 && e.stock.credits > 600) want('research_priority', 'prioritized');
 }
 
-function market(state: GameState, e: Empire) {
+/** Trade like the AI's treasury: sell what overflows, buy shortages, invest a hoarded treasury (used by the player's stewards too). */
+export function market(state: GameState, e: Empire) {
   const L = getLedger(state, e);
   for (const r of ['minerals', 'energy', 'food', 'alloys', 'electronics', 'rare'] as const) {
     if (e.stock[r] > L.cap[r] * 0.85) execute(state, e.id, { type: 'market', res: r, amount: -Math.round(e.stock[r] * 0.2) });

@@ -7,7 +7,7 @@ import { victoryMonthly } from './victory';
 import { ambitionsMonthly } from './ambitions';
 import { chainsMonthly } from './chains';
 import { setupPrologue, prologueTick, isPretender } from './prologue';
-import { buildOnPlanet } from './ai';
+import { buildOnPlanet, market as aiMarket } from './ai';
 import { aiPreset } from './strategy';
 import { eraMonthly } from './eras';
 import { recordYear } from './chronicle';
@@ -420,7 +420,10 @@ function monthly(state: GameState) {
 function stewardsMonthly(state: GameState) {
   const e = state.empires[state.playerId];
   if (!e?.alive || !e.isPlayer) return;
-  for (const p of state.planets) if (p.colony?.ownerId === e.id && p.colony.auto) buildOnPlanet(state, e, p);
+  let any = false;
+  for (const p of state.planets) if (p.colony?.ownerId === e.id && p.colony.auto) { buildOnPlanet(state, e, p); any = true; }
+  // with stewards at work, the treasury trades too: shortages bought, overflow sold, a hoard invested
+  if (any) aiMarket(state, e);
 }
 
 function colonyMonthly(state: GameState) {
