@@ -168,6 +168,18 @@ export function reviewStrategy(state: GameState, e: Empire) {
   // 1) Recover when the realm is hurting: shortages, unrest, exhaustion or heavy losses.
   const hurt = L.shortages.length >= 2 || (e.stats.avgStability || 50) < 33 || e.warExhaustion > 70 || e.stats.systems < plan.peakSystems * 0.7;
   if (fighting) { setGoal(state, e, 'war', plan.target); return; }
+  // a vassal that has regained its strength, or whose overlord is busy elsewhere, breaks free
+  const bond = state.treaties.find((t) => t.type === 'vassal' && t.b === e.id);
+  if (bond && e.kind === 'major' && state.tick - bond.since > 360 * 5) {
+    const lord = state.empires[bond.a];
+    const lordP = estimatePower(state, e.id, lord.id) ?? lord.stats.militaryPower;
+    const distracted = atWarCount(state, lord.id) > 0;
+    if ((e.stats.militaryPower || 1) >= lordP * (distracted ? 0.5 : 0.8) * (1.2 - pers.aggression * 0.4)) {
+      execute(state, e.id, { type: 'breakTreaty', target: lord.id, treaty: 'vassal' });
+      setGoal(state, e, 'war', lord.id);
+      return;
+    }
+  }
   if (hurt) {
     setGoal(state, e, 'recover');
     if (e.stats.systems < plan.peakSystems * 0.7) plan.peakSystems = e.stats.systems; // accept the new borders once recovering

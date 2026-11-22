@@ -64,7 +64,7 @@ function play(seed: number, diff: GameState['settings']['difficulty']): Run[] {
       const fighting = s.wars.some((w) => w.attackers.includes(e.id) || w.defenders.includes(e.id));
       const la = lastActive[e.id];
       if (!la || fighting || e.stats.systems > la.sys) lastActive[e.id] = { sys: Math.max(e.stats.systems, la?.sys ?? 0), tick: s.tick };
-      else if (s.tick - la.tick >= 3600) run.passiveRivalYears++;
+      else if (s.tick - la.tick >= 3600 && !run.victory) run.passiveRivalYears++;
     }
     if (CHECKPOINTS.includes(y) || y === years) snaps.push(snapshot(s, { ...run, year: y }));
     if (!run.victory) {

@@ -729,7 +729,7 @@ function diplomacy(state: GameState, e: Empire) {
     // a winning side presses on while it still has worlds to take and the people will bear it
     const pressOn = myScore > 0 && myScore < 85 && e.warExhaustion < 55 && years < 8 && !losing && canStillTake(state, e, foes);
     if (pressOn) term = null;
-    else if (myScore > 70 && years > 1) term = otherMajor && (state.empires[other].stats.militaryPower || 1) * 4 < (e.stats.militaryPower || 1) ? 'vassalize' : otherMajor ? 'cede' : 'vassalize';
+    else if (myScore > 70 && years > 1) term = otherMajor && myScore > 80 && (state.empires[other].stats.militaryPower || 1) * 4 < (e.stats.militaryPower || 1) && state.empires[other].stats.systems * 3 <= e.stats.systems ? 'vassalize' : otherMajor ? 'cede' : 'vassalize';
     else if (myScore > 40 && years > 1) term = 'cede';
     else if (myScore > 25 && years > 1.5) term = 'tribute';
     else if (e.warExhaustion > 50 || myScore < -25 || (losing && myScore < 5) || years > 6) term = 'status_quo';    if (!term) continue;
@@ -749,8 +749,9 @@ function diplomacy(state: GameState, e: Empire) {
     return;
   }
   // Treaties
+  const armTarget = planOf(e).goal === 'arm' || planOf(e).goal === 'war' ? planOf(e).target : null;
   for (const o of majors) {
-    if (!hasContact(state, e.id, o.id) || warBetween(state, e.id, o.id)) continue;
+    if (!hasContact(state, e.id, o.id) || warBetween(state, e.id, o.id) || o.id === armTarget) continue;
     const op = opinion(state, e.id, o.id);
     const ladder: [TreatyType, number][] = [['nap', 10], ['trade', 20 - e.personality.mercantile * 15], ['research', 30 - e.personality.science * 15], ['defense', 55], ['alliance', 75]];
     const coalition = coalitionWanted(state, e, o.id);
