@@ -7,7 +7,11 @@ import { ContextPanel } from './components/ContextPanel';
 import { GameOver } from './screens/GameOver';
 import { EraDawn } from './components/Evolution';
 import { GuidanceStack } from './components/Guidance';
-import { CapitalScene } from './screens/CapitalScene';
+import { lazy, Suspense } from 'react';
+import { ErrorBoundary } from './components/ErrorBoundary';
+
+// The capital city view is large (its renderer and models); fetch it the first time it opens.
+const CapitalScene = lazy(() => import('./screens/CapitalScene').then((m) => ({ default: m.CapitalScene })));
 
 export function App() {
   const game = useUI((s) => s.game);
@@ -18,7 +22,7 @@ export function App() {
   return (
     <div className={capital ? 'shell in-capital' : 'shell'}>
       <MapView />
-      {capital && <CapitalScene />}
+      {capital && <ErrorBoundary where="capital view"><Suspense fallback={<div className="capital-loading">Loading the capital…</div>}><CapitalScene /></Suspense></ErrorBoundary>}
       <LocationHud />
       <ResourceStrip />
       <Dispatches />

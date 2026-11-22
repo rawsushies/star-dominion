@@ -734,3 +734,15 @@ table.t tr.sel td { background: var(--ice-dim); }
   .cols, .cols.side, .cols.side-r { grid-template-columns: 1fr !important; }
   .win { left: calc(var(--neo) + 4px) !important; right: 4px !important; top: 4px !important; bottom: 4px !important; width: auto !important; height: auto !important; min-width: 0; z-index: 900 !important; }
 }
+
+/* crash containment (ErrorBoundary.tsx) */
+.crash-note { margin: 16px; padding: 12px 14px; border: 1px solid var(--edge-2); border-left: 3px solid var(--amber); background: var(--glass-solid); }
+.crash-note p { margin: 6px 0 10px; }
+.crash-screen { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 24px 16px; background: var(--void); color: var(--text); text-align: center; z-index: 10000; }
+.crash-screen h1 { font-size: 32px; margin: 0 0 6px; font-weight: 600; }
+.crash-screen p { max-width: 560px; margin: 4px 0; }
+.crash-screen .row { margin-top: 14px; flex-wrap: wrap; }
+.capital-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--text-2); background: var(--void); z-index: 5; }
+kbd { display: inline-block; min-width: 1.6em; padding: 0 5px; border: 1px solid var(--edge-2); border-bottom-width: 2px; font: 12px/1.6 var(--ui); text-align: center; color: var(--text); background: var(--chart-2); }
+.keys-tbl td:first-child { white-space: nowrap; padding-right: 14px; }
+.title-version { font-size: 13px !important; color: var(--text-3) !important; margin-top: 10px !important; letter-spacing: 0.06em; }

@@ -223,6 +223,7 @@ export function startLoop() {
   let last = performance.now();
   let lastBump = 0;
   let lastAutosave = 0;
+  let autosaveGame: GameState | null = null;
   const frame = (now: number) => {
     const ui = useUI.getState();
     const g = ui.game;
@@ -241,6 +242,9 @@ export function startLoop() {
       if (steps) {
         surfaceEvents(g);
         if (now - lastBump > 180) { lastBump = now; useUI.setState({ rev: useUI.getState().rev + 1 }); }
+        // a new or loaded reign counts its year from where it starts (loading an earlier save
+        // must not silence autosave until the old date is passed again)
+        if (autosaveGame !== g || g.tick < lastAutosave) { autosaveGame = g; lastAutosave = g.tick; }
         if (g.tick - lastAutosave >= 360) {
           lastAutosave = g.tick;
           autosave(g);
@@ -285,6 +289,14 @@ export async function saveGame(slot: string, name: string) {
   const data = serialize(g);
   await writeSave(meta, data);
   if (cloudUser()) await cloudWrite(meta, data);
+}
+
+// Leaving the tab or closing the browser keeps the reign: autosave when the page is hidden.
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    const g = useUI.getState().game;
+    if (document.visibilityState === 'hidden' && g && !g.gameOver && g.tick > 0) void autosave(g);
+  });
 }
 
 async function autosave(g: GameState) {

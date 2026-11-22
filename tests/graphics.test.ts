@@ -58,3 +58,23 @@ describe('frame gate', () => {
     expect(g.due(6, false)).toBe(true);
   });
 });
+
+describe('adaptive map resolution', () => {
+  it('lowers the resolution when frames are slow and restores it when they are fast, in auto quality only', async () => {
+    const { ResolutionGovernor } = await import('../src/ui/graphics');
+    let auto = true;
+    const gov = new ResolutionGovernor(() => auto);
+    let t = 0;
+    for (let i = 0; i < 300; i++) { t += 50; gov.frame(t, true); } // 20 fps
+    expect(gov.scale).toBeLessThan(1);
+    expect(gov.scale).toBeGreaterThanOrEqual(0.6);
+    for (let i = 0; i < 600; i++) { t += 16; gov.frame(t, true); } // 60 fps
+    expect(gov.scale).toBe(1);
+    // idle frames (not a full-rate burst) are never measured
+    for (let i = 0; i < 300; i++) { t += 200; gov.frame(t, false); }
+    expect(gov.scale).toBe(1);
+    for (let i = 0; i < 300; i++) { t += 50; gov.frame(t, true); }
+    auto = false; gov.frame(t + 50, true);
+    expect(gov.scale).toBe(1);
+  });
+});

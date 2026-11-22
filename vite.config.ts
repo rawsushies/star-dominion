@@ -2,6 +2,9 @@ import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { createReadStream, statSync } from 'node:fs';
 import { resolve, sep, extname } from 'node:path';
+import { readFileSync } from 'node:fs';
+
+const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string };
 
 /**
  * Dev server only: serve dev-assets/candidates at /candidates for the asset comparison
@@ -33,5 +36,20 @@ function candidateAssets(mount = '/candidates', dir = 'dev-assets/candidates'): 
 export default defineConfig({
   plugins: [react(), candidateAssets(), candidateAssets('/tevy-candidates', 'dev-assets/tevy')],
   base: './',
+  define: { __APP_VERSION__: JSON.stringify(pkg.version) },
+  build: {
+    // libraries in their own files: a game update does not make players download them again
+    rollupOptions: {
+      output: {
+        manualChunks(id: string) {
+          if (id.includes('node_modules/three/')) return 'three';
+          if (/node_modules\/(react|react-dom|scheduler|zustand)\//.test(id)) return 'react';
+          return undefined;
+        },
+      },
+    },
+    // three.js alone is ~700 kB minified and is needed from the title screen
+    chunkSizeWarningLimit: 900,
+  },
   test: { environment: 'node', include: ['tests/**/*.test.ts'] },
 } as any);

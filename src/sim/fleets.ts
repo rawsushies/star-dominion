@@ -133,6 +133,7 @@ export function isCivilianFleet(f: Fleet): boolean {
 
 /** Route a fleet; hypergates owned by the fleet's owner allow instant jumps. */
 export function routeFleet(state: GameState, f: Fleet, target: number): boolean {
+  if (!Number.isInteger(target) || !state.galaxy.systems[target]) return false;
   if (target === f.systemId) { f.path = []; f.progress = 0; return true; }
   const gate = (sid: number) => state.galaxy.systems[sid].megastructures.some((m) => m.id === 'hypergate' && m.stage >= 1 && m.ownerId === f.ownerId);
   if (gate(f.systemId) && gate(target) && f.progress === 0) {

@@ -1,4 +1,4 @@
-import type { ComponentType } from 'react';
+import { lazy, type ComponentType } from 'react';
 import type { ScreenId } from '../store';
 import { KingdomScreen } from './Kingdom';
 import { PlanetsScreen } from './Planets';
@@ -15,13 +15,15 @@ import { TradeScreen } from './Trade';
 import { JournalScreen } from './Journal';
 import { HeroesScreen } from './Heroes';
 import { CouncilScreen } from './Council';
-import { CapitalScreen } from './Capital';
 import { OperationsScreen } from './Operations';
 import { ThroneScreen } from './Throne';
 import { WarRoomScreen } from './WarRoom';
 import { ChronicleScreen } from './Chronicle';
 import { CodexScreen } from './Codex';
 import { VaultScreen } from './Vault';
+
+// The capital pulls in the whole city renderer (models, metro, traffic): load it on first visit.
+const CapitalScreen = lazy(() => import('./Capital').then((m) => ({ default: m.CapitalScreen })));
 
 export const SCREENS: Record<Exclude<ScreenId, 'map'>, ComponentType> = {
   kingdom: KingdomScreen,
