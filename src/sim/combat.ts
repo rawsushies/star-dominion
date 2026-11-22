@@ -5,6 +5,7 @@
 // admirals, supply and terrain therefore all matter — a large but
 // badly-composed fleet can lose to a smaller balanced one.
 
+import { grantRelics } from './relics';
 import { DEFENSE_PLATFORM, SHIPS, STARBASE, type HullSize } from './data/ships';
 import { empireMods, mod } from './modifiers';
 import { admiralOf, adjustWarScoreForEvent, removeFleet, routeFleet, shipStats } from './fleets';
@@ -104,10 +105,11 @@ function fightAt(state: GameState, sid: number, fleets: Fleet[], engaged: Set<nu
     for (const s of f.ships) {
       const d = SHIPS[s.cls];
       const st = shipStats(state, e, s.cls, adm);
+      const rb = 1 + (s.relic?.bonus ?? 0);
       units.push({
-        key: s.id, side, owner: f.ownerId, label: d.label, size: d.size,
-        hull: s.hull, maxHull: st.hull, shields: s.shields, maxShields: st.shields, armor: s.armor ?? st.armor, maxArmor: st.armor, pierce: st.pierce,
-        damage: st.damage * supplyMult, strike: st.strike * supplyMult, tracking: st.tracking, evasion: st.evasion, pd: st.pd,
+        key: s.id, side, owner: f.ownerId, label: s.relic ? `${d.label} “${s.relic.name}”` : d.label, size: d.size,
+        hull: s.hull, maxHull: st.hull * rb, shields: s.shields, maxShields: st.shields, armor: s.armor ?? st.armor, maxArmor: st.armor, pierce: st.pierce,
+        damage: st.damage * supplyMult * rb, strike: st.strike * supplyMult * rb, tracking: st.tracking, evasion: st.evasion, pd: st.pd,
         prefers: d.prefers, ship: s, fleet: f, kind: 'ship', value: costValue(d.cost),
       });
     }
@@ -337,6 +339,8 @@ function fightAt(state: GameState, sid: number, fleets: Fleet[], engaged: Set<nu
 function concludeLog(state: GameState, rep: BattleReport) {
   const sys = state.galaxy.systems[rep.systemId];
   const w = rep.winner;
+  // a clear victory earns the player a relic
+  if (w !== -1 && rep.sides[w].includes(state.playerId) && rep.shipsLost[w === 0 ? 1 : 0] >= 2) grantRelics(state, state.empires[state.playerId], 1, `Victory at ${sys.name}`);
   const involved = [...rep.sides[0], ...rep.sides[1]];
   const name = (s: 0 | 1) => rep.sides[s].map((i) => state.empires[i].name).join(', ');
   log(state, {

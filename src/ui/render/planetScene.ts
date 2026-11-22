@@ -20,8 +20,10 @@ export class PlanetView3D {
   private station: THREE.Object3D | null = null;
   private disposables: { dispose(): void }[] = [];
 
-  constructor(canvas: HTMLCanvasElement) {
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  private maxDpr: number;
+  constructor(canvas: HTMLCanvasElement, q: { antialias: boolean; maxDpr: number } = { antialias: true, maxDpr: 2 }) {
+    this.maxDpr = q.maxDpr;
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: q.antialias, powerPreference: 'high-performance' });
     this.renderer.setClearColor(0x020305, 1);
   }
 
@@ -89,9 +91,10 @@ export class PlanetView3D {
   frame(state: GameState, p: Planet, w: number, h: number, dpr: number, time: number) {
     const key = `${p.id}:${p.colony ? Math.round(p.colony.pops / 5) : -1}:${p.station}`;
     if (key !== this.key) { this.key = key; this.build(state, p); }
-    this.renderer.setPixelRatio(dpr);
+    const pr = Math.min(dpr, this.maxDpr);
+    if (this.renderer.getPixelRatio() !== pr) this.renderer.setPixelRatio(pr);
     const cv = this.renderer.domElement;
-    if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) this.renderer.setSize(w, h, false);
+    if (cv.width !== Math.round(w * pr) || cv.height !== Math.round(h * pr)) this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     const { yaw, pitch, dist } = planetCam;

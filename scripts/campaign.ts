@@ -17,7 +17,7 @@ const size = (argv[3] ?? 'medium') as GameState['settings']['galaxySize'];
 const CHECKPOINTS = [30, 60, 100];
 interface Run {
   seed: number; diff: string; year: number;
-  wars: number; warsOnPlayer: number; conquests: number; falls: number; revolts: number; betrayals: number; coalitions: number;
+  wars: number; warsOnPlayer: number; joins: number; letters: number; demands: number; conquests: number; falls: number; revolts: number; betrayals: number; coalitions: number;
   playerAlive: boolean; playerRank: number; playerK: number; playerSys: number; playerEra: number;
   meanK: number; topK: number; minK: number; maxEra: number; megaStages: number; topShare: number; snowball: number;
   passiveRivalYears: number; aliveMajors: number; majors: number;
@@ -32,7 +32,7 @@ function play(seed: number, diff: GameState['settings']['difficulty']): Run[] {
   const s = newGame({ seed, galaxySize: size, aiCount: 4, difficulty: diff });
   s.empires[0].isPlayer = false; // the AI plays the player's realm at standard skill
   const run: Run = {
-    seed, diff, year: 0, wars: 0, warsOnPlayer: 0, conquests: 0, falls: 0, revolts: 0, betrayals: 0, coalitions: 0,
+    seed, diff, year: 0, wars: 0, warsOnPlayer: 0, joins: 0, letters: 0, demands: 0, conquests: 0, falls: 0, revolts: 0, betrayals: 0, coalitions: 0,
     playerAlive: true, playerRank: 0, playerK: 0, playerSys: 0, playerEra: 0, meanK: 0, topK: 0, minK: 0, maxEra: 0, megaStages: 0, topShare: 0, snowball: 0,
     passiveRivalYears: 0, aliveMajors: 0, majors: 0, victory: null, firstContactYear: null, firstWarYear: null, firstWarOnPlayerYear: null,
   };
@@ -46,6 +46,9 @@ function play(seed: number, diff: GameState['settings']['difficulty']): Run[] {
     for (const ev of s.events) {
       if (ev.id <= seen) continue;
       seen = ev.id;
+      if (ev.kind === 'war' && /joins the/.test(ev.title)) { run.joins++; continue; }
+      if (ev.kind === 'envoy') run.letters++;
+      if (ev.kind === 'diplomacy' && /demands tribute/.test(ev.title)) run.demands++;
       if (ev.kind === 'war' && !ev.title.includes('Independence')) {
         run.wars++;
         run.firstWarYear ??= y;
@@ -64,7 +67,7 @@ function play(seed: number, diff: GameState['settings']['difficulty']): Run[] {
       const fighting = s.wars.some((w) => w.attackers.includes(e.id) || w.defenders.includes(e.id));
       const la = lastActive[e.id];
       if (!la || fighting || e.stats.systems > la.sys) lastActive[e.id] = { sys: Math.max(e.stats.systems, la?.sys ?? 0), tick: s.tick };
-      else if (s.tick - la.tick >= 3600) run.passiveRivalYears++;
+      else if (s.tick - la.tick >= 3600 && !run.victory) run.passiveRivalYears++;
     }
     if (CHECKPOINTS.includes(y) || y === years) snaps.push(snapshot(s, { ...run, year: y }));
     if (!run.victory) {
@@ -110,12 +113,12 @@ for (const diff of diffs) {
     const t0 = Date.now();
     const snaps = play(seed, diff);
     all.push(...snaps);
-    for (const r of snaps) console.log(`${diff.padEnd(8)} seed ${seed} ${r.year}y (${((Date.now() - t0) / 1000).toFixed(0)}s): wars ${r.wars} (on player ${r.warsOnPlayer}, first y${r.firstWarYear ?? '-'}) falls ${r.falls} revolts ${r.revolts} betrayals ${r.betrayals} coalitions ${r.coalitions} | player ${r.playerAlive ? 'alive' : 'DEAD'} rank ${r.playerRank}/${r.majors} K${fmt(r.playerK)} sys ${r.playerSys} era ${r.playerEra} | K mean ${fmt(r.meanK)} top ${fmt(r.topK)} min ${fmt(r.minK)} era≤${r.maxEra} mega ${r.megaStages} top share ${fmt(r.topShare * 100, 0)}% snowball ${fmt(r.snowball, 1)}x passive ${r.passiveRivalYears} alive ${r.aliveMajors}/${r.majors} | victory ${r.victory ? `${r.victory.kind} by ${r.victory.who} y${r.victory.year}` : 'none'}`);
+    for (const r of snaps) console.log(`${diff.padEnd(8)} seed ${seed} ${r.year}y (${((Date.now() - t0) / 1000).toFixed(0)}s): wars ${r.wars} joins ${r.joins} letters ${r.letters} demands ${r.demands} (on player ${r.warsOnPlayer}, first y${r.firstWarYear ?? '-'}) falls ${r.falls} revolts ${r.revolts} betrayals ${r.betrayals} coalitions ${r.coalitions} | player ${r.playerAlive ? 'alive' : 'DEAD'} rank ${r.playerRank}/${r.majors} K${fmt(r.playerK)} sys ${r.playerSys} era ${r.playerEra} | K mean ${fmt(r.meanK)} top ${fmt(r.topK)} min ${fmt(r.minK)} era≤${r.maxEra} mega ${r.megaStages} top share ${fmt(r.topShare * 100, 0)}% snowball ${fmt(r.snowball, 1)}x passive ${r.passiveRivalYears} alive ${r.aliveMajors}/${r.majors} | victory ${r.victory ? `${r.victory.kind} by ${r.victory.who} y${r.victory.year}` : 'none'}`);
   }
 }
 console.log('\nsummary');
 for (const year of [...new Set(all.map((r) => r.year))].sort((a, b) => a - b)) for (const diff of diffs) {
   const rs = all.filter((r) => r.diff === diff && r.year === year);
   const avg = (f: (r: Run) => number) => rs.reduce((a, r) => a + f(r), 0) / rs.length;
-  console.log(`${String(year).padStart(3)}y ${diff.padEnd(8)} n=${rs.length} wars ${fmt(avg((r) => r.wars), 1)} on-player ${fmt(avg((r) => r.warsOnPlayer), 1)} falls ${fmt(avg((r) => r.falls), 1)} player survival ${fmt(avg((r) => +r.playerAlive) * 100, 0)}% rank ${fmt(avg((r) => r.playerRank), 1)} player K ${fmt(avg((r) => r.playerK))} | mean K ${fmt(avg((r) => r.meanK))} top K ${fmt(avg((r) => r.topK))} max era ${fmt(avg((r) => r.maxEra), 1)} mega ${fmt(avg((r) => r.megaStages), 1)} top share ${fmt(avg((r) => r.topShare) * 100, 0)}% snowball ${fmt(avg((r) => r.snowball), 1)}x passive ${fmt(avg((r) => r.passiveRivalYears), 1)} | victories ${rs.filter((r) => r.victory).map((r) => `${r.victory!.kind}/${r.victory!.who === 'player' ? 'P' : 'AI'}@${r.victory!.year}`).join(' ') || 'none'}`);
+  console.log(`${String(year).padStart(3)}y ${diff.padEnd(8)} n=${rs.length} wars ${fmt(avg((r) => r.wars), 1)} joins ${fmt(avg((r) => r.joins), 1)} letters ${fmt(avg((r) => r.letters), 1)} on-player ${fmt(avg((r) => r.warsOnPlayer), 1)} falls ${fmt(avg((r) => r.falls), 1)} player survival ${fmt(avg((r) => +r.playerAlive) * 100, 0)}% rank ${fmt(avg((r) => r.playerRank), 1)} player K ${fmt(avg((r) => r.playerK))} | mean K ${fmt(avg((r) => r.meanK))} top K ${fmt(avg((r) => r.topK))} max era ${fmt(avg((r) => r.maxEra), 1)} mega ${fmt(avg((r) => r.megaStages), 1)} top share ${fmt(avg((r) => r.topShare) * 100, 0)}% snowball ${fmt(avg((r) => r.snowball), 1)}x passive ${fmt(avg((r) => r.passiveRivalYears), 1)} | victories ${rs.filter((r) => r.victory).map((r) => `${r.victory!.kind}/${r.victory!.who === 'player' ? 'P' : 'AI'}@${r.victory!.year}`).join(' ') || 'none'}`);
 }

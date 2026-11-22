@@ -132,8 +132,10 @@ export class SystemView3D {
   private env: THREE.WebGLRenderTarget | null = null;
   private lastTime = 0;
 
-  constructor(canvas: HTMLCanvasElement) {
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  private maxDpr: number;
+  constructor(canvas: HTMLCanvasElement, q: { antialias: boolean; maxDpr: number } = { antialias: true, maxDpr: 2 }) {
+    this.maxDpr = q.maxDpr;
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: q.antialias, powerPreference: 'high-performance' });
     this.renderer.setClearColor(0x05070b, 1);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     preload(SHIP_ASSETS).then(() => { this.shipsReady = true; this.fleetSig = ''; });
@@ -335,9 +337,10 @@ export class SystemView3D {
       if (newSystem) { orbitCam.dist = Math.max(16, this.maxR * 2.35); orbitCam.phi = 1.08; }
     }
     // renderer sizing
-    this.renderer.setPixelRatio(dpr);
+    const pr = Math.min(dpr, this.maxDpr);
+    if (this.renderer.getPixelRatio() !== pr) this.renderer.setPixelRatio(pr);
     const cv = this.renderer.domElement;
-    if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) this.renderer.setSize(w, h, false);
+    if (cv.width !== Math.round(w * pr) || cv.height !== Math.round(h * pr)) this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     if (orbitCam.auto) orbitCam.theta += 0.00012;

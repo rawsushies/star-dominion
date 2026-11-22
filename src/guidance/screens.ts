@@ -131,6 +131,12 @@ export const SCREEN_INFO: Partial<Record<ScreenId, ScreenInfo>> = {
     controls: [['Chart', 'Compare realms on population, systems, colonies, military, Citadel, era or Kardashev rating.'], ['The years', 'Headlines of each year.']],
     codex: ['mech.eras', 'mech.kardashev'],
   },
+  vault: {
+    title: 'Relic Vault', purpose: 'Spend relics, earned by playing, on random draws for warships, heroes and supplies.',
+    controls: [['Draw 1 / Draw 10', 'Spend relics. Cards reveal what you got; ships join your fleet at the capital, heroes join your court.'], ['Odds', 'The chance of each rarity, published. Every tenth draw is at least epic; a legendary comes within 40 draws.'], ['Recent draws', 'Your last 40 results.']],
+    advanced: ['Relics come from quests, ambitions, new eras, won wars and decisive battles. No real money is involved.'],
+    codex: [],
+  },
   codex: {
     title: 'Imperial Codex', purpose: 'The reference of the realm: lessons, an encyclopedia of every mechanic, and guidance settings.',
     controls: [['Lessons', 'Start, resume or replay any of the ten guided lessons.'], ['Encyclopedia', 'Search or browse entries. Links jump to related entries and to the window where you use the mechanic.'], ['Settings', 'Turn lessons, first-visit cards, hints and explanatory tooltips on or off, or reset lesson progress.']],

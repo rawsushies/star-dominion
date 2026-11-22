@@ -21,6 +21,7 @@ import { ThroneScreen } from './Throne';
 import { WarRoomScreen } from './WarRoom';
 import { ChronicleScreen } from './Chronicle';
 import { CodexScreen } from './Codex';
+import { VaultScreen } from './Vault';
 
 export const SCREENS: Record<Exclude<ScreenId, 'map'>, ComponentType> = {
   kingdom: KingdomScreen,
@@ -45,4 +46,5 @@ export const SCREENS: Record<Exclude<ScreenId, 'map'>, ComponentType> = {
   warroom: WarRoomScreen,
   chronicle: ChronicleScreen,
   codex: CodexScreen,
+  vault: VaultScreen,
 };

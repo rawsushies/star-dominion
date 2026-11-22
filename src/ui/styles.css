@@ -244,7 +244,7 @@ input, select { font: inherit; color: inherit; }
 .sev.danger { background: var(--bad); }
 
 /* right column: selected item + overview */
-.right-col { position: absolute; right: 10px; top: 10px; bottom: 10px; width: var(--right); z-index: 20; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+.right-col { position: absolute; right: 10px; top: 10px; bottom: calc(10px + var(--guide-h, 0px) + 8px); width: var(--right); z-index: 20; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
 .right-col > * { pointer-events: auto; }
 .ctx { display: flex; flex-direction: column; min-height: 0; flex: 0 1 auto; max-height: 64%; }
 .ctx-body { overflow-y: auto; padding: 10px 14px 14px; flex: 1; min-height: 0; }
@@ -472,6 +472,8 @@ table.t tr.sel td { background: var(--ice-dim); }
 .coach { outline: 2px solid var(--ice) !important; outline-offset: 2px; animation: coach 1.4s ease-in-out infinite; }
 @keyframes coach { 50% { outline-color: rgba(116, 199, 222, 0.25); } }
 @media (prefers-reduced-motion: reduce) { .coach { animation: none; } }
+/* short screens: the advice keeps to a smaller share so the selection panel stays usable */
+@media (max-height: 820px) { .hints { max-height: 30vh; } .guide-stack { max-height: 44vh; } .ctx { max-height: 78%; flex-shrink: 0; } .overview { flex-basis: 90px; } }
 .guided { align-items: flex-start; gap: 10px; margin: 2px 0 12px; cursor: pointer; font-size: 13px; }
 .guided input { margin-top: 3px; accent-color: var(--ice); }
 .account img { border-radius: 50%; }
@@ -505,7 +507,7 @@ table.t tr.sel td { background: var(--ice-dim); }
 /* ---------------------------------------------------------------- guidance
    Lessons and hints stack above the dispatches; the advisor speaks in ice (instruction),
    the crown's own actions stay amber. */
-.guide-stack { position: absolute; right: 10px; bottom: 10px; width: var(--right); z-index: 890; display: flex; flex-direction: column; justify-content: flex-end; gap: 8px; pointer-events: none; max-height: calc(100vh - 120px); }
+.guide-stack { position: absolute; right: 10px; bottom: 10px; width: var(--right); z-index: 890; display: flex; flex-direction: column; justify-content: flex-end; gap: 8px; pointer-events: none; max-height: 52vh; }
 .guide-stack > * { pointer-events: auto; }
 .lesson { border-color: rgba(116, 199, 222, 0.42); }
 .lesson .wtitle { color: var(--ice); letter-spacing: 0.03em; }
@@ -526,7 +528,18 @@ table.t tr.sel td { background: var(--ice-dim); }
 .lesson-offer { padding: 10px 14px 12px; border-left: 2px solid var(--ice); }
 .lesson-offer-k { font-size: 11.5px; color: var(--ice); letter-spacing: 0.04em; }
 .lesson-offer .lesson-title { margin-top: 2px; }
-.hints { padding: 2px 0; overflow-y: auto; max-height: 40vh; }
+.moment { padding: 10px 14px 12px; border-left: 2px solid var(--crown); overflow-y: auto; max-height: 34vh; flex-shrink: 0; }
+.moment.danger { border-left-color: var(--bad); }
+.moment-k { font-size: 11.5px; color: var(--crown); letter-spacing: 0.04em; }
+.moment.danger .moment-k { color: var(--bad); }
+.moment p { margin: 6px 0 0; font-size: 13px; line-height: 1.55; color: var(--text); }
+.lesson-note { margin-top: 8px; color: var(--ice); }
+.neo-more { opacity: 0.7; }
+.hints { padding: 2px 0; overflow-y: auto; max-height: 46vh; }
+.hints-head { display: flex; align-items: center; justify-content: space-between; padding: 6px 10px 2px; }
+.hints-head .hint-t { text-transform: none; letter-spacing: 0.02em; font-size: 13px; }
+.hint-fold { background: none; border: 0; color: var(--text-2); cursor: pointer; font-size: 13px; padding: 2px 6px; }
+.hint-goal { padding: 0 10px 6px; font-size: 12px; color: var(--text-2); border-bottom: 1px solid var(--rule); }
 .hint-row { padding: 8px 12px 9px 12px; border-left: 2px solid var(--edge-3); }
 .hint-row + .hint-row { border-top: 1px solid var(--edge); }
 .hint-row.warn { border-left-color: var(--amber); }
@@ -647,3 +660,51 @@ table.t tr.sel td { background: var(--ice-dim); }
 }
 .right-col[hidden] { display: none; }
 .cap-perf { position: absolute; left: 50%; top: 82px; transform: translateX(-50%); z-index: 23; font-size: 12px; padding: 3px 8px; background: rgba(6, 9, 13, 0.75); border: 1px solid var(--edge); color: var(--ice); pointer-events: none; }
+
+/* the advisor */
+.advisor-head { display: flex; align-items: flex-start; gap: 10px; margin: 8px 0 2px; }
+.advisor-portrait { flex: none; border-radius: 50%; transition: box-shadow 0.3s; }
+.advisor-portrait.speaking { box-shadow: 0 0 0 2px rgba(220, 174, 98, 0.5), 0 0 14px rgba(220, 174, 98, 0.35); }
+.advisor-name { font-size: 12.5px; color: var(--crown); font-weight: 600; letter-spacing: 0.02em; display: flex; align-items: center; gap: 6px; }
+.advisor-name .hint { font-weight: 400; }
+.advisor-quote { display: block; margin-top: 3px; font-size: 13.5px; line-height: 1.5; color: var(--text); font-style: italic; quotes: '“' '”'; }
+.advisor-wave { display: inline-flex; gap: 2px; align-items: flex-end; height: 10px; }
+.advisor-wave i { width: 2px; background: var(--crown); animation: adv-wave 0.9s ease-in-out infinite; }
+.advisor-wave i:nth-child(2) { animation-delay: 0.15s; }
+.advisor-wave i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes adv-wave { 0%, 100% { height: 3px; } 50% { height: 10px; } }
+@media (prefers-reduced-motion: reduce) { .advisor-wave i { animation: none; height: 6px; } }
+
+/* the Prologue quest tracker */
+.quest { display: block; width: 100%; text-align: left; margin: 8px 0 4px; padding: 8px 10px; background: rgba(220, 174, 98, 0.07); border: 1px solid rgba(220, 174, 98, 0.35); border-left: 2px solid var(--crown); color: var(--text); font: inherit; cursor: pointer; }
+.quest:hover { border-color: var(--crown); }
+.quest-k { font-size: 11.5px; color: var(--crown); letter-spacing: 0.03em; }
+.quest-t { font-size: 14px; font-weight: 600; margin-top: 1px; }
+.quest-g { font-size: 12.5px; line-height: 1.45; color: var(--text-2); margin-top: 3px; }
+.quest-p { font-size: 12px; color: var(--text); margin-top: 4px; }
+.quest-r { font-size: 11.5px; color: var(--text-3); margin-top: 3px; }
+.quest-bar { display: flex; gap: 3px; margin-top: 6px; }
+.quest-bar i { flex: 1; height: 3px; background: rgba(255, 255, 255, 0.1); }
+.quest-bar i.done { background: var(--crown); }
+
+/* Relic Vault */
+.vault-top { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; padding: 10px 0 4px; }
+.vault-count { display: flex; align-items: center; gap: 8px; color: var(--crown); }
+.vault-count .num { font-size: 30px; font-weight: 600; color: var(--text); }
+.vault-pity { flex-basis: 100%; }
+.relic-gem { color: var(--crown); }
+.relic-reveal { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-top: 10px; perspective: 900px; }
+.relic-card { --rc: #8b949e; position: relative; padding: 10px 11px 12px; min-height: 150px; border: 1px solid var(--rc); background: linear-gradient(160deg, rgba(255,255,255,0.05), rgba(0,0,0,0.25)); animation: relic-flip 0.55s cubic-bezier(.2,.7,.2,1) both; transform-origin: 50% 50%; overflow: hidden; }
+.relic-card.rare { --rc: var(--ice); }
+.relic-card.epic { --rc: #b48cff; box-shadow: 0 0 14px rgba(180, 140, 255, 0.25); }
+.relic-card.legendary { --rc: var(--crown); box-shadow: 0 0 22px rgba(220, 174, 98, 0.45); }
+.relic-card.legendary::after { content: ''; position: absolute; inset: 0; background: linear-gradient(115deg, transparent 30%, rgba(255, 236, 190, 0.35) 50%, transparent 70%); transform: translateX(-120%); animation: relic-shine 2.4s 0.7s ease-in-out infinite; pointer-events: none; }
+.relic-rarity { font-size: 11.5px; color: var(--rc); letter-spacing: 0.04em; }
+.relic-kind { font-size: 11px; color: var(--text-3); }
+.relic-title { font-size: 14px; font-weight: 600; margin-top: 6px; color: var(--text); }
+.relic-text { font-size: 12px; line-height: 1.45; color: var(--text-2); margin-top: 4px; }
+.relic-dot { display: inline-block; width: 9px; height: 9px; transform: rotate(45deg); background: #8b949e; margin-right: 6px; vertical-align: 1px; }
+.relic-dot.rare { background: var(--ice); } .relic-dot.epic { background: #b48cff; } .relic-dot.legendary { background: var(--crown); }
+@keyframes relic-flip { from { opacity: 0; transform: rotateY(90deg) scale(0.9); } to { opacity: 1; transform: none; } }
+@keyframes relic-shine { 0% { transform: translateX(-120%); } 60%, 100% { transform: translateX(120%); } }
+@media (prefers-reduced-motion: reduce) { .relic-card, .relic-card.legendary::after { animation: none; } }

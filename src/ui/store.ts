@@ -12,7 +12,7 @@ import type { GameEvent, GameSettings, GameState } from '../sim/types';
 
 export type ScreenId =
   | 'map' | 'kingdom' | 'planets' | 'system' | 'fleets' | 'military' | 'economy' | 'industry'
-  | 'research' | 'diplomacy' | 'intel' | 'construction' | 'trade' | 'journal' | 'techtree' | 'heroes' | 'council' | 'capital' | 'operations' | 'throne' | 'warroom' | 'chronicle' | 'codex';
+  | 'research' | 'diplomacy' | 'intel' | 'construction' | 'trade' | 'journal' | 'techtree' | 'heroes' | 'council' | 'capital' | 'operations' | 'throne' | 'warroom' | 'chronicle' | 'codex' | 'vault';
 
 export type MapMode = 'political' | 'resources' | 'military' | 'trade' | 'supply';
 
@@ -240,7 +240,7 @@ export function startLoop() {
       if (acc > 3) acc = 3; // don't spiral if the machine can't keep up
       if (steps) {
         surfaceEvents(g);
-        if (now - lastBump > 110) { lastBump = now; useUI.setState({ rev: useUI.getState().rev + 1 }); }
+        if (now - lastBump > 180) { lastBump = now; useUI.setState({ rev: useUI.getState().rev + 1 }); }
         if (g.tick - lastAutosave >= 360) {
           lastAutosave = g.tick;
           autosave(g);

@@ -6,10 +6,12 @@ export interface AudioSettings {
   music: number;
   sfx: number;
   ambient: number;
+  /** the advisor's voice */
+  voice: number;
   muted: boolean;
 }
 
-export const AUDIO_DEFAULTS: AudioSettings = { master: 0.8, music: 0.55, sfx: 0.7, ambient: 0.45, muted: false };
+export const AUDIO_DEFAULTS: AudioSettings = { master: 0.8, music: 0.55, sfx: 0.7, ambient: 0.45, voice: 0.9, muted: false };
 const KEY = 'sd.audio.v1';
 
 const clamp = (v: unknown, d: number) => (typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : d);
@@ -21,7 +23,7 @@ export function loadAudioSettings(storage: Pick<Storage, 'getItem'> | null = saf
     const p = JSON.parse(raw) as Partial<AudioSettings>;
     return {
       master: clamp(p.master, AUDIO_DEFAULTS.master), music: clamp(p.music, AUDIO_DEFAULTS.music),
-      sfx: clamp(p.sfx, AUDIO_DEFAULTS.sfx), ambient: clamp(p.ambient, AUDIO_DEFAULTS.ambient), muted: p.muted === true,
+      sfx: clamp(p.sfx, AUDIO_DEFAULTS.sfx), ambient: clamp(p.ambient, AUDIO_DEFAULTS.ambient), voice: clamp(p.voice, AUDIO_DEFAULTS.voice), muted: p.muted === true,
     };
   } catch { return { ...AUDIO_DEFAULTS }; }
 }

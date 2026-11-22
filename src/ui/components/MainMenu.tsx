@@ -64,7 +64,7 @@ export function MainMenu() {
         <h1>Star<br />Dominion</h1>
         <p>A young crown, one world, and a galaxy that will not wait.</p>
       </div>
-      <form className="setup frame" style={{ padding: '20px 22px', overflowY: 'auto' }} onSubmit={(e) => { e.preventDefault(); start({ ...s, playerName: s.playerName.trim() || 'Aurelian Throne' }); if (guided) beginGuidedReign(); }}>
+      <form className="setup frame" style={{ padding: '20px 22px', overflowY: 'auto' }} onSubmit={(e) => { e.preventDefault(); start({ ...s, playerName: s.playerName.trim() || 'Aurelian Throne', ...(guided ? { prologue: true } : {}) }); if (guided) beginGuidedReign(); }}>
         <div className="section" style={{ marginTop: 0, marginBottom: 14 }}>
           <h3><span>Your account</span></h3>
           <AccountPanel compact />
@@ -104,7 +104,7 @@ export function MainMenu() {
           <label htmlFor="seed">Galaxy seed</label>
           <div className="row"><input id="seed" className="grow num" value={s.seed} onChange={(e) => up({ seed: Math.abs(parseInt(e.target.value) || 0) })} /><button type="button" className="btn" onClick={() => up({ seed: Math.floor(Math.random() * 1e6) })}>New galaxy</button></div>
         </div>
-        <label className="row guided"><input type="checkbox" checked={guided} onChange={(e) => setGuided(e.target.checked)} /> <span><b>Guided first reign</b><span className="hint" style={{ display: 'block' }}>Ten short lessons teach the game as you play: the galaxy, your capital, the economy, expansion, war, research, diplomacy, your people and great works. Pause, skip or replay them any time from the Codex.</span></span></label>
+        <label className="row guided"><input type="checkbox" checked={guided} onChange={(e) => setGuided(e.target.checked)} /> <span><b>Guided first reign</b><span className="hint" style={{ display: 'block' }}>For new players. Your Lord Admiral guides you through a starter quest against a weak Pretender while the great realms leave you alone. You start with only a few screens and one tip at a time. Short lessons teach the basics, growing, and your first war, step by step, with a "Do it for me" button. More screens and lessons appear as you need them. Pause, skip or replay lessons any time from the Codex.</span></span></label>
         <button className="btn primary" type="submit" style={{ padding: '10px 14px', fontSize: 17, marginTop: 4 }}>Begin the reign</button>
         {saves.length > 0 && (
           <div className="section">

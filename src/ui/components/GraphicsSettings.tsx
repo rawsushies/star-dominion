@@ -2,7 +2,7 @@
 // Codex settings tab; kept in this browser (src/ui/graphics.ts).
 
 import { useEffect, useState } from 'react';
-import { currentDevice, graphics, onGraphicsChange, resolveCapital, setGraphics, type CapitalStyle, type QualityPref } from '../graphics';
+import { currentDevice, graphics, onGraphicsChange, resolveCapital, setGraphics, viewQuality, type CapitalStyle, type QualityPref } from '../graphics';
 
 const STYLES: { value: CapitalStyle; label: string }[] = [
   { value: 'auto', label: 'Automatic' },
@@ -32,8 +32,8 @@ export function GraphicsSettings() {
         </select>
       </div>
       <div className="field">
-        <label htmlFor="gfx-quality">Megacity quality</label>
-        <select id="gfx-quality" value={s.quality} disabled={r.style !== 'megacity'} onChange={(e) => setGraphics({ quality: e.target.value as QualityPref })}>
+        <label htmlFor="gfx-quality">Graphics quality</label>
+        <select id="gfx-quality" value={s.quality} onChange={(e) => setGraphics({ quality: e.target.value as QualityPref })}>
           {QUALITY.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
       </div>
@@ -43,7 +43,9 @@ export function GraphicsSettings() {
       </label>
       <p className="hint" data-testid="graphics-now">
         {now}
-        {s.capital === 'auto' && d.software && ' This browser draws 3D in software, so the lighter city is used.'}
+        {` The galaxy map, portraits and battle replays render at ${TIER[viewQuality(s, d).tier]} quality. If the game feels slow, choose Low.`}
+        {s.capital === 'auto' && d.software && ' This browser draws 3D in software, so the lighter city and low quality are used.'}
+        {s.quality === 'auto' && !d.software && d.integrated && ' Integrated graphics detected, so low quality is used.'}
       </p>
     </div>
   );

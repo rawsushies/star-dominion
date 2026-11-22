@@ -32,6 +32,8 @@ export interface GalaxyFrameOpts {
   mode: MapMode; routes?: { path: number[]; status: string }[];
   /** title-screen preview: no fog of war, no overlay detail */
   preview?: boolean;
+  /** systems the current quest or lesson is about: a gold beacon, or an arrow at the screen edge */
+  beacons?: number[];
 }
 
 export interface FleetMark { id: number; x: number; y: number }
@@ -128,8 +130,10 @@ export class GalaxyView3D {
   private projOk = new Uint8Array(0);
   private vp = new THREE.Matrix4();
 
-  constructor(canvas: HTMLCanvasElement) {
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+  private q: { antialias: boolean; maxDpr: number; stars: number };
+  constructor(canvas: HTMLCanvasElement, q: { antialias: boolean; maxDpr: number; stars: number } = { antialias: true, maxDpr: 2, stars: 1 }) {
+    this.q = q;
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: q.antialias, alpha: false, powerPreference: 'high-performance' });
     this.renderer.setClearColor(0x020305, 1);
   }
 
@@ -155,7 +159,7 @@ export class GalaxyView3D {
 
     // distant background stars
     {
-      const N = 4000, p = new Float32Array(N * 3), c = new Float32Array(N * 3), sz = new Float32Array(N);
+      const N = Math.round(4000 * this.q.stars), p = new Float32Array(N * 3), c = new Float32Array(N * 3), sz = new Float32Array(N);
       const rng = makeRng(77);
       for (let i = 0; i < N; i++) {
         const u = rngf(rng) * 2 - 1, a = rngf(rng) * Math.PI * 2, k = Math.sqrt(1 - u * u), rr = 60000;
@@ -168,7 +172,7 @@ export class GalaxyView3D {
     }
     // visual starfield from the galaxy's own density model (scenery, not simulated)
     {
-      const N = Math.min(140000, Math.max(20000, n * 14));
+      const N = Math.round(Math.min(140000, Math.max(20000, n * 14)) * this.q.stars);
       const p = new Float32Array(N * 3), c = new Float32Array(N * 3), sz = new Float32Array(N);
       const rng = makeRng((g.shape?.seed ?? 1) + 991);
       const shape = { ...galaxyShape(Math.max(n, 30), makeRng(1)), R, barAngle: g.shape?.barAngle ?? 0 };
@@ -362,8 +366,9 @@ export class GalaxyView3D {
     let t0 = performance.now();
     this.buildDynamic(state, !!o.preview);
     renderStats.dynamic = performance.now() - t0;
-    const { w, h, dpr } = o;
-    this.renderer.setPixelRatio(dpr);
+    const { w, h } = o;
+    const dpr = Math.min(o.dpr, this.q.maxDpr);
+    if (this.renderer.getPixelRatio() !== dpr) this.renderer.setPixelRatio(dpr);
     const cv = this.renderer.domElement;
     if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) this.renderer.setSize(w, h, false);
     this.placeCamera(w, h);
@@ -566,6 +571,42 @@ export class GalaxyView3D {
         ctx.fillStyle = owner && owner.kind !== 'guardian' ? hexA(owner.color, 0.95) : 'rgba(214,224,236,0.8)';
         ctx.fillText(s.name, x, ly);
       }
+    }
+    // quest beacons: where the current objective is
+    if (o.beacons?.length) {
+      const bob = Math.sin(o.time / 260) * 3;
+      const pulse = 0.5 + 0.5 * Math.sin(o.time / 340);
+      ctx.save();
+      ctx.font = "600 11px 'Saira Semi Condensed', sans-serif";
+      ctx.textAlign = 'center';
+      for (const sid of o.beacons) {
+        const sys = state.galaxy.systems[sid];
+        if (!sys) continue;
+        const sp = this.screenOf(sys.x, sys.y, sys.z ?? 0, w, h);
+        if (!sp) continue;
+        const [x, y] = sp;
+        if (x > 8 && x < w - 8 && y > 8 && y < h - 8) {
+          ctx.strokeStyle = `rgba(220,174,98,${0.35 + pulse * 0.5})`;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.arc(x, y, 14 + pulse * 6, 0, Math.PI * 2); ctx.stroke();
+          ctx.fillStyle = '#dcae62';
+          ctx.beginPath(); ctx.moveTo(x, y - 20 + bob); ctx.lineTo(x - 6, y - 30 + bob); ctx.lineTo(x + 6, y - 30 + bob); ctx.closePath(); ctx.fill();
+          ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillText('Quest', x + 1, y - 34 + bob);
+          ctx.fillStyle = '#ecc583'; ctx.fillText('Quest', x, y - 35 + bob);
+        } else {
+          // off screen: an arrow on the edge pointing toward it
+          const cx = w / 2, cy = h / 2;
+          const dx = x - cx, dy = y - cy;
+          const k = Math.min((w / 2 - 34) / Math.max(1e-6, Math.abs(dx)), (h / 2 - 34) / Math.max(1e-6, Math.abs(dy)));
+          const ax = cx + dx * k, ay = cy + dy * k, ang = Math.atan2(dy, dx);
+          ctx.save(); ctx.translate(ax, ay); ctx.rotate(ang);
+          ctx.fillStyle = `rgba(220,174,98,${0.6 + pulse * 0.4})`;
+          ctx.beginPath(); ctx.moveTo(12, 0); ctx.lineTo(-6, -8); ctx.lineTo(-2, 0); ctx.lineTo(-6, 8); ctx.closePath(); ctx.fill();
+          ctx.restore();
+          ctx.fillStyle = '#ecc583'; ctx.fillText(sys.name, ax - Math.cos(ang) * 22, ay - Math.sin(ang) * 22 + 4);
+        }
+      }
+      ctx.restore();
     }
     // fleets
     const marks: FleetMark[] = [];

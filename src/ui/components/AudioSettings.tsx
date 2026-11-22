@@ -16,6 +16,7 @@ const ROWS: { key: keyof Omit<Settings, 'muted'>; label: string; note: string; b
   { key: 'music', label: 'Music', note: 'The soundtrack, which follows what you are doing.', bus: 'music' },
   { key: 'sfx', label: 'Sound effects', note: 'Interface, construction, fleets, combat and events.', bus: 'sfx' },
   { key: 'ambient', label: 'Ambience', note: 'Space, orbit, the capital\'s industry and ship engines.', bus: 'ambient' },
+  { key: 'voice', label: 'Advisor voice', note: 'Lord Admiral Fiona MacLeod, who speaks only at important moments. Set to 0 to read her lines instead.' },
 ];
 
 export function AudioSettings({ compact = false }: { compact?: boolean }) {
@@ -27,6 +28,7 @@ export function AudioSettings({ compact = false }: { compact?: boolean }) {
     // effects preview immediately; music and ambience are already playing
     const now = performance.now();
     if ((key === 'sfx' || key === 'master') && now - previewAt.current > 180) { previewAt.current = now; audio.play('ui.confirm'); }
+    if (key === 'voice' && now - previewAt.current > 1500) { previewAt.current = now; audio.say('clock'); }
   };
   const status = audio.state === 'unsupported' ? 'This browser does not support Web Audio; the game plays silently.'
     : audio.state === 'locked' ? 'Sound starts after your first click or key press (a browser rule).'
@@ -51,7 +53,7 @@ export function AudioSettings({ compact = false }: { compact?: boolean }) {
         <button className="btn small" disabled={s.muted} onClick={() => { audio.unlock(); audio.play('notify.good'); }}>Test sound</button>
       </div>
       {status && <p className="hint" data-testid="audio-status">{status}</p>}
-      {!compact && <p className="hint">Music and ambience are original, generated live in your browser. Sound effects are by Kenney (CC0). Settings are kept in this browser.</p>}
+      {!compact && <p className="hint">Music and ambience are original, generated live in your browser. Sound effects are by Kenney (CC0). The advisor's voice is recorded with Piper using the Alba voice (CC BY 4.0, University of Edinburgh). Settings are kept in this browser.</p>}
     </div>
   );
 }

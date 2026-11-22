@@ -8,6 +8,7 @@
 // a ghost for a building whose first level is still being raised. Same interface as the other
 // capital views (sync, pick, plotScreen, stats, dispose).
 
+import { FrameGate, currentViewQuality } from '../graphics';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { mergeByMaterial, instancedFrom, finishStatic } from './instancing';
@@ -204,9 +205,13 @@ export class MegacityCapitalView3D {
       this.sig = ''; this.districtLevel = -1;
       if (this.last) this.sync(...this.last);
     });
-    const loop = (t: number) => { if (this.disposed) return; this.frame(t); this.raf = requestAnimationFrame(loop); };
+    // the city animates at a steady 30 frames a second, and at full rate while the player handles the camera
+    const gate = new FrameGate(() => ({ ...currentViewQuality(), runFps: 30, idleFps: 30 }));
+    this.poke = () => gate.poke();
+    const loop = (t: number) => { if (this.disposed) return; if (this.opts.still || gate.due(t, true)) this.frame(t); this.raf = requestAnimationFrame(loop); };
     this.raf = requestAnimationFrame(loop);
   }
+  private poke: () => void = () => {};
 
   // ------------------------------------------------------------------ assets
 
@@ -549,6 +554,7 @@ export class MegacityCapitalView3D {
     };
     this.canvas.addEventListener('contextmenu', (ev) => ev.preventDefault());
     this.canvas.addEventListener('pointerdown', (ev) => {
+      this.poke();
       this.cameraLocked = true;
       pts.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
       if (pts.size === 1) moved = false; else moved = true;
@@ -556,6 +562,7 @@ export class MegacityCapitalView3D {
       this.canvas.setPointerCapture(ev.pointerId);
     });
     this.canvas.addEventListener('pointermove', (ev) => {
+      this.poke();
       if (!pts.has(ev.pointerId) || !start) return;
       pts.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
       if (pts.size >= 2) {
@@ -585,7 +592,7 @@ export class MegacityCapitalView3D {
     };
     this.canvas.addEventListener('pointerup', end);
     this.canvas.addEventListener('pointercancel', end);
-    this.canvas.addEventListener('wheel', (ev) => { ev.preventDefault(); this.cameraLocked = true; this.cam.dist = Math.max(55, Math.min(420, this.cam.dist * (ev.deltaY > 0 ? 1.1 : 0.9))); }, { passive: false });
+    this.canvas.addEventListener('wheel', (ev) => { ev.preventDefault(); this.poke(); this.cameraLocked = true; this.cam.dist = Math.max(55, Math.min(420, this.cam.dist * (ev.deltaY > 0 ? 1.1 : 0.9))); }, { passive: false });
   }
 
   /** Where the camera looks (ground point); it eases towards `camGoal`. */

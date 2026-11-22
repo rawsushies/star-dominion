@@ -4,6 +4,7 @@
 // models in facing formations; weapons are drawn as beams, torpedoes and
 // strike craft by role; hits flash shields, kills explode into debris.
 
+import { currentViewQuality } from '../graphics';
 import * as THREE from 'three';
 import { SHIPS, SIZE_WEIGHT } from '../../sim/data/ships';
 import type { BattleReport, BattleShipSnap, GameState } from '../../sim/types';
@@ -58,8 +59,9 @@ export class BattleView3D {
   kills = 0;
 
   constructor(private canvas: HTMLCanvasElement) {
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-    this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    const vq = currentViewQuality();
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: vq.antialias });
+    this.renderer.setPixelRatio(Math.min(vq.maxDpr, window.devicePixelRatio || 1));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.backdrop();

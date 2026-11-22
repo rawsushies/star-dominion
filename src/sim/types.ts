@@ -146,6 +146,8 @@ export interface Ship {
   armor: number;
   shields: number;
   xp: number;
+  /** a ship from the Relic Vault: a name and a combat bonus */
+  relic?: { name: string; rarity: 'common' | 'rare' | 'epic' | 'legendary'; bonus: number };
 }
 
 export type FleetOrder =
@@ -195,6 +197,8 @@ export interface Character {
   skills: Record<string, number>;
   attrs: Record<import('./data/characters').Attr, number>;
   traits: string[];
+  /** drawn from the Relic Vault */
+  rarity?: 'common' | 'rare' | 'epic' | 'legendary';
   loyalty: number;
   ambition: { kind: import('./data/characters').AmbitionKind; unmetMonths: number };
   status: 'candidate' | 'active' | 'captive' | 'dead' | 'retired';
@@ -275,6 +279,8 @@ export interface Empire {
   color: string;
   isPlayer: boolean;
   kind: 'major' | 'minor' | 'guardian' | 'raiders' | 'rebels';
+  /** a scripted realm (the Prologue's Pretender) */
+  role?: 'pretender';
   alive: boolean;
   capitalPlanetId: number | null;
   capitalSystemId: number | null;
@@ -324,6 +330,13 @@ export interface Empire {
   chainCooldowns?: Record<string, number>;
   /** AI realms: the current strategic goal (sim/strategy.ts) */
   aiPlan?: AIPlan;
+  /** when each kind of letter to the player was last sent (envoys.ts) */
+  letters?: Partial<Record<string, number>>;
+  /** Relic Vault (the player): relics to spend, pity counters, legendaries already drawn, recent draws */
+  relics?: number;
+  relicPity?: { sinceEpic: number; sinceLegend: number };
+  relicLegends?: string[];
+  relicLog?: { tick: number; rarity: 'common' | 'rare' | 'epic' | 'legendary'; kind: 'cache' | 'ship' | 'hero'; title: string; text: string }[];
   /** tick from which the realm has met the domination thresholds (sim/victory.ts) */
   dominationSince?: number | null;
   /** victories this realm has been announced as nearing */
@@ -342,6 +355,8 @@ export interface AIPlan {
   review: number;
   /** most systems held (to notice heavy losses) */
   peakSystems: number;
+  /** troops the current invasion target needs (set by fleet operations) */
+  troopsWanted?: number;
 }
 
 export interface EmpireStats {
@@ -379,6 +394,8 @@ export interface War {
   startTick: number;
   score: number; // positive favours attackers (-100..100)
   name: string;
+  /** realms already asked to join this war */
+  asked?: number[];
 }
 
 export interface Tribute { from: number; to: number; perMonth: number; until: number }
@@ -398,6 +415,10 @@ export interface Proposal {
   tick: number;
   kind: 'deal' | 'peace';
   peaceTerm?: PeaceTerm;
+  /** a demand backed by a threat: refusing it has consequences */
+  demand?: boolean;
+  /** accepting means joining this war on the proposer's side */
+  joinWar?: number;
   warId?: number;
 }
 
@@ -448,6 +469,8 @@ export interface GameSettings {
   playerGovernment: GovernmentId;
   playerClimate: Climate;
   difficulty: 'relaxed' | 'standard' | 'hard';
+  /** start with the Prologue starter quest (a weak Pretender to defeat) */
+  prologue?: boolean;
 }
 
 export interface GameState {
@@ -478,6 +501,8 @@ export interface GameState {
   patrolled: Record<string, number>; // `${empire}:${system}` -> tick last patrolled
   disruptedRoutes: Record<string, number>; // colony planet id -> tick disrupted (for event dedupe)
   playerId: number;
+  /** the Prologue starter quest (src/sim/prologue.ts) */
+  prologue?: { pretenderId: number; stage: number; done: boolean; startBuildings?: number; doneTick?: number };
   gameOver: null | { won: boolean; reason: string; kind?: 'domination' | 'supremacy' | 'ascension'; winner?: number };
   /** @deprecated legacy guided first-reign progress; migrated to `guidance` on load */
   tutorial?: { step: number; base: { explored: number; buildings: number; ships: number } } | null;
@@ -503,4 +528,8 @@ export interface GuidanceState {
   snoozed: Record<string, number>;
   /** counters captured when the current step began (objectives compare against them) */
   base: Record<string, number>;
+  /** beginner mode: show a few screens and one tip at a time, adding the rest as they matter */
+  simple?: boolean;
+  /** the world the conquest lesson is about */
+  focus?: { empireId: number; planetId: number };
 }

@@ -12,6 +12,7 @@ import { buildingSlots, buildingsUsed, districtCaps } from './economy';
 import { createFleet, isCivilianFleet, makeShip } from './fleets';
 import { setSystemOwner, hostileArmedPresence } from './territory';
 import { canAfford, log, pay, scaleCost } from './util';
+import { sendLetter } from './envoys';
 import type { BuildingId, Colony, Cost, Empire, GameState, Planet, ShipClass } from './types';
 
 export function buildingCost(state: GameState, e: Empire, id: BuildingId): Cost {
@@ -105,6 +106,14 @@ export function progressConstruction(state: GameState) {
         sys.starbase = 1;
         sys.starbaseDamage = 0;
         const e = state.empires[op.empireId];
+        if (e.isPlayer) {
+          // a neighbour notices a claim on its doorstep
+          for (const n of state.galaxy.lanes) {
+            const other = n[0] === sys.id ? n[1] : n[1] === sys.id ? n[0] : null;
+            const o = other != null ? state.galaxy.systems[other].owner : null;
+            if (o != null && o !== e.id && state.empires[o].kind === 'major') { sendLetter(state, state.empires[o], 'border'); break; }
+          }
+        }
         log(state, { kind: 'outpost', severity: 'good', title: `Outpost raised in ${sys.name}`, text: `${sys.name} is now part of the ${e.adjective} realm.`, empires: [op.empireId], systemId: sys.id });
       }
     }

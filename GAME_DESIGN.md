@@ -250,7 +250,7 @@ Every AI realm issues the same validated commands as the player and sees rivals 
 
 Players learn by playing, and guidance never takes control. Details are in `docs/GUIDANCE.md`.
 
-- **Ten lessons.** Welcome, Galaxy, Capital, Economy, Expansion, Fleets and warfare, Research and civilisation, Diplomacy and houses, Characters, Megastructures.
+- **Ten lessons.** Your First Reign (the goal, then five real orders: research, build, claim a system, explore, let time run), Galaxy, Capital, Economy, Expansion, Fleets and warfare, Research and civilisation, Diplomacy and houses, Characters, Megastructures.
   - Each step names one objective. The objective ticks itself from real game state or a recorded player command, and the control involved is highlighted.
   - Lesson 1 starts with a guided reign. Later lessons unlock progressively and are offered once, never forced.
   - Lessons can be paused, skipped, left, replayed and reset. Progress is saved with the game.
@@ -259,13 +259,13 @@ Players learn by playing, and guidance never takes control. Details are in `docs
   - Catalogue entries (buildings, ships, technologies, eras, megastructures, capital buildings, roles, traits, items, decrees, governments, policies, planets, stars) are generated from the data tables, so their numbers are always the game's own.
   - Speculative content is labelled as such.
 - **Every window explains itself.** A ? drawer shows the window's purpose, its controls, advanced notes, Codex links and the matching lesson. A first-visit card appears the first time a window opens.
-- **Advisor hints.** Hints are shown only when the condition is real:
+- **Next steps.** A panel states the goal for the current stage of the reign and lists the two or three most useful actions now, each with a button that goes there. It covers growth (settle a named world, claim systems, explore, build a fleet, make a pact, the next era, the closest ambition) as well as problems. Advice is shown only when the condition is real:
   - shortages and stockpiles running out, full storage and idle research;
   - an idle construction ship or scout, idle builders on a planet or in the capital;
   - unassigned characters, unspent skill points, waiting petitions and envoys, and no heir in old age;
   - naval capacity exceeded, restless worlds, and threatened or exposed worlds at war.
 
-  One hint shows at a time; dismissing one hides it for six months. During a lesson only urgent hints appear.
+  Dismissing an item hides it for six months. During a lesson only urgent items appear.
 - **Tooltips** on resources, ministries, section titles, technologies, ships, roles, decrees and capital buildings are backed by the Codex.
 - Experienced players can turn lessons, hints and tooltips off, together or separately. The preference is stored per browser.
 

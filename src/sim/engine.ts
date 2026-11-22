@@ -2,9 +2,11 @@
 // Order of a day: combat -> movement -> orders -> supply -> construction ->
 // economy/population/research per empire -> monthly systems -> AI.
 
+import { START_RELICS } from './relics';
 import { victoryMonthly } from './victory';
 import { ambitionsMonthly } from './ambitions';
 import { chainsMonthly } from './chains';
+import { setupPrologue, prologueTick, isPretender } from './prologue';
 import { aiPreset } from './strategy';
 import { eraMonthly } from './eras';
 import { recordYear } from './chronicle';
@@ -213,6 +215,23 @@ export function newGame(settings: Partial<GameSettings> = {}): GameState {
   // Raiders exist as a faction; their fleets appear through events.
   state.empires.push(blankEmpire(state.empires.length, { name: 'Void Corsairs', adjective: 'Corsair', color: '#e0565b', kind: 'raiders', personality: { aggression: 1, expansion: 0, mercantile: 0, science: 0, diplomacy: 0, doctrine: 'swarm' } }));
 
+  // The Prologue: a weak Pretender for a new player to learn on
+  if (s.prologue) {
+    setupPrologue(state, (sysId) => {
+      const sys = galaxy.systems[sysId];
+      const e = blankEmpire(state.empires.length, {
+        name: `Pretender of ${sys.name}`, adjective: 'Pretender', color: '#a0525a', kind: 'minor', climate: pick(rng, ['wet', 'dry', 'cold'] as Climate[]), government: 'monarchy',
+        personality: { aggression: 0, expansion: 0, mercantile: 0.2, science: 0.1, diplomacy: 0, doctrine: 'balanced' },
+        ruler: `Pretender ${pick(rng, RULER_FIRST)} ${pick(rng, RULER_LAST)}`,
+      });
+      state.empires.push(e);
+      setupHomeworld(state, e, sysId, 'minor');
+      return e;
+    });
+  }
+
+  state.empires[state.playerId].relics = START_RELICS;
+
   // Initial exploration & stats
   for (const e of state.empires) {
     if (e.capitalSystemId == null) continue;
@@ -343,13 +362,14 @@ export function step(state: GameState) {
   if (state.tick % 30 === 0) monthly(state);
 
   for (const e of state.empires) {
-    if (!e.alive || e.isPlayer) continue;
+    if (!e.alive || e.isPlayer || isPretender(e)) continue;
     if ((e.kind === 'major' || e.kind === 'minor' || e.kind === 'rebels') && state.tick >= e.aiNextTick) {
       runAI(state, e);
       e.aiNextTick = state.tick + aiPreset(state, e).turnDays;
     }
   }
   if (state.tick % 3 === 0) runRaiders(state);
+  if (state.prologue && state.tick % 5 === 0) prologueTick(state);
 }
 
 function label(r: ResId) { return r.charAt(0).toUpperCase() + r.slice(1); }

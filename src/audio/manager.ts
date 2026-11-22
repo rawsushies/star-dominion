@@ -65,6 +65,11 @@ export class AudioManager {
   private readyFns: ((ctx: AudioContext) => void)[] = [];
   private ext: string | null = null;
   private base: string;
+  private voiceGain: GainNode | null = null;
+  private voiceSrc: AudioBufferSourceNode | null = null;
+  private voiceBuffers = new Map<string, Promise<AudioBuffer | null>>();
+  /** the line being spoken, for the UI (null when silent) */
+  speaking: string | null = null;
 
   constructor(private makeContext: () => AudioContext | null = defaultContext, base = (import.meta.env?.BASE_URL ?? '/') + 'assets/audio/sfx/') {
     this.settings = loadAudioSettings();
@@ -86,6 +91,7 @@ export class AudioManager {
       comp.threshold.value = -10; comp.knee.value = 8; comp.ratio.value = 4; comp.attack.value = 0.005; comp.release.value = 0.25;
       comp.connect(this.master);
       for (const b of ['music', 'sfx', 'ambient'] as Bus[]) { const g = ctx.createGain(); g.connect(comp); this.buses[b] = g; }
+      this.voiceGain = ctx.createGain(); this.voiceGain.connect(comp);
       this.duck = ctx.createGain();
       this.duck.connect(this.buses.music!);
       this.applyVolumes(true);
@@ -124,6 +130,7 @@ export class AudioManager {
     this.buses.music?.gain.setTargetAtTime(s.music * s.music, t, k);
     this.buses.sfx?.gain.setTargetAtTime(s.sfx * s.sfx, t, k);
     this.buses.ambient?.gain.setTargetAtTime(s.ambient * s.ambient, t, k);
+    this.voiceGain?.gain.setTargetAtTime(s.voice * s.voice, t, k);
     // a muted or silent mix suspends the context, which stops all audio processing
     const silent = s.muted || s.master === 0;
     if (silent && ctx.state === 'running') { setTimeout(() => { if ((this.settings.muted || this.settings.master === 0) && ctx.state === 'running') ctx.suspend().catch(() => {}); }, 200); this.state = 'suspended'; }
@@ -190,6 +197,53 @@ export class AudioManager {
       src.start(ctx.currentTime + (opt.delay ?? 0));
     });
     return true;
+  }
+
+  /**
+   * The advisor speaks a recorded line (public/assets/audio/voice/<id>). A new line cuts off the
+   * one before; music dips underneath. Returns false when silent or unavailable.
+   */
+  say(id: string, onEnd?: () => void): boolean {
+    const ctx = this.ctx;
+    const s = this.settings;
+    if (!ctx || s.muted || s.master === 0 || s.voice === 0 || !this.voiceGain) return false;
+    this.hush();
+    let p = this.voiceBuffers.get(id);
+    if (!p) {
+      const url = `${(import.meta.env?.BASE_URL ?? '/')}assets/audio/voice/${id}.${this.extension()}`;
+      p = fetch(url).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.arrayBuffer(); }).then((d) => ctx.decodeAudioData(d)).catch(() => null);
+      this.voiceBuffers.set(id, p);
+    }
+    this.speaking = id;
+    this.emit();
+    void p.then((buf) => {
+      if (!buf || this.speaking !== id || !this.voiceGain) { if (this.speaking === id) { this.speaking = null; this.emit(); } return; }
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.connect(this.voiceGain);
+      const t = ctx.currentTime;
+      this.duck?.gain.setTargetAtTime(0.35, t, 0.15);
+      src.onended = () => {
+        src.disconnect();
+        if (this.voiceSrc !== src) return;
+        this.voiceSrc = null; this.speaking = null;
+        this.duck?.gain.setTargetAtTime(1, ctx.currentTime, 0.4);
+        this.emit();
+        onEnd?.();
+      };
+      this.voiceSrc = src;
+      src.start(t + 0.05);
+    });
+    return true;
+  }
+
+  /** Stop the advisor mid-line. */
+  hush() {
+    const src = this.voiceSrc;
+    this.voiceSrc = null;
+    if (src) { try { src.stop(); } catch { /* already stopped */ } src.disconnect(); }
+    if (this.ctx) this.duck?.gain.setTargetAtTime(1, this.ctx.currentTime, 0.3);
+    if (this.speaking) { this.speaking = null; this.emit(); }
   }
 
   /** A looping sample on a bus, faded in; returns a stop function that fades it out. */

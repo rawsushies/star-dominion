@@ -59,6 +59,8 @@ function ProposalRow({ p }: { p: Proposal }) {
   const describe = (items: DealItem[]) => items.map((it) => it.kind === 'credits' ? `${it.amount} credits` : it.kind === 'resource' ? `${it.amount} ${it.res}` : it.kind === 'system' ? `the ${g.galaxy.systems[it.systemId].name} system` : TREATY_LABEL[it.treaty]).join(', ');
   let text = '';
   if (p.kind === 'peace') text = `proposes peace: ${PEACE_LABEL[p.peaceTerm ?? 'status_quo']}${p.peaceTerm && p.peaceTerm !== 'status_quo' ? ' (in their favour)' : ''}.`;
+  else if (p.joinWar != null) { const w = g.wars.find((x) => x.id === p.joinWar); const foe = w ? g.empires[w.attackers.includes(p.from) ? w.defenders[0] : w.attackers[0]] : null; text = `offers ${describe(p.give)} if you join their war against the ${foe?.name ?? 'enemy'}. Accepting puts you at war with them.`; }
+  else if (p.demand) text = `demands ${describe(p.receive)}. Refusing will anger them, and they will start arming against you.`;
   else if (p.give.length && !p.receive.length) text = `offers ${describe(p.give)}.`;
   else if (!p.give.length && p.receive.length) text = `demands ${describe(p.receive)}.`;
   else text = `offers ${describe(p.give)} in exchange for ${describe(p.receive)}.`;
@@ -66,10 +68,10 @@ function ProposalRow({ p }: { p: Proposal }) {
     <div className="row" style={{ padding: '6px 0', borderBottom: '1px solid rgba(34,50,74,0.6)' }}>
       <Swatch color={from.color} />
       <span className="grow"><b style={{ fontWeight: 500 }}>{from.name}</b> {text} <span className="faint">({formatDate(p.tick)})</span></span>
-      <button className="btn small primary" onClick={() => ui.cmd({ type: 'respondProposal', id: p.id, accept: true })}>Accept</button>
+      <button className="btn small primary" onClick={() => ui.cmd({ type: 'respondProposal', id: p.id, accept: true })}>{p.demand ? 'Pay' : p.joinWar != null ? 'Join the war' : 'Accept'}</button>
       <button className="btn small" onClick={() => {
         ui.cmd({ type: 'respondProposal', id: p.id, accept: false });
-      }}>Decline</button>
+      }}>{p.demand ? 'Refuse' : 'Decline'}</button>
     </div>
   );
 }

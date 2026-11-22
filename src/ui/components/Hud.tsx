@@ -27,6 +27,8 @@ import { MuteButton } from './AudioSettings';
 import { usePrefs } from './Guidance';
 import { resourceHelp } from '../../guidance/codex';
 import { SCREEN_INFO } from '../../guidance/screens';
+import { visibleScreens, hiddenCount, setSimple } from '../../guidance/path';
+import { PROLOGUE_STAGES, currentStage, pretenderOf, pretenderStrength } from '../../sim/prologue';
 
 // ---------------------------------------------------------------- neocom
 
@@ -36,6 +38,7 @@ const GROUPS: ScreenId[][] = [
   ['fleets', 'military', 'warroom', 'heroes'],
   ['economy', 'industry', 'operations', 'construction', 'trade'],
   ['research', 'techtree'],
+  ['vault'],
   ['diplomacy', 'intel', 'journal', 'chronicle'],
   ['codex'],
 ];
@@ -52,12 +55,14 @@ export function Neocom() {
   const idleResearch = !e.research.current && !e.research.queue.length;
   const label = (id: ScreenId) => NAV.find((n) => n.id === id)?.label ?? id;
   const prefs = usePrefs();
+  const vis = visibleScreens(g);
+  const hidden = hiddenCount(g);
   return (
     <nav className="neocom" aria-label="Screens">
       <button className="neo-crest" onClick={() => open('kingdom')} aria-label="Kingdom overview" title={e.name}>
         <Emblem empire={e} size={28} />
       </button>
-      {GROUPS.map((grp, gi) => (
+      {GROUPS.map((grp) => grp.filter((id) => !vis || vis.has(id))).filter((grp) => grp.length).map((grp, gi) => (
         <div key={gi} className="neo-group">
           {grp.map((id) => {
             const isOpen = windows.some((w) => w.id === id) || (id === 'capital' && view === 'capital');
@@ -72,6 +77,12 @@ export function Neocom() {
           })}
         </div>
       ))}
+      {hidden > 0 && (
+        <button className="neo-btn neo-more" onClick={() => { setSimple(g, false); useUI.getState().bump(); }} aria-label="Show all screens">
+          <svg width="20" height="20" viewBox="0 0 20 20"><path d="M10 4v12M4 10h12" stroke="currentColor" strokeWidth="1.5" /></svg>
+          <span className="neo-flyout">Show all screens<small>{hidden} more screens appear by themselves as you need them. Click to show them all now.</small></span>
+        </button>
+      )}
       <div className="grow" />
       <MuteButton />
       <button className="neo-btn" onClick={() => set({ menuOpen: true, speed: 0 })} aria-label="Chancery: save, load and options">
@@ -118,6 +129,7 @@ export function LocationHud() {
         <span className="loc-gov">{GOVERNMENTS[e.government].label} · {e.ruler}</span>
       </div>
       <EraBadge />
+      <QuestTracker />
       {sys && (
         <div className="loc-sys">
           <span className="loc-star" style={{ background: owner?.color ?? '#5d6873' }} />
@@ -449,5 +461,34 @@ function WindowFrame({ win }: { win: Win }) {
       {!win.min && <div className="wbody"><Screen /></div>}
       {!win.min && <div className="wsize" onPointerDown={(e) => startDrag(e, 'size')} aria-hidden />}
     </section>
+  );
+}
+
+/** The Prologue quest, always in view while it runs: the stage, what to do, progress and reward. */
+function QuestTracker() {
+  const g = useGame();
+  const ui = useUI();
+  const stage = currentStage(g);
+  if (!stage || !g.prologue) return null;
+  const i = g.prologue.stage;
+  const e = g.empires[g.playerId];
+  const pr = pretenderOf(g);
+  let progress: string | null = null;
+  if (stage.id === 'borders') progress = `Systems owned: ${e.stats.systems} of 3`;
+  if (stage.id === 'fleet') {
+    const pow = Object.values(g.fleets).reduce((a, f) => a + (f.ownerId === e.id ? fleetPower(g, f) : 0), 0);
+    const troops = Object.values(g.fleets).reduce((a, f) => a + (f.ownerId === e.id ? f.troops : 0), 0);
+    progress = `Fleet strength ${Math.round(pow)} of ${Math.round(Math.max(40, pretenderStrength(g) * 1.6))} · soldiers ${troops} of 8`;
+  }
+  const where = pr?.capitalSystemId != null && i >= 2 ? pr.capitalSystemId : null;
+  return (
+    <button className="quest" data-testid="quest" onClick={() => { if (where != null && e.explored.includes(where)) { ui.selectSystem(where); ui.set({ view: 'galaxy', screen: 'map' }); focusSystem(where); } }} title={where != null ? 'Show the Pretender\'s world' : undefined}>
+      <div className="quest-k">Prologue · quest {i + 1} of {PROLOGUE_STAGES.length}</div>
+      <div className="quest-t">{stage.title}</div>
+      <div className="quest-g">{stage.goal}</div>
+      {progress && <div className="quest-p">{progress}</div>}
+      <div className="quest-r">Reward: {stage.rewardText}</div>
+      <div className="quest-bar" aria-hidden>{PROLOGUE_STAGES.map((_, k) => <i key={k} className={k < i ? 'done' : ''} />)}</div>
+    </button>
   );
 }

@@ -89,7 +89,7 @@ export function HeroesScreen() {
               <div key={c.id} className={cls('li', sel?.id === c.id && 'sel')} onClick={() => setSel(c.id)}>
                 <Crest c={c} g={g} size={34} />
                 <div className="grow" style={{ minWidth: 0 }}>
-                  <div className="row between"><span>{c.name}</span><span className="num">{c.level}</span></div>
+                  <div className="row between"><span>{c.rarity && <span className={`relic-dot ${c.rarity}`} title={`${c.rarity[0].toUpperCase()}${c.rarity.slice(1)} hero from the Relic Vault`} />}{c.name}</span><span className="num">{c.level}</span></div>
                   <div className="hint">{ROLES[c.role].label} · {c.status === 'captive' ? (c.captorId === g.playerId ? `prisoner of yours, from the ${g.empires[c.ownerId]?.name}` : `held by the ${g.empires[c.captorId ?? 0]?.name}`) : c.status === 'candidate' ? 'seeks a post' : describeAssignment(g, c.assignment)}</div>
                 </div>
                 {c.skillPoints > 0 && c.status === 'active' && <span className="badge" title="Unspent skill points">{c.skillPoints}</span>}
@@ -145,7 +145,7 @@ function HeroDetail({ c }: { c: Character }) {
           <div className="row" style={{ gap: 10, alignItems: 'center' }}>
             <Crest c={c} g={g} size={48} />
             <div className="grow">
-              <h2 className="serif" style={{ margin: 0 }}>{c.name}</h2>
+              <h2 className="serif" style={{ margin: 0 }}>{c.rarity && <span className={`relic-dot ${c.rarity}`} />}{c.name}</h2>
               <div className="muted"><Term entry={`role.${c.role}`}>{ROLES[c.role].label}</Term>, level {c.level} of {MAX_LEVEL}. {ROLES[c.role].serves}.</div>
             </div>
           </div>

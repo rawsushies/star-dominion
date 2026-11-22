@@ -4,6 +4,8 @@
 // what the realm could not know (rival strength comes through the same fuzzed intelligence the
 // player sees).
 
+import { prologueActive, protectedPrey } from './prologue';
+import { sendLetter } from './envoys';
 import { fuzz, intelLevel, opinion, systemValue, hasContact, canDeclareWar } from './diplomacy';
 import { bordering, hasTreaty, ownedSystems, warBetween } from './territory';
 import { adjacency, jumpDistances } from './galaxy';
@@ -28,8 +30,10 @@ export interface AIPreset {
   maxWars: number;
   /** years before an AI will plan a war against the player */
   playerGraceYears: number;
-  /** may break a non-aggression pact to strike (low-diplomacy, aggressive temperaments only) */
+  /** may break a non-aggression pact to strike at once (low-diplomacy, aggressive temperaments only) */
   betrayal: boolean;
+  /** may formally renounce a non-aggression pact, then arm (no war for at least six months) */
+  renounce: boolean;
   /** independent battle groups in war: 1 = one doom-stack, 2+ adds raiding groups */
   battleGroups: number;
   /** 0..1 how strongly realms gang up on a runaway leader */
@@ -43,9 +47,9 @@ export interface AIPreset {
 }
 
 export const AI_PRESETS: Record<GameState['settings']['difficulty'], AIPreset> = {
-  relaxed: { turnDays: 8, reviewDays: 180, warRatio: 2.0, maxWars: 1, playerGraceYears: 15, betrayal: false, battleGroups: 1, coalition: 0.5, militaryFill: 0.8, sloppiness: 0.35, tightReserves: false },
-  standard: { turnDays: 5, reviewDays: 120, warRatio: 1.5, maxWars: 1, playerGraceYears: 8, betrayal: false, battleGroups: 2, coalition: 0.8, militaryFill: 1, sloppiness: 0.1, tightReserves: false },
-  hard: { turnDays: 3, reviewDays: 90, warRatio: 1.25, maxWars: 2, playerGraceYears: 4, betrayal: true, battleGroups: 3, coalition: 1, militaryFill: 1.15, sloppiness: 0, tightReserves: true },
+  relaxed: { turnDays: 8, reviewDays: 180, warRatio: 2.0, maxWars: 1, playerGraceYears: 15, betrayal: false, renounce: false, battleGroups: 1, coalition: 0.5, militaryFill: 0.8, sloppiness: 0.35, tightReserves: false },
+  standard: { turnDays: 5, reviewDays: 120, warRatio: 1.5, maxWars: 1, playerGraceYears: 8, betrayal: false, renounce: true, battleGroups: 2, coalition: 0.8, militaryFill: 1, sloppiness: 0.1, tightReserves: false },
+  hard: { turnDays: 3, reviewDays: 90, warRatio: 1.25, maxWars: 2, playerGraceYears: 4, betrayal: true, renounce: true, battleGroups: 3, coalition: 1, militaryFill: 1.15, sloppiness: 0, tightReserves: true },
 };
 
 export const DIFFICULTY_TEXT: Record<GameState['settings']['difficulty'], string> = {
@@ -86,6 +90,12 @@ export function estimateBloc(state: GameState, viewer: number, target: number, e
 /** Our strength plus allies who are already fighting the same enemy or are bound to us by alliance. */
 function ownBloc(state: GameState, e: Empire, against: number): number {
   let p = e.stats.militaryPower || 1;
+  // the enemy of my enemy: realms already at war with the target fight beside us in all but name
+  for (const w of state.wars) {
+    const side = w.attackers.includes(against) ? w.defenders : w.defenders.includes(against) ? w.attackers : null;
+    if (!side) continue;
+    for (const id of side) if (id !== e.id && state.empires[id]?.alive) p += (estimatePower(state, e.id, id) ?? state.empires[id].stats.militaryPower) * 0.5;
+  }
   for (const t of state.treaties) {
     if (t.type !== 'alliance' || (t.a !== e.id && t.b !== e.id)) continue;
     const ally = t.a === e.id ? t.b : t.a;
@@ -112,6 +122,7 @@ function setGoal(state: GameState, e: Empire, goal: AIGoal, target: number | nul
   plan.goal = goal; plan.target = target; plan.since = state.tick;
   // telegraph a build-up against the player when the player can see it
   if (goal === 'arm' && target === state.playerId && intelLevel(state, state.playerId, e.id) >= 30) {
+    sendLetter(state, e, 'threat');
     log(state, { kind: 'threat', severity: 'warn', title: `${e.name} is arming`, text: `Envoys report ${e.adjective} shipyards working day and night, and ${e.adjective} fleets gathering near our border. A war may be coming. Strengthen the border, seek allies, or offer a pact.`, empires: [state.playerId] });
   }
   if (was === 'arm' && goal !== 'war' && plan.target == null && target == null) { /* stood down */ }
@@ -131,10 +142,11 @@ export function warCandidates(state: GameState, e: Empire): WarCandidate[] {
   for (const o of state.empires) {
     if (!o.alive || o.id === e.id || !(o.kind === 'major' || o.kind === 'minor' || o.kind === 'rebels')) continue;
     if (!hasContact(state, e.id, o.id) || warBetween(state, e.id, o.id)) continue;
-    if (o.id === state.playerId && years < preset.playerGraceYears) continue;
+    if (o.id === state.playerId && (years < preset.playerGraceYears || prologueActive(state))) continue;
+    if (protectedPrey(state, o.id)) continue;
     if (hasTreaty(state, e.id, o.id, 'alliance') || hasTreaty(state, e.id, o.id, 'defense') || hasTreaty(state, e.id, o.id, 'vassal')) continue;
     const nap = hasTreaty(state, e.id, o.id, 'nap');
-    if (nap && !(preset.betrayal && pers.diplomacy < 0.4 && pers.aggression > 0.6)) continue;
+    if (nap && !preset.renounce && !(preset.betrayal && pers.diplomacy < 0.4 && pers.aggression > 0.6)) continue;
     const truce = canDeclareWar(state, e.id, o.id);
     if (!truce.ok && !/influence/i.test(truce.reason ?? '')) continue;
     const border = bordering(state, e.id, o.id);
@@ -147,10 +159,22 @@ export function warCandidates(state: GameState, e: Empire): WarCandidate[] {
     let score = value / 100 * Math.min(2.5, ratio) * (0.5 + pers.aggression) - op * 0.05;
     if (o.kind !== 'major') score *= 0.6 + pers.expansion * 0.6; // easy prey for expansionists
     if (lead && lead.id === o.id) score *= 1 + preset.coalition * lead.fear; // cut a runaway leader down
-    if (nap) score *= 0.7;
+    if (nap) score *= 0.6 + (1 - pers.diplomacy) * 0.3; // pacts restrain the honourable more
+    // opportunism: a realm already worn down by another war is easier prey
+    const busy = state.wars.find((w) => w.attackers.includes(o.id) || w.defenders.includes(o.id));
+    if (busy) { const theirs = busy.attackers.includes(o.id) ? busy.score : -busy.score; score *= 1 + Math.max(0, -theirs) / 100 + Math.min(0.4, o.warExhaustion / 100) + (1 - pers.diplomacy) * 0.2; }
     out.push({ id: o.id, score, ratio });
   }
   return out.sort((a, b) => b.score - a.score);
+}
+
+/** A rival whose ultimatum was refused starts arming against the realm that refused it. */
+export function refusedUltimatum(state: GameState, e: Empire, target: number) {
+  if (target === state.playerId && prologueActive(state)) return;
+  const plan = planOf(e);
+  if (plan.goal === 'war' || plan.goal === 'recover') return;
+  setGoal(state, e, 'arm', target);
+  plan.review = state.tick + 120;
 }
 
 /** The strategic review: pick the realm's goal for the coming months. */
@@ -166,6 +190,18 @@ export function reviewStrategy(state: GameState, e: Empire) {
   // 1) Recover when the realm is hurting: shortages, unrest, exhaustion or heavy losses.
   const hurt = L.shortages.length >= 2 || (e.stats.avgStability || 50) < 33 || e.warExhaustion > 70 || e.stats.systems < plan.peakSystems * 0.7;
   if (fighting) { setGoal(state, e, 'war', plan.target); return; }
+  // a vassal that has regained its strength, or whose overlord is busy elsewhere, breaks free
+  const bond = state.treaties.find((t) => t.type === 'vassal' && t.b === e.id);
+  if (bond && e.kind === 'major' && state.tick - bond.since > 360 * 5) {
+    const lord = state.empires[bond.a];
+    const lordP = estimatePower(state, e.id, lord.id) ?? lord.stats.militaryPower;
+    const distracted = atWarCount(state, lord.id) > 0;
+    if ((e.stats.militaryPower || 1) >= lordP * (distracted ? 0.5 : 0.8) * (1.2 - pers.aggression * 0.4)) {
+      execute(state, e.id, { type: 'breakTreaty', target: lord.id, treaty: 'vassal' });
+      setGoal(state, e, 'war', lord.id);
+      return;
+    }
+  }
   if (hurt) {
     setGoal(state, e, 'recover');
     if (e.stats.systems < plan.peakSystems * 0.7) plan.peakSystems = e.stats.systems; // accept the new borders once recovering
@@ -174,8 +210,10 @@ export function reviewStrategy(state: GameState, e: Empire) {
   // 2) Arming against a chosen rival: strike when ready, or stand down after three years.
   if (plan.goal === 'arm' && plan.target != null) {
     const c = warCandidates(state, e).find((x) => x.id === plan.target);
-    const ready = L.navalUsed >= L.navalCap * 0.85 || (c && c.ratio >= preset.warRatio + 0.4);
-    if (c && c.ratio >= preset.warRatio - pers.aggression * 0.3 && ready && atWarCount(state, e.id, true) < preset.maxWars) {
+    const ready = state.tick - plan.since >= 180 && (L.navalUsed >= L.navalCap * 0.85 || (c && c.ratio >= preset.warRatio + 0.4));
+    const leadNow = hegemon(state);
+    const needRatio = preset.warRatio - pers.aggression * 0.3 - (leadNow && leadNow.id === plan.target ? 0.6 * leadNow.fear * preset.coalition : 0);
+    if (c && c.ratio >= needRatio && ready && atWarCount(state, e.id, true) < preset.maxWars) {
       startWar(state, e, plan.target);
       return;
     }
@@ -186,7 +224,19 @@ export function reviewStrategy(state: GameState, e: Empire) {
   if (e.kind === 'major' && state.tick > 360 * 4 && e.warExhaustion < 20 && atWarCount(state, e.id, true) < preset.maxWars) {
     const best = warCandidates(state, e)[0];
     const appetite = pers.aggression * 0.7 + pers.expansion * 0.3 + (freeSystemsNear(state, e) === 0 ? 0.25 : 0);
-    if (best && best.score > 2 - appetite * 1.5 && best.ratio > 0.8) { setGoal(state, e, 'arm', best.id); return; }
+    // against a runaway leader the bar is lower: everyone else is a potential ally
+    const lead = hegemon(state);
+    const minRatio = lead && best && lead.id === best.id ? 0.8 - 0.35 * lead.fear * preset.coalition : 0.8;
+    if (best && best.score > 2 - appetite * 1.5 && best.ratio > minRatio) {
+      const betray = preset.betrayal && pers.diplomacy < 0.4 && pers.aggression > 0.6;
+      if (hasTreaty(state, e.id, best.id, 'nap') && !betray) {
+        // the honest road to war: renounce the pact openly, then arm
+        execute(state, e.id, { type: 'breakTreaty', target: best.id, treaty: 'nap' });
+        if (best.id === state.playerId) log(state, { kind: 'threat', severity: 'danger', title: `${e.name} renounces our pact`, text: `${e.name} has ended its non-aggression pact with us. Expect war within months.`, empires: [state.playerId] });
+      }
+      setGoal(state, e, 'arm', best.id);
+      return;
+    }
   }
   // 4) Peaceful goals.
   if (freeSystemsNear(state, e) > 0 && e.stats.systems < (L.adminCap ?? 0) + 3 + pers.expansion * 4) setGoal(state, e, 'expand');
@@ -210,6 +260,7 @@ function startWar(state: GameState, e: Empire, target: number) {
   // declared through the same command path as the player's
   if (!execute(state, e.id, { type: 'declareWar', target }).ok) return;
   setGoal(state, e, 'war', target);
+  if (t.isPlayer) sendLetter(state, e, 'war', undefined, 0);
   if (nap) log(state, { kind: 'betrayal', severity: 'danger', title: `${e.name} betrays ${t.name}`, text: `${e.name} tore up its non-aggression pact and attacked. Other realms will remember.`, empires: [] });
 }
 

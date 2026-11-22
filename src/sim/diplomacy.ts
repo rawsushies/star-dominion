@@ -2,6 +2,8 @@
 // deal system (credits, resources, systems, treaties), AI acceptance logic
 // with itemised reasons, war declarations with alliances, and peace terms.
 
+import { grantRelics } from './relics';
+import { sendLetter } from './envoys';
 import { bordering, hasTreaty, ownedSystems, warBetween, visibleSystems, setSystemOwner } from './territory';
 import { empireMods, mod } from './modifiers';
 import { log, nextId } from './util';
@@ -19,6 +21,8 @@ const TREATY_OPINION: Record<TreatyType, number> = { nap: 5, trade: 10, research
 const CLASH: [string, string][] = [['monarchy', 'republic'], ['junta', 'republic'], ['technocracy', 'feudal'], ['corporate', 'feudal'], ['junta', 'technocracy']];
 
 const key = (a: number, b: number) => `${a}>${b}`;
+/** years a non-aggression pact lasts before it must be renewed */
+export const NAP_YEARS = 15;
 
 export function addMemory(state: GameState, a: number, b: number, k: string, value: number, decayPerMonth: number, label: string) {
   const list = (state.opinions[key(a, b)] ??= []);
@@ -181,6 +185,8 @@ function treatyAppetite(state: GameState, ai: number, other: number, t: TreatyTy
   const powerRatio = (o.stats.militaryPower || 1) / (e.stats.militaryPower || 1);
   if (hasTreaty(state, ai, other, t)) return ['Treaty already in force', -1000];
   if (warBetween(state, ai, other)) return ['We are at war', -1000];
+  // a realm preparing war on the proposer will not tie its own hands
+  if (e.aiPlan && (e.aiPlan.goal === 'arm' || e.aiPlan.goal === 'war') && e.aiPlan.target === other && (t === 'nap' || t === 'defense' || t === 'alliance')) return ['We have other plans for you', -1000];
   switch (t) {
     case 'nap': return ['Non-aggression appetite', Math.round(-5 + pers.diplomacy * 15 - pers.aggression * 20 + (powerRatio > 1.2 ? 15 : 0))];
     case 'trade': return ['Commercial interest', Math.round(-10 + pers.mercantile * 30 + (op > 0 ? 5 : -10))];
@@ -325,6 +331,21 @@ export function canDeclareWar(state: GameState, a: number, b: number): { ok: boo
   return { ok: true };
 }
 
+/** A realm enters an existing war on one side (a call to arms answered). */
+export function joinWar(state: GameState, war: War, id: number, side: 'attackers' | 'defenders'): boolean {
+  if (war.attackers.includes(id) || war.defenders.includes(id)) return false;
+  const foes = side === 'attackers' ? war.defenders : war.attackers;
+  for (const f of foes) {
+    for (const t of ['nap', 'trade', 'research', 'defense', 'alliance'] as TreatyType[]) if (hasTreaty(state, id, f, t)) breakTreaty(state, id, f, t);
+    addMemory(state, f, id, 'joined_war', -40, 1, 'Joined a war against us');
+  }
+  for (const a of side === 'attackers' ? war.attackers : war.defenders) addMemory(state, a, id, 'war_ally', 25, 0.5, 'Fought beside us');
+  (side === 'attackers' ? war.attackers : war.defenders).push(id);
+  const e = state.empires[id];
+  log(state, { kind: 'war', severity: foes.includes(state.playerId) ? 'danger' : 'info', title: `${e.name} joins the ${war.name}`, text: `${e.name} enters the war against ${foes.map((f) => state.empires[f].name).join(', ')}.`, empires: [] });
+  return true;
+}
+
 export function declareWar(state: GameState, a: number, b: number): War | null {
   if (!canDeclareWar(state, a, b).ok) return null;
   const ea = state.empires[a];
@@ -369,7 +390,7 @@ export function makePeace(state: GameState, war: War, term: PeaceTerm, winnerSid
   const losers = winnerSide === 'attackers' ? war.defenders : war.attackers;
   const wl = winners[0];
   const ll = losers[0];
-  if (term !== 'status_quo' && state.empires[wl]) state.empires[wl].warsWon = (state.empires[wl].warsWon ?? 0) + 1;
+  if (term !== 'status_quo' && state.empires[wl]) { state.empires[wl].warsWon = (state.empires[wl].warsWon ?? 0) + 1; grantRelics(state, state.empires[wl], 2, 'A war won'); }
   if (term === 'tribute') {
     const loser = state.empires[ll];
     state.tributes.push({ from: ll, to: wl, perMonth: Math.round(8 + (loser.stats.population || 10) * 0.25), until: state.tick + 360 * 8 });
@@ -400,6 +421,7 @@ export function makePeace(state: GameState, war: War, term: PeaceTerm, winnerSid
     exchanged++;
   }
   state.wars = state.wars.filter((w) => w !== war);
+  if (wl === state.playerId || ll === state.playerId) sendLetter(state, state.empires[wl === state.playerId ? ll : wl], 'peace', undefined, 0);
   for (const a of war.attackers) for (const d of war.defenders) state.truces.push({ a, b: d, until: state.tick + 360 * 5 });
   for (const id of [...war.attackers, ...war.defenders]) state.empires[id].warExhaustion *= 0.5;
   log(state, {
@@ -419,6 +441,11 @@ export function monthlyDiplomacy(state: GameState) {
     state.opinions[k] = list.filter((m) => Math.abs(m.value) >= 0.5);
   }
   state.truces = state.truces.filter((t) => t.until > state.tick);
+  // non-aggression pacts lapse after fifteen years unless renewed
+  for (const t of state.treaties.filter((x) => x.type === 'nap' && state.tick - x.since >= NAP_YEARS * 360)) {
+    state.treaties = state.treaties.filter((x) => x !== t);
+    log(state, { kind: 'treaty', severity: 'info', title: 'Non-Aggression Pact lapsed', text: `The pact between ${state.empires[t.a].name} and ${state.empires[t.b].name} has run its course of ${NAP_YEARS} years. It can be renewed.`, empires: [t.a, t.b] });
+  }
   state.tributes = state.tributes.filter((t) => t.until > state.tick && state.empires[t.from].alive && state.empires[t.to].alive);
   state.tradeDeals = state.tradeDeals.filter((d) => d.until > state.tick);
   state.proposals = state.proposals.filter((p) => state.tick - p.tick < 90);
