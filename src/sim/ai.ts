@@ -122,28 +122,40 @@ function economy(state: GameState, e: Empire) {
   const colonies = state.planets.filter((p) => p.colony?.ownerId === e.id);
   const shipyards = colonies.filter((p) => (p.colony!.buildings.shipyard ?? 0) > 0).length;
   const reserve = aiPreset(state, e).tightReserves ? { minerals: 30, credits: 20 } : { minerals: 60, credits: 40 };
-  for (const p of colonies) {
+  for (const p of colonies) buildOnPlanet(state, e, p, L, shipyards, colonies.length, reserve);
+  economyRest(state, e);
+}
+
+/** One planet's next building, chosen as the AI would (also used for the player's delegated worlds). */
+export function buildOnPlanet(state: GameState, e: Empire, p: Planet, L = getLedger(state, e), shipyards?: number, colonyCount?: number, reserve: Record<string, number> = { minerals: 60, credits: 40 }) {
+  {
     const c = p.colony!;
-    if (c.queue.length >= 2) continue;
+    if (c.queue.length >= 2) return;
     const rep = L.planets[p.id];
-    if (!rep) continue;
+    if (!rep) return;
+    const colonies = state.planets.filter((x) => x.colony?.ownerId === e.id);
+    shipyards ??= colonies.filter((x) => (x.colony!.buildings.shipyard ?? 0) > 0).length;
+    colonyCount ??= colonies.length;
     let best: BuildingId | null = null;
     let bestScore = 3;
     const options: [BuildingId, number][] = [];
     for (const b of BUILDABLE) {
       if (!canBuild(state, e, p, b).ok) continue;
-      const s = scoreBuilding(state, e, p, b, L, rep, shipyards, colonies.length);
+      const s = scoreBuilding(state, e, p, b, L, rep, shipyards, colonyCount);
       if (s > 3) options.push([b, s]);
       if (s > bestScore) { bestScore = s; best = b; }
     }
     // a less able court settles for an adequate choice now and then
-    if (options.length > 1 && chance(state.rng, aiPreset(state, e).sloppiness)) best = options[Math.floor(next(state.rng) * options.length)][0];
-    if (!best) continue;
+    if (!e.isPlayer && options.length > 1 && chance(state.rng, aiPreset(state, e).sloppiness)) best = options[Math.floor(next(state.rng) * options.length)][0];
+    if (!best) return;
     const cost = buildingCost(state, e, best);
-    const afford = Object.entries(cost).every(([k, v]) => e.stock[k as keyof typeof e.stock] >= (v as number) + ((reserve as any)[k] ?? 0));
-    if (!afford) continue;
+    const afford = Object.entries(cost).every(([k, v]) => e.stock[k as keyof typeof e.stock] >= (v as number) + (reserve[k] ?? 0));
+    if (!afford) return;
     execute(state, e.id, { type: 'queueBuilding', planetId: p.id, building: best });
   }
+}
+
+function economyRest(state: GameState, e: Empire) {
   // Orbital extractors on owned uncolonised bodies
   const Lops = getLedger(state, e);
   // found an operation as soon as one is affordable with a small reserve: waiting for a large

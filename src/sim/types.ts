@@ -54,6 +54,8 @@ export interface ConstructionItem {
 
 export interface Colony {
   ownerId: number;
+  /** the player delegated construction here: the steward keeps the queue filled */
+  auto?: boolean;
   pops: number;
   buildings: Partial<Record<BuildingId, number>>;
   queue: ConstructionItem[];

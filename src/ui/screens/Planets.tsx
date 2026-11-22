@@ -101,6 +101,10 @@ function PlanetDetail({ p }: { p: Planet }) {
       <div className="cols side-r" style={{ marginTop: 16 }}>
         <div style={{ minWidth: 0 }}>
           <Section guide="planet-build" title="Districts and buildings" aside={`${rep.buildingsUsed}/${rep.buildingSlots} building slots · more slots every 5 pops`}>
+            <label className="row setting" style={{ marginBottom: 8 }} data-testid="auto-build">
+              <input type="checkbox" checked={!!c.auto} onChange={(ev) => ui.cmd({ type: 'setAutoBuild', planetId: p.id, on: ev.target.checked })} />
+              <span><b>Let the steward build here</b><span className="hint" style={{ display: 'block' }}>Each month the steward queues what this world needs most (following its province role), keeping a small reserve. You can still build yourself.{p.id !== me.capitalPlanetId && <> <button className="linkish" onClick={(ev) => { ev.preventDefault(); ui.cmd({ type: 'setAutoBuild', planetId: 'all', on: true }); }}>Hand every colony to stewards</button></>}</span></span>
+            </label>
             <div className="row wrap" style={{ marginBottom: 8, gap: 6 }}>
               {(['residential', 'agri', 'mining', 'power'] as const).map((d) => {
                 const have = (c.buildings[d] ?? 0) + c.queue.filter((q) => q.id === d && !q.demolish).length;

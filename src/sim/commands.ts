@@ -81,7 +81,8 @@ export type Command =
   | { type: 'proposePeace'; warId: number; term: PeaceTerm }
   | { type: 'breakTreaty'; target: number; treaty: TreatyType }
   | { type: 'startMegastructure'; systemId: number; mega: string }
-  | { type: 'drawRelic'; count: number };
+  | { type: 'drawRelic'; count: number }
+  | { type: 'setAutoBuild'; planetId: number | 'all'; on: boolean };
 
 export interface CommandResult { ok: boolean; message?: string; evaluation?: Evaluation }
 
@@ -574,6 +575,12 @@ export function execute(state: GameState, empireId: number, cmd: Command): Comma
         log(state, { kind: 'treaty', severity: 'good', title: 'Resource contract signed', text: `${e.name} and ${to.name} agree a ${years}-year exchange.`, empires: [empireId, cmd.to] });
       }
       return { ok: ev.accept, message: ev.accept ? 'Contract signed' : 'Contract declined', evaluation: ev };
+    }
+    case 'setAutoBuild': {
+      const targets = cmd.planetId === 'all' ? state.planets.filter((p) => p.colony?.ownerId === empireId && p.id !== e.capitalPlanetId) : [state.planets[cmd.planetId]];
+      if (!targets.length || targets.some((p) => p?.colony?.ownerId !== empireId)) return fail('Not your colony');
+      for (const p of targets) p.colony!.auto = cmd.on;
+      return OK;
     }
     case 'drawRelic': {
       const n = Math.max(1, Math.min(10, Math.floor(cmd.count)));

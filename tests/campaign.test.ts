@@ -147,3 +147,17 @@ describe('exploration anomalies', () => {
     expect(Object.values(s.fleets).filter((f) => f.ownerId === me.id).reduce((a, f) => a + f.ships.length, 0)).toBe(ships + 3);
   });
 });
+
+describe('stewards', () => {
+  it('a delegated world keeps building on its own; a manual one waits for the player', () => {
+    const queued = (auto: boolean) => {
+      const s = newGame({ seed: 82 });
+      const me = s.empires[s.playerId];
+      const home = s.planets[me.capitalPlanetId!];
+      expect(execute(s, me.id, { type: 'setAutoBuild', planetId: home.id, on: auto }).ok).toBe(true);
+      runDays(s, 95);
+      return home.colony!.queue.length + Object.values(home.colony!.buildings).reduce((a, n) => a + (n ?? 0), 0);
+    };
+    expect(queued(true)).toBeGreaterThan(queued(false));
+  });
+});

@@ -112,8 +112,8 @@ export function currentHints(g: GameState): Hint[] {
 
   // idle planetary construction (only when it can actually build and afford something basic)
   if (e.stock.minerals >= 100) {
-    const idle = colonies.find((p) => !p.colony!.queue.length && (['residential', 'agri', 'mining', 'power'] as const).some((b) => canBuild(g, e, p, b).ok));
-    if (idle) out.push({ id: `idle-build-${idle.id}`, severity: 'info', rank: 40, title: `Nothing is being built on ${idle.name}`, text: `${idle.name} has free district space and ${Math.round(e.stock.minerals)} minerals are in store. New districts add jobs and housing.`, action: { label: 'Open the colony', screen: 'planets', planetId: idle.id } });
+    const idle = colonies.find((p) => !p.colony!.auto && !p.colony!.queue.length && (['residential', 'agri', 'mining', 'power'] as const).some((b) => canBuild(g, e, p, b).ok));
+    if (idle) out.push({ id: `idle-build-${idle.id}`, severity: 'info', rank: 40, title: `Nothing is being built on ${idle.name}`, text: `${idle.name} has free district space and ${Math.round(e.stock.minerals)} minerals are in store. New districts add jobs and housing. Or tick “Let the steward build here” and the world builds by itself.`, action: { label: 'Open the colony', screen: 'planets', planetId: idle.id } });
   }
 
   // capital builders idle
