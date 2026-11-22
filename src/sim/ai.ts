@@ -730,7 +730,7 @@ function diplomacy(state: GameState, e: Empire) {
       } else if (evaluateProposal(state, { ...prop, from: e.id, to: o.id }).accept) {
         applyDeal(state, prop);
         const lead = hegemon(state);
-        if (coalition && t === 'defense' && lead) log(state, { kind: 'coalition', severity: lead.id === state.playerId ? 'danger' : 'info', title: `${e.name} and ${o.name} stand together`, text: `Fearing the power of ${state.empires[lead.id].name}, they sign a mutual defence pact.`, empires: [] });
+        if (coalition && t === 'defense' && lead) log(state, { kind: 'coalition', severity: lead.id === state.playerId ? 'danger' : 'info', title: `${e.name} and ${o.name} stand together`, text: `Fearing the power of ${state.empires[lead.id].name}, they sign a mutual defence pact.`, empires: lead.id === state.playerId ? [] : [e.id, o.id] });
       }
       break; // one proposal per partner per cycle
     }

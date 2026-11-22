@@ -214,8 +214,8 @@ export function onPlayerEvents(l: EventListener): () => void {
 }
 let lastEventId = 0;
 
-const TOAST_KINDS = new Set(['era', 'war', 'peace', 'invasion', 'colony', 'research', 'rebellion', 'battle', 'fall', 'treaty', 'shortage', 'outpost', 'megastructure', 'raiders', 'diplomacy', 'victory', 'gameover', 'unrest', 'capture', 'discovery', 'trade']);
-const PAUSE_KINDS = new Set(['era', 'war', 'invasion', 'rebellion', 'gameover', 'victory', 'unrest']);
+const TOAST_KINDS = new Set(['era', 'war', 'peace', 'invasion', 'colony', 'research', 'rebellion', 'battle', 'fall', 'treaty', 'shortage', 'outpost', 'megastructure', 'raiders', 'diplomacy', 'victory', 'gameover', 'unrest', 'capture', 'discovery', 'trade', 'victory_threat', 'threat', 'betrayal', 'coalition', 'ambition']);
+const PAUSE_KINDS = new Set(['era', 'war', 'invasion', 'rebellion', 'gameover', 'victory', 'unrest', 'victory_threat']);
 
 /** Real-time loop: advances the simulation according to speed and surfaces new events. */
 export function startLoop() {
@@ -264,9 +264,9 @@ function surfaceEvents(g: GameState) {
     if (!TOAST_KINDS.has(ev.kind)) continue;
     // Battles elsewhere in the galaxy that don't involve us are noise.
     // Only toast what touches the crown directly, plus galaxy-shaking news.
-    if (!ev.empires.includes(g.playerId) && !['war', 'victory', 'gameover'].includes(ev.kind)) continue;
+    if (!ev.empires.includes(g.playerId) && !['war', 'victory', 'gameover', 'victory_threat', 'betrayal', 'coalition'].includes(ev.kind)) continue;
     toasts.push({ id: ev.id, ev });
-    if (ui.pauseOnEvents && PAUSE_KINDS.has(ev.kind) && (ev.empires.includes(g.playerId) || ev.kind === 'war' && ev.text.includes(g.empires[g.playerId].name) || ev.kind === 'gameover' || ev.kind === 'victory')) pause = true;
+    if (ui.pauseOnEvents && PAUSE_KINDS.has(ev.kind) && (ev.empires.includes(g.playerId) || ev.kind === 'war' && ev.text.includes(g.empires[g.playerId].name) || ev.kind === 'gameover' || ev.kind === 'victory' || ev.kind === 'victory_threat')) pause = true;
   }
   useUI.setState({ toasts: toasts.slice(-3), ...(pause ? { speed: 0 } : {}) });
   for (const t of toasts.slice(-3)) {

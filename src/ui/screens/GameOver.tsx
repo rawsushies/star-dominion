@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useUI } from '../store';
 import { formatDate } from '../../sim/util';
+import { VICTORY_LABEL } from '../../sim/victory';
 
 export function GameOver() {
   const g = useUI((s) => s.game);
@@ -13,7 +14,7 @@ export function GameOver() {
     <div className="modal-back">
       <div className="modal sheet frame" style={{ width: 'min(560px, calc(100vw - 32px))' }}>
         <div className="sheet-body" style={{ padding: '28px 30px' }}>
-          <div className="serif" style={{ fontSize: 44, fontWeight: 600, lineHeight: 1 }}>{g.gameOver.won ? 'Dominion' : 'The fall of a crown'}</div>
+          <div className="serif" style={{ fontSize: 44, fontWeight: 600, lineHeight: 1 }}>{g.gameOver.won ? `${g.gameOver.kind ? VICTORY_LABEL[g.gameOver.kind] : 'Dominion'} victory` : g.gameOver.winner != null ? `${VICTORY_LABEL[g.gameOver.kind!]}: ${g.empires[g.gameOver.winner].name}` : 'The fall of a crown'}</div>
           <p className="serif" style={{ fontSize: 19, fontStyle: 'italic', color: 'var(--vellum-2)' }}>{g.gameOver.reason}</p>
           <div className="kv" style={{ marginTop: 12 }}>
             <span>Reign ended / recorded</span><span>{formatDate(g.tick)}</span>

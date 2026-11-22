@@ -55,7 +55,7 @@ export function victoryProgress(state: GameState, e: Empire): VictoryProgress[] 
   const subdued = majors.length - independentRivals(state, e).length;
   const era = e.era ?? 0;
   return [
-    { kind: 'domination', progress: domFrac, detail: `${Math.round(d.systems * 100)}% of claimed systems (need ${DOMINATION.systems * 100}%), ${Math.round(d.population * 100)}% of all population (need ${DOMINATION.population * 100}%)${e.dominationSince != null ? `, held ${Math.floor((state.tick - e.dominationSince) / 30)} of ${DOMINATION.holdMonths} months` : `, then hold ${DOMINATION.holdMonths} months`}` },
+    { kind: 'domination', progress: domFrac, detail: `${Math.round(d.systems * 100)}% of claimed systems (need ${DOMINATION.systems * 100}%), ${Math.round(d.population * 100)}% of all population (need ${DOMINATION.population * 100}%)${e.dominationSince != null ? `, held ${Math.floor((state.tick - e.dominationSince) / 30)} of ${DOMINATION.holdMonths} months` : ''}` },
     { kind: 'supremacy', progress: majors.length ? subdued / majors.length : 1, detail: `${subdued} of ${majors.length} rival great realms fallen or vassals` },
     { kind: 'ascension', progress: era >= MAX_ERA ? 1 : (era + eraProgress(state, e)) / MAX_ERA, detail: `Era ${era} of ${MAX_ERA}` },
   ];

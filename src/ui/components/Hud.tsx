@@ -289,8 +289,8 @@ export function ThroneDial() {
 const DISPATCH_TABS: { id: string; label: string; kinds?: string[] }[] = [
   { id: 'all', label: 'All' },
   { id: 'realm', label: 'Realm', kinds: ['colony', 'outpost', 'construction', 'shipyard', 'starbase', 'megastructure', 'capital', 'government', 'unrest', 'rebellion', 'shortage', 'trade', 'research', 'discovery'] },
-  { id: 'war', label: 'War', kinds: ['war', 'peace', 'battle', 'battle_end', 'invasion', 'capture', 'retreat', 'admiral', 'raiders', 'fall', 'guardian'] },
-  { id: 'court', label: 'Court', kinds: ['treaty', 'diplomacy', 'peace', 'war', 'event'] },
+  { id: 'war', label: 'War', kinds: ['war', 'peace', 'battle', 'battle_end', 'invasion', 'capture', 'retreat', 'admiral', 'raiders', 'threat', 'betrayal', 'fall', 'guardian'] },
+  { id: 'court', label: 'Court', kinds: ['treaty', 'diplomacy', 'coalition', 'victory_threat', 'peace', 'war', 'event', 'ambition', 'council'] },
 ];
 
 export function Dispatches() {

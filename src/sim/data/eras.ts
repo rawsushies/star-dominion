@@ -8,7 +8,7 @@
 export interface EraReq {
   techs?: number; // technologies researched
   systems?: number; // systems held
-  galaxyShare?: number; // fraction of all systems held
+  galaxyShare?: number; // fraction of all claimed systems held
   pops?: number; // total population
   tech?: string; // a specific breakthrough
   megaStages?: number; // completed megastructure stages across the realm

@@ -93,7 +93,8 @@ Research is a monthly flow rather than a stockpile.
 - **Opinion** combines government affinity, borders, treaties, trade and a memory of events: broken pacts, wars, gifts and insults. Memories fade over time.
 - **Treaties:** non-aggression pact, trade agreement, research cooperation, mutual defence, alliance and vassalage.
 - **Deals:** one-off exchanges of credits, resources and systems, plus recurring resource contracts.
-- **War:** declaring war costs influence and drags in defensive allies. War score comes from battles and occupation. Peace terms are status quo, tribute, ceding systems, or vassalisation. A five-year truce follows.
+- **War:** declaring war costs influence and drags in defensive allies. War score comes from battles, captured worlds and occupation: each enemy colony system held by your warships with no defending fleet moves the score one point a month (up to three a month). Peace terms are status quo, tribute, ceding systems, or vassalisation. A five-year truce follows.
+- **Fear of a leader:** a realm racing towards victory (territory, people or the last eras) is feared by every other great realm. Their opinion of it falls, they sign defence pacts with one another more readily (coalitions), and they plan wars against it.
 - Intelligence accuracy depends on borders, treaties and the intelligence policy. Low intel shows estimates with error bars.
 
 ## Research
@@ -139,7 +140,7 @@ Eras are political ages. Some list a minimum Kardashev index among their require
 | Age of Houses | start | — |
 | Interstellar Imperium | 10 techs, 4 systems, 60 population | +3 admin, +6 naval, +10% research, +2 stability |
 | Stellar Ascendancy | 26 techs, *Stellar Engineering*, K ≥ 1.0, 160 population | +25% energy, +15% research, +10% alloys, +10% hull |
-| Galactic Hegemony | 42 techs, *Galactic Lattice Theory*, 25% of the galaxy, K ≥ 2.0 | +20% core output, +15% damage, +10 admin, +30 naval |
+| Galactic Hegemony | 42 techs, *Galactic Lattice Theory*, 25% of claimed space, K ≥ 2.0 | +20% core output, +15% damage, +10 admin, +30 naval |
 | Transcendent Continuum | *Dimensional Engineering*, K ≥ 3.0, Continuum Engine stage 1 | +40% research and energy, +25% shields, +25% growth |
 | Omega Sovereignty | *Omega Theorem*, Continuum Engine stage 3 | **Ascension victory** |
 
@@ -189,17 +190,61 @@ Eras are political ages. Some list a minimum Kardashev index among their require
 
 ## Victory and defeat
 
-- **Domination:** hold 60% of all systems.
-- **Supremacy:** no rival major kingdom left standing, apart from your vassals.
-- **Ascension:** reach Omega Sovereignty.
-- **Defeat:** you lose your last world.
+Three distinct roads to victory, open to every great realm, the AI included (`src/sim/victory.ts`). The throne room shows your progress on each and that of the leading rival you know of.
+
+- **Domination (territory):** hold half of all claimed systems and two fifths of the population of every sovereign realm, then keep it for two years. Measured against claimed space, so it means the same in every galaxy size.
+- **Supremacy (war and diplomacy):** no rival great realm left independent: each has fallen or is your vassal.
+- **Ascension (civilisation):** reach the last era, Omega Sovereignty.
+- **Warnings:** the galaxy is told when a realm starts a domination hold or reaches three quarters of the way to any victory. The game pauses for these.
+- **Defeat:** you lose your last world, or a rival achieves any victory.
 - After a victory you may keep ruling.
+
+## Ambitions
+
+Optional milestones in three phases: a foothold among the stars, a realm among realms, a civilisation of the galaxy (`src/sim/ambitions.ts`). Examples: chart 12 systems, found a second world, sign a first treaty, win a war on favourable terms, specialise provinces, run supply operations, complete great works, head a bloc. None is required. Each pays a modest one-time reward (influence, resources or a temporary bonus). They are listed in the throne room with progress bars.
+
+## Rival AI and difficulty
+
+Every AI realm issues the same validated commands as the player and sees rivals through the same fuzzed intelligence (`src/sim/strategy.ts`, `src/sim/ai.ts`).
+
+- **Strategic goals:** expand, develop, arm, war, recover or ascend, reviewed every few months.
+  - **Arm:** the realm picks a reachable rival worth fighting, weighing border systems' value against estimated strength, both sides' allies, opinion and temperament. It builds up its fleet, stages it on the border and secures its other flanks with non-aggression pacts. Then it declares war, or stands down.
+  - **Recover:** after shortages, unrest, exhaustion or heavy losses, the realm rebuilds before taking risks.
+  - **Ascend:** late realms chase era breakthroughs and megastructures.
+- **War:**
+  - Fleets defend by need.
+  - A main battle group takes enemy worlds, preferring targets near allied fleets. Transports wait at a staging system and land together once the orbit is held.
+  - Raiding groups blockade weakly held systems.
+  - Damaged or starving fleets go home to repair, and outmatched fleets retreat.
+  - Peace terms follow the score, the strength balance and exhaustion.
+- **Telegraphing:** when a rival arms against you and your intelligence on it is decent, you are told.
+- **Difficulty** changes how well rivals play, never what they are given. There are no hidden bonuses.
+
+| | Relaxed | Standard | Hard |
+|---|---|---|---|
+| Turn interval | 8 days | 5 days | 3 days |
+| Strategic review | 180 days | 120 days | 90 days |
+| Strength needed to declare war | 2× | 1.5× | 1.25× |
+| Offensive wars at once | 1 | 1 | 2 |
+| Years before targeting the player | 15 | 8 | 4 |
+| Battle groups | 1 | 2 | 3 |
+| Betrays pacts | never | never | aggressive, low-diplomacy realms |
+| Coalition response to a leader | weaker | full | full |
+| Imperfect build choices | 35% | 10% | none |
 
 ## Threats
 
 - **Void Corsairs** raid unpatrolled space.
 - **Precursor Sentinels** guard their lairs.
-- **Random events (9 types):** windfalls, plagues, discoveries, unrest and more.
+- **Random events (9 types):** windfalls, sickness, discoveries, unrest and more.
+- **Event chains** (`src/sim/chains.ts`) arise from the realm's situation and come before the council as matters to decide. An answer can bring a later stage months afterwards.
+  - The precursor vault: an ancient site in your space.
+  - The fever: on crowded worlds.
+  - Separatists: on conquered or restless worlds.
+  - The guilds' loan: for a solvent crown at peace.
+  - The corsair warlord: when raiders are inside your borders.
+
+  Each choice has lasting effects: research, weapons, reputation with every court, population, stability, raiders, debts or privateers.
 
 ## Onboarding and guidance
 
@@ -241,7 +286,7 @@ A central audio manager drives music, sound effects and ambience. Details are in
 
 - The visual direction for the capital, ships, heroes and villains is under review (milestone 11). See `docs/ASSET_WISHLIST.md`. The current models are placeholders that have not been approved.
 
-- Era 2 and beyond are late-game goals. In 30-year test runs, AI kingdoms reliably reach Type I but rarely Type II. Megastructure appetite is still being tuned.
+- Era 2 and beyond are late-game goals. Campaign statistics per difficulty are in `docs/CAMPAIGN.md`.
 - There is no ground-combat screen: invasions resolve automatically.
 - Diplomacy uses buttons and a deal builder. There is no free-text negotiation.
 - Single-player only. The command layer is designed for a server-authoritative multiplayer layer, which does not exist yet.

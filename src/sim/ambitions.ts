@@ -4,7 +4,6 @@
 // tracks them (the AI follows its own plans in strategy.ts).
 
 import { opsOf } from './operations';
-import { hasContact } from './diplomacy';
 import { hasTreaty } from './territory';
 import { log } from './util';
 import { dominationShares } from './victory';
@@ -32,7 +31,7 @@ export const AMBITIONS: AmbitionDef[] = [
   { id: 'chart', phase: 'early', title: 'Chart the neighbourhood', how: 'Send scouts to explore 12 systems.', progress: (s, e) => ({ have: e.explored.length, need: 12 }), reward: { stock: { influence: 30 } }, rewardText: '+30 influence' },
   { id: 'second_world', phase: 'early', title: 'A second world', how: 'Found a colony with a colony ship.', progress: (s, e) => ({ have: colonies(e), need: 2 }), reward: { stock: { minerals: 200, food: 100 } }, rewardText: '+200 minerals, +100 food' },
   { id: 'claims', phase: 'early', title: 'Stake our claims', how: 'Hold 6 systems with outposts and colonies.', progress: (s, e) => ({ have: e.stats.systems, need: 6 }), reward: { stock: { alloys: 100, influence: 20 } }, rewardText: '+100 alloys, +20 influence' },
-  { id: 'contact', phase: 'early', title: 'We are not alone', how: 'Make contact with another great realm.', progress: (s, e) => ({ have: s.empires.some((o) => o.id !== e.id && o.kind === 'major' && o.alive && hasContact(s, e.id, o.id)) ? 1 : 0, need: 1 }), reward: { stock: { influence: 25 } }, rewardText: '+25 influence' },
+  { id: 'contact', phase: 'early', title: 'Open relations', how: 'Sign any treaty with another great realm (a non-aggression pact is the easiest) in Diplomacy.', progress: (s, e) => ({ have: s.treaties.some((t) => (t.a === e.id || t.b === e.id) && s.empires[t.a === e.id ? t.b : t.a]?.kind === 'major') ? 1 : 0, need: 1 }), reward: { stock: { influence: 25 } }, rewardText: '+25 influence' },
   { id: 'scholars', phase: 'early', title: 'Halls of learning', how: 'Research 8 technologies.', progress: (s, e) => ({ have: e.research.done.length, need: 8 }), reward: { timed: { days: 720, mods: { 'output.research': 0.1 }, label: 'Halls of learning' } }, rewardText: '+10% research for 2 years' },
   { id: 'navy', phase: 'early', title: 'A navy worth the name', how: 'Field warships with a combined strength of 150.', progress: (s, e) => ({ have: Math.round(e.stats.militaryPower), need: 150 }), reward: { stock: { alloys: 120 } }, rewardText: '+120 alloys' },
   // mid: specialisation, logistics, diplomacy, war
