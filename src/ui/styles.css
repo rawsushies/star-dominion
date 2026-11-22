@@ -421,7 +421,8 @@ table.t tr.sel td { background: var(--ice-dim); }
 @media (max-width: 1100px) {
   .title-screen { grid-template-columns: 1fr; overflow-y: auto; }
   .setup { margin: 16px; }
-  .title-mark { padding: 16px; align-self: start; }
+  .title-mark { padding: 56px 16px 16px; align-self: start; }
+  .title-screen .title-audio { right: 16px; left: auto; }
   .dispatch { display: none; }
 }
 .title-screen canvas { z-index: 0; }

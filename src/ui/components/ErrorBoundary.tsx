@@ -41,6 +41,20 @@ export class ErrorBoundary extends Component<Props, State> {
     const { error } = this.state;
     if (!error) return this.props.children;
     const msg = error instanceof Error ? error.message : String(error);
+    // a code file that could not be fetched: offline before it was cached, or replaced by an update
+    const fetchFailed = /dynamically imported module|Importing a module script failed|Loading chunk|Failed to fetch/i.test(msg);
+    if (fetchFailed && !this.props.root) {
+      return (
+        <div className="crash-note" role="alert">
+          <b>This part of the game could not be downloaded.</b>
+          <p className="hint">You may be offline, or a new version of the game was released. Your reign is intact: save it from the Chancery (Esc), then reload the page.</p>
+          <div className="row" style={{ gap: 8 }}>
+            <button className="btn small" onClick={() => { rescueSave(); }}>Save reign to a file</button>
+            <button className="btn small" onClick={() => location.reload()}>Reload</button>
+          </div>
+        </div>
+      );
+    }
     if (!this.props.root) {
       return (
         <div className="crash-note" role="alert">
