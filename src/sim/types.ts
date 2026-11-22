@@ -342,6 +342,8 @@ export interface AIPlan {
   review: number;
   /** most systems held (to notice heavy losses) */
   peakSystems: number;
+  /** troops the current invasion target needs (set by fleet operations) */
+  troopsWanted?: number;
 }
 
 export interface EmpireStats {

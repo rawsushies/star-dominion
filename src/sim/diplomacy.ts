@@ -19,6 +19,8 @@ const TREATY_OPINION: Record<TreatyType, number> = { nap: 5, trade: 10, research
 const CLASH: [string, string][] = [['monarchy', 'republic'], ['junta', 'republic'], ['technocracy', 'feudal'], ['corporate', 'feudal'], ['junta', 'technocracy']];
 
 const key = (a: number, b: number) => `${a}>${b}`;
+/** years a non-aggression pact lasts before it must be renewed */
+export const NAP_YEARS = 15;
 
 export function addMemory(state: GameState, a: number, b: number, k: string, value: number, decayPerMonth: number, label: string) {
   const list = (state.opinions[key(a, b)] ??= []);
@@ -419,6 +421,11 @@ export function monthlyDiplomacy(state: GameState) {
     state.opinions[k] = list.filter((m) => Math.abs(m.value) >= 0.5);
   }
   state.truces = state.truces.filter((t) => t.until > state.tick);
+  // non-aggression pacts lapse after fifteen years unless renewed
+  for (const t of state.treaties.filter((x) => x.type === 'nap' && state.tick - x.since >= NAP_YEARS * 360)) {
+    state.treaties = state.treaties.filter((x) => x !== t);
+    log(state, { kind: 'treaty', severity: 'info', title: 'Non-Aggression Pact lapsed', text: `The pact between ${state.empires[t.a].name} and ${state.empires[t.b].name} has run its course of ${NAP_YEARS} years. It can be renewed.`, empires: [t.a, t.b] });
+  }
   state.tributes = state.tributes.filter((t) => t.until > state.tick && state.empires[t.from].alive && state.empires[t.to].alive);
   state.tradeDeals = state.tradeDeals.filter((d) => d.until > state.tick);
   state.proposals = state.proposals.filter((p) => state.tick - p.tick < 90);

@@ -350,10 +350,11 @@ function military(state: GameState, e: Empire) {
     if (pickCls && yard.colony!.shipQueue.length < 3) execute(state, e.id, { type: 'queueShip', planetId: yard.id, cls: pickCls });
   }
   // Troop transports for wars
-  if (war && e.kind === 'major') {
+  if ((war || planOf(e).goal === 'arm') && e.kind === 'major') {
     const troops = Object.values(state.fleets).filter((f) => f.ownerId === e.id).reduce((a, f) => a + f.troops, 0);
     const queuedT = yards.reduce((a, p) => a + p.colony!.shipQueue.filter((q) => q.id === 'transport').length, 0);
-    if (troops + queuedT * 8 < 24 + aiPreset(state, e).battleGroups * 8 && canAfford(e, withReserve(shipCost(state, e, 'transport')))) {
+    const wanted = Math.min(96, Math.max(24, planOf(e).troopsWanted ?? 0) + (aiPreset(state, e).battleGroups - 1) * 8);
+    if (troops + queuedT * 8 < wanted && yards.reduce((a, p) => a + p.colony!.shipQueue.length, 0) < yards.length * 3 && canAfford(e, withReserve(shipCost(state, e, 'transport')))) {
       execute(state, e.id, { type: 'queueShip', planetId: yards[0].id, cls: 'transport' });
     }
   }
@@ -510,7 +511,9 @@ function nearestHaven(state: GameState, e: Empire, from: number): number | null 
 function garrisonEstimate(state: GameState, e: Empire, p: Planet): number {
   const owner = state.empires[p.colony!.ownerId];
   const real = getLedger(state, owner).planets[p.id]?.garrison ?? 4;
-  return estimatePower(state, e.id, owner.id) == null ? real * 1.5 : real * 1.15;
+  const shield = (p.colony!.buildings.planetary_shield ?? 0) > 0 ? 1 / 0.6 : 1;
+  // land enough to win even when the dice favour the defender (each side rolls ±15%)
+  return real * shield * (estimatePower(state, e.id, owner.id) == null ? 1.7 : 1.4);
 }
 
 /**
@@ -582,7 +585,10 @@ function operations(state: GameState, e: Empire) {
         const s = enemyStrengthAt(state, e, p.systemId);
         const cap = state.empires[p.colony!.ownerId].capitalPlanetId === p.id;
         const near = allyAt.has(p.systemId) || adjacency(state.galaxy)[p.systemId].some((v) => allyAt.has(v));
-        return { p, s, v: (p.colony!.pops * 2 + 10 + (cap ? 40 : 0)) * (near ? 1.4 : 1) / (1 + d[p.systemId]) };
+        // worth: people and the enemy capital; cost: distance and the troops a landing would take
+        const troopsHave = Object.values(state.fleets).reduce((a, f) => a + (f.ownerId === e.id ? f.troops : 0), 0);
+        const need = garrisonEstimate(state, e, p);
+        return { p, s, v: (p.colony!.pops * 2 + 10 + (cap ? 30 : 0)) * (near ? 1.4 : 1) / (1 + d[p.systemId]) / (need > troopsHave ? 1 + (need - troopsHave) / 16 : 1) };
       })
       .filter((x) => mainP > x.s * margin)
       .sort((a, b) => b.v - a.v || a.p.id - b.p.id);
@@ -607,16 +613,16 @@ function operations(state: GameState, e: Empire) {
         sendTo(state, e, f, main.path.length ? t.p.systemId : main.systemId);
       }
       // transports wait at the nearest owned system and land once the orbit is ours
-      const transports = Object.values(state.fleets).filter((f) => f.ownerId === e.id && f.troops > 0 && f.order.type !== 'invade');
-      const troops = transports.reduce((a, f) => a + f.troops, 0);
-      if (main.systemId === t.p.systemId && orbitSecured(state, e.id, t.p.id) && troops > garrisonEstimate(state, e, t.p)) {
-        for (const tf of transports) execute(state, e.id, { type: 'fleetOrder', fleetId: tf.id, order: { type: 'invade', planetId: t.p.id } });
-      } else {
-        const stage = nearestWhere(state.galaxy, t.p.systemId, (id) => owned.has(id)) ?? e.capitalSystemId;
-        if (stage != null) for (const tf of transports) if (tf.order.type === 'idle' && tf.systemId !== stage) sendTo(state, e, tf, stage);
-        // merge transports waiting together so the landing is one blow
-        const atStage = transports.filter((tf) => tf.systemId === stage && !tf.path.length);
-        for (const o of atStage.slice(1)) execute(state, e.id, { type: 'mergeFleets', fleetId: atStage[0].id, otherId: o.id });
+      // transports travel with the main battle group, under its guns, and land once the orbit is ours
+      const need = garrisonEstimate(state, e, t.p);
+      if (e.kind === 'major') planOf(e).troopsWanted = Math.ceil(need);
+      for (const tf of Object.values(state.fleets)) {
+        if (tf.ownerId !== e.id || tf === main || tf.troops <= 0 || armed(tf) && !tf.ships.every((x) => x.cls === 'transport')) continue;
+        if (tf.systemId === main.systemId && !tf.path.length && !main.path.length && main.progress === 0) execute(state, e.id, { type: 'mergeFleets', fleetId: main.id, otherId: tf.id });
+        else if (tf.order.type !== 'invade') sendTo(state, e, tf, main.path.length ? main.path[main.path.length - 1] : main.systemId);
+      }
+      if (main.systemId === t.p.systemId && !main.path.length && main.troops > need && main.order.type !== 'invade' && orbitSecured(state, e.id, t.p.id)) {
+        execute(state, e.id, { type: 'fleetOrder', fleetId: main.id, order: { type: 'invade', planetId: t.p.id } });
       }
       return;
     } else {
@@ -691,7 +697,10 @@ function diplomacy(state: GameState, e: Empire) {
     const theirP = foes.reduce((a, id) => a + (estimatePower(state, e.id, id) ?? state.empires[id].stats.militaryPower), 0);
     const losing = (e.stats.militaryPower || 1) < theirP * 0.6;
     const otherMajor = state.empires[other].kind === 'major';
-    if (myScore > 70 && years > 1) term = otherMajor && (state.empires[other].stats.militaryPower || 1) * 4 < (e.stats.militaryPower || 1) ? 'vassalize' : otherMajor ? 'cede' : 'vassalize';
+    // a winning side presses on while it still has worlds to take and the people will bear it
+    const pressOn = myScore > 0 && myScore < 85 && e.warExhaustion < 55 && years < 8 && !losing && canStillTake(state, e, foes);
+    if (pressOn) term = null;
+    else if (myScore > 70 && years > 1) term = otherMajor && (state.empires[other].stats.militaryPower || 1) * 4 < (e.stats.militaryPower || 1) ? 'vassalize' : otherMajor ? 'cede' : 'vassalize';
     else if (myScore > 40 && years > 1) term = 'cede';
     else if (myScore > 25 && years > 1.5) term = 'tribute';
     else if (e.warExhaustion > 50 || myScore < -25 || (losing && myScore < 5) || years > 6) term = 'status_quo';    if (!term) continue;
@@ -754,6 +763,16 @@ function diplomacy(state: GameState, e: Empire) {
       if (evaluateProposal(state, prop).accept) applyDeal(state, prop);
     }
   }
+}
+
+/** Does our strongest battle group outmatch the defences of some enemy world within reach? */
+function canStillTake(state: GameState, e: Empire, foes: number[]): boolean {
+  const fleets = warFleets(state, e);
+  if (!fleets.length) return false;
+  const p = fleetPower(state, fleets[0]);
+  const enemies = new Set(foes);
+  const d = jumpDistances(state.galaxy, [fleets[0].systemId], undefined, 8);
+  return state.planets.some((pl) => pl.colony && enemies.has(pl.colony.ownerId) && Number.isFinite(d[pl.systemId]) && p > enemyStrengthAt(state, e, pl.systemId) * 1.3);
 }
 
 // ---------------------------------------------------------------- raiders
