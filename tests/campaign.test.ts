@@ -108,6 +108,14 @@ describe('event chains', () => {
     expect(me.pendingChains).toEqual([]);
   });
 
+  it('the same matter is never laid before the council twice', () => {
+    const s = newGame({ seed: 13 });
+    const me = s.empires[s.playerId];
+    raiseStage(s, me, 'guild_charter', null);
+    raiseStage(s, me, 'guild_charter', null);
+    expect(me.petitions!.filter((x) => x.def === 'guild_charter').length).toBe(1);
+  });
+
   it('a stage about a world that has been lost is dropped', () => {
     const s = newGame({ seed: 12 });
     const me = s.empires[s.playerId];

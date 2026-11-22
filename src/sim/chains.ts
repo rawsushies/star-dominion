@@ -17,6 +17,8 @@ export function raiseStage(state: GameState, e: Empire, def: string, planetId: n
   const d = PETITION_BY_ID[def];
   if (!d) return;
   e.petitions ??= [];
+  // one copy of a matter at a time
+  if (e.petitions.some((x) => x.def === def)) return;
   // the world may have been lost since the chain began: the matter dies with it
   if (planetId != null && state.planets[planetId]?.colony?.ownerId !== e.id) return;
   const p: Petition = { id: nextId(state), def, houseId: e.houses?.[0]?.id ?? null, memberId: null, sectorId: null, tick: state.tick, expires: state.tick + 120, planetId };
