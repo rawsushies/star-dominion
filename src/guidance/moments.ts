@@ -28,7 +28,7 @@ export interface Moment {
   interrupt?: boolean;
   /** the advisor's recorded line for this moment */
   voice?: VoiceId;
-  action?: { label: string; screen?: ScreenId; systemId?: number; fleetId?: number; planetId?: number };
+  action?: { label: string; screen?: ScreenId; systemId?: number; fleetId?: number; planetId?: number; battleId?: number };
 }
 
 const LABEL: Record<string, string> = { credits: 'credits', minerals: 'minerals', energy: 'energy', food: 'food', alloys: 'alloys', electronics: 'electronics', components: 'components', rare: 'rare elements' };
@@ -66,8 +66,8 @@ function candidates(g: GameState): Moment[] {
   if (battle) out.push({
     id: 'first-battle', interrupt: true, voice: 'first_battle',
     title: 'Your ships are in a battle',
-    text: 'When enemy warships meet yours, they fight on their own: you do not aim or fire. The side with more and stronger ships usually wins. If a battle is going badly, move your fleet away to save what is left. Click the battle in the Dispatches (bottom left) to watch it.',
-    action: { label: 'Open Military', screen: 'military' },
+    text: 'When enemy warships meet yours, they fight on their own: you do not aim or fire. The side with more and stronger ships usually wins. If a battle is going badly, move your fleet away to save what is left.',
+    action: { label: 'Watch the battle', battleId: battle.id },
   });
 
   // a peace offer waiting for us

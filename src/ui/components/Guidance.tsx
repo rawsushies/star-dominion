@@ -218,6 +218,7 @@ function MomentCard() {
   const close = () => { dismissMoment(g, m); momentCache.rev = -1; ui.bump(); };
   const act = () => {
     const a = m.action!;
+    if (a.battleId != null) { ui.set({ battleId: a.battleId, screen: 'military' }); close(); return; }
     if (a.fleetId != null) ui.selectFleet(a.fleetId);
     if (a.systemId != null) { ui.set({ systemId: a.systemId, view: 'galaxy', screen: 'map' }); focusSystem(a.systemId); }
     if (a.planetId != null) ui.selectPlanet(a.planetId);

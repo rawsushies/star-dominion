@@ -1,4 +1,6 @@
+import type { GameState } from '../../sim/types';
 import { useEffect, useRef } from 'react';
+import { questBeacons } from '../../guidance/beacons';
 import { useUI } from '../store';
 import { GalaxyView3D, galaxyCam, focusGalaxyOn, type FleetMark } from '../render/galaxy3d';
 import { SystemView3D, orbitCam, type SysHit } from '../render/system3d';
@@ -128,7 +130,7 @@ export function MapView() {
             const L = getLedger(g, g.empires[g.playerId]);
             routes = Object.values(L.planets).filter((p) => p.routePath.length > 1).map((p) => ({ path: p.routePath, status: p.routeStatus }));
           }
-          marks = gal ? gal.frame(g, { w, h, dpr, time: t, selectedSystem: ui.systemId, selectedFleet: ui.fleetId, hoverSystem: hover, mode: ui.mapMode, routes }, ctx) : [];
+          marks = gal ? gal.frame(g, { w, h, dpr, time: t, selectedSystem: ui.systemId, selectedFleet: ui.fleetId, hoverSystem: hover, mode: ui.mapMode, routes, beacons: cachedBeacons(g, ui.rev) }, ctx) : [];
           hits = [];
         }
       }
@@ -317,4 +319,10 @@ function applyPending(target: number) {
   else if (po.kind === 'patrol') ui.cmd({ type: 'fleetOrder', fleetId: f.id, order: { type: 'patrol', a: f.systemId, b: target, leg: 0 } });
   else if (po.kind === 'outpost') ui.cmd({ type: 'fleetOrder', fleetId: f.id, order: { type: 'outpost', systemId: target } });
   else if (po.kind === 'blockade') ui.cmd({ type: 'fleetOrder', fleetId: f.id, order: { type: 'blockade', systemId: target } });
+}
+
+let beaconCache: { tick: number; rev: number; ids: number[] } = { tick: -1, rev: -1, ids: [] };
+function cachedBeacons(g: GameState, rev: number): number[] {
+  if (beaconCache.tick !== g.tick || beaconCache.rev !== rev) beaconCache = { tick: g.tick, rev, ids: questBeacons(g) };
+  return beaconCache.ids;
 }
