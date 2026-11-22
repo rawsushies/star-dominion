@@ -10,7 +10,7 @@ import { getLedger } from './engine';
 import { canBuild, buildingCost, shipCost } from './construction';
 import { availableTechs } from './research';
 import { fleetPower, isCivilianFleet, routeFleet, shipStats } from './fleets';
-import { evaluateProposal, opinion, hasContact, makePeace, applyDeal, PEACE_LABEL, systemValue } from './diplomacy';
+import { evaluateProposal, opinion, hasContact, makePeace, intelLevel, applyDeal, PEACE_LABEL, systemValue } from './diplomacy';
 import { bordering, claimCost, hasTreaty, isHostile, ownedSystems, warBetween, armed, isExplored } from './territory';
 import { empireMods, hasTech } from './modifiers';
 import { planetHab } from './economy';
@@ -347,7 +347,12 @@ function military(state: GameState, e: Empire) {
       .sort((a, b) => SHIPS[b].command - SHIPS[a].command)
       .find((c) => canAfford(e, withReserve(shipCost(state, e, c))));
     const yard = yards.sort((a, b) => a.colony!.shipQueue.length - b.colony!.shipQueue.length)[0];
-    if (pickCls && yard.colony!.shipQueue.length < 3) execute(state, e.id, { type: 'queueShip', planetId: yard.id, cls: pickCls });
+    // facing a known enemy, half the new hulls answer its fleet: point defence against carriers,
+    // high tracking against swarms of small ships, armour-piercing torpedoes and strike craft against heavy lines
+    const counter = counterClass(state, e);
+    if (counter && yard.colony!.shipQueue.length < 3 && chance(state.rng, 0.5) && canAfford(e, withReserve(shipCost(state, e, counter)))) {
+      execute(state, e.id, { type: 'queueShip', planetId: yard.id, cls: counter });
+    } else if (pickCls && yard.colony!.shipQueue.length < 3) execute(state, e.id, { type: 'queueShip', planetId: yard.id, cls: pickCls });
   }
   // Troop transports for wars
   if ((war || planOf(e).goal === 'arm') && e.kind === 'major') {
@@ -367,6 +372,30 @@ function military(state: GameState, e: Empire) {
     fs.sort((a, b) => b.ships.length - a.ships.length);
     for (const o of fs.slice(1)) execute(state, e.id, { type: 'mergeFleets', fleetId: fs[0].id, otherId: o.id });
   }
+}
+
+/** A hull that counters the fleet of the rival we are arming against or fighting, if we know it well enough. */
+function counterClass(state: GameState, e: Empire): ShipClass | null {
+  if (e.kind !== 'major') return null;
+  const plan = planOf(e);
+  if ((plan.goal !== 'arm' && plan.goal !== 'war') || plan.target == null) return null;
+  if (intelLevel(state, e.id, plan.target) < 40) return null;
+  let total = 0, carriers = 0, small = 0, heavy = 0;
+  for (const id in state.fleets) {
+    const f = state.fleets[id];
+    if (f.ownerId !== plan.target) continue;
+    for (const sh of f.ships) {
+      const d = SHIPS[sh.cls];
+      if (d.civilian || sh.cls === 'transport' || sh.cls === 'scout') continue;
+      total += d.command;
+      if (sh.cls === 'carrier') carriers += d.command;
+      else if (d.size === 'S') small += d.command;
+      else if (d.size === 'L' || d.size === 'XL') heavy += d.command;
+    }
+  }
+  if (total < 10) return null;
+  const options: ShipClass[] = carriers / total > 0.3 ? ['destroyer', 'dreadnought'] : small / total > 0.5 ? ['destroyer', 'corvette'] : heavy / total > 0.5 ? ['frigate', 'carrier'] : [];
+  return options.find((c) => hasTech(e, SHIPS[c].tech)) ?? null;
 }
 
 function withReserve(c: Record<string, number | undefined>) {
