@@ -154,6 +154,7 @@ export function execute(state: GameState, empireId: number, cmd: Command): Comma
     case 'conclave':
     case 'ancients':
     case 'omega':
+    case 'politics':
       return executeExpansion(state, e, cmd);
     case 'launchCovert': {
       const err = launchOp(state, e, cmd.targetId, cmd.kind, cmd.agentId, cmd.planetId);

@@ -4,6 +4,7 @@
 // governments, policies, planets, stars, operations, covert operations) are generated from the
 // game's own data tables, so their numbers are always the numbers the game uses.
 
+import { OFFER_COST, OFFER_LABEL, PRIORITY_LABEL } from '../sim/data/politics';
 import type { ScreenId } from '../ui/store';
 import type { Cost } from '../sim/types';
 import { RESOURCES } from '../sim/types';
@@ -307,6 +308,12 @@ const MECHANICS: CodexEntry[] = [
     does: `Warships holding the rift wear down its integrity (faster under a Conclave containment). At integrity ${OMEGA.sealIntegrity} a holder may seal it (${OMEGA.sealDays} days); at ${OMEGA.breachIntegrity}, destroy its source at the cost of two warships in five; at ${OMEGA.exploitIntegrity}, with the Transcendent Continuum or a Continuum Engine, bind it for great power and the galaxy's enmity, with a yearly chance it tears free. Sealing or destroying it names a Warden of the Galaxy (the realm with most credit), who joins the Conclave's founders; contributors enjoy a reconstruction boom and members who stood aside lose standing. Corrupted systems take years to recover.`,
     how: 'Ancients and threats window for the rift; High Conclave window for emergency containment and contributions.',
     related: ['mech.conclave', 'mech.eras', 'mech.mega'], screen: 'cosmos' },
+  { id: 'mech.politics', cat: 'expansion', title: 'Emergent politics', summary: 'Every realm and ancient power pursues its own interests: alliances, compacts, conspiracies, concords and betrayals arise from circumstance, not script.',
+    what: `Each great realm carries motives recomputed every month: a priority (${Object.values(PRIORITY_LABEL).join(', ').toLowerCase()}), what it fears and why, what it wants, whom it is loyal to, its rival and how it would end the Omega Incursion. Each ancient power keeps a regard for every younger realm (respect for strength and deeds, admiration for conduct it approves of, fear of power and trouble caused) that moves month by month and feeds its opinion.`,
+    does: `Overtures are weighed by both sides from their own interests, with itemised reasons. ${Object.entries(OFFER_LABEL).map(([k, v]) => `${v}${OFFER_COST[k as keyof typeof OFFER_COST] ? ` (${OFFER_COST[k as keyof typeof OFFER_COST]} influence)` : ''}`).join(', ')}. Alliances, protection and vassalage are real treaties: allies join wars. Compact members are called into one another's wars against their common foe and do not plan war on one another; a member who makes a separate peace, ignores the call or turns on a partner breaks it, and drifting interests strain it until it fractures. A collusion is secret: the ancient power's blame shifts to the target and each partner is drawn into the other's war; intelligence can uncover it, and the target may expose or confront the conspirator. A concord sets wars aside until a cosmic crisis ends. An accord between the ancients ends or prevents the War in Heaven while a common threat holds them together, and breaks when it fades.`,
+    facts: [['Overtures', `Answer within ${Math.round(120 / 30)} months; a refusal is remembered and the same overture is not repeated for a year.`], ['Honour', 'A compact member called to war has three months to answer.'], ['Mediation', 'Brokering an accord between the ancients earns their admiration and the galaxy\'s esteem; sowing discord between them risks both turning on you.']],
+    how: 'Diplomacy window: political overtures, each realm\'s motives, compacts and concords, pacts and political history. Ancients and threats window: the ancients\' regard, petitions to them, collusion, mediation and discord.',
+    related: ['mech.ancients', 'mech.conclave', 'mech.diplomacy'], screen: 'diplomacy' },
 ];
 
 // ---------------------------------------------------------------- generated catalogues

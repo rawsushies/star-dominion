@@ -45,7 +45,7 @@ if (import.meta.env.DEV) {
       if (ui.game) { runDays(ui.game, days); ui.bump(); }
     },
     /** put the Grand Expansion into a later state (browser tests) */
-    expansion: async (what: 'conclave' | 'ancients' | 'omega' | 'devourer') => {
+    expansion: async (what: 'conclave' | 'ancients' | 'omega' | 'devourer' | 'politics') => {
       const { expansionScenario } = await import('./dev/expansionScenario');
       const ui = useUI.getState();
       if (ui.game) { expansionScenario(ui.game, what); ui.bump(); }

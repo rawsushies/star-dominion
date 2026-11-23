@@ -51,3 +51,27 @@ test('the Ancients and threats window: powers, tribute, the Devourer and the Ome
   await page.screenshot({ path: 'test-results/expansion-map.png' });
   expect(errors).toEqual([]);
 });
+
+test('emergent politics: an overture, a compact, motives, and the ancients\' regard', async ({ page }) => {
+  const errors = watchErrors(page);
+  await startReign(page);
+  await scenario(page, 'politics');
+  await openScreen(page, 'diplomacy', 'Diplomacy');
+  await expect(page.getByTestId('overtures')).toBeVisible();
+  const offer = page.getByTestId('offer-compact').first();
+  await expect(offer).toContainText('Why they offer');
+  await page.screenshot({ path: 'test-results/politics-overture.png' });
+  await page.getByTestId('accept-compact').first().click();
+  await expect(page.getByTestId('pacts')).toContainText('Compact');
+  await expect(page.getByTestId('pacts')).toContainText('Automata Prime');
+  const pacts = await page.evaluate(() => (window as unknown as { __sd: { getState(): { game: any } } }).__sd.getState().game.expansion.politics.pacts.map((p: any) => p.kind));
+  expect(pacts).toContain('compact');
+  await expect(page.getByTestId('motives')).toBeVisible();
+  await page.screenshot({ path: 'test-results/politics-diplomacy.png' });
+  await openScreen(page, 'cosmos', 'Ancients and threats');
+  await expect(page.getByTestId('regard-automata')).toContainText('Respect');
+  await expect(page.getByTestId('accord')).toBeVisible();
+  await page.getByTestId('mediate').click();
+  await page.screenshot({ path: 'test-results/politics-cosmos.png' });
+  expect(errors).toEqual([]);
+});

@@ -13,6 +13,7 @@
     "soak": "vitest run tests/soak.test.ts",
     "soak:seeds": "vite-node scripts/soak-seeds.ts",
     "soak:expansion": "vite-node scripts/expansion-smoke.ts",
+    "probe:politics": "vite-node scripts/politics-probe.ts",
     "candidates:fetch": "node scripts/fetch-candidates.mjs",
     "test:e2e": "playwright test",
     "candidates:capture": "node scripts/capture-candidates.mjs",

@@ -21,11 +21,12 @@ import { SHIPS } from './data/ships';
 import { PRECURSORS, PRECURSOR_IDS, SENTINEL_KINDS, DEVOURER } from './data/expansion';
 import { hash2 } from './rng';
 import type { Colony, Empire, GameState } from './types';
-import type { Boon, Directive, ExpansionState, InjunctionProject, PrecursorId, PrecursorState } from './expansionTypes';
+import type { Boon, Directive, ExpansionState, InjunctionProject, PoliticsState, PrecursorId, PrecursorState } from './expansionTypes';
 import { ancientsMonthly } from './ancients';
 import { conclaveDaily, conclaveMonthly } from './conclave';
 import { devourerDaily, devourerMonthly, sentinelSite } from './threats';
 import { omegaDaily, omegaMonthly } from './omega';
+import { politicsMonthly } from './politics';
 
 /** The expansion state (created on first use for states made by hand in tests). */
 export function exp(state: GameState): ExpansionState {
@@ -47,7 +48,12 @@ function emptyExpansion(): ExpansionState {
     omega: { stage: 'dormant', empireId: -1, trigger: null, stageTick: 0, rift: null, integrity: 100, strength: 0, corrupted: {}, neglect: {}, nextWave: 0, project: null, resolution: null, recovery: {}, credit: {}, intel: {}, lattice: 0, spread: 0, losses: { colonies: 0, systems: 0 }, exploiter: null, reopened: 0 },
     reputation: {},
     boons: {},
+    politics: emptyPolitics(),
   };
+}
+
+export function emptyPolitics(): PoliticsState {
+  return { pacts: [], offers: [], regard: {}, agendas: {}, history: [], cooldown: {}, warden: null, claimant: null, noticed: {} };
 }
 
 /**
@@ -82,6 +88,7 @@ export function migrateExpansion(state: GameState) {
   x.sentinels ??= {};
   x.reputation ??= {};
   x.boons ??= {};
+  x.politics = { ...emptyPolitics(), ...(x.politics ?? {}) };
   for (const p of x.precursors) {
     p.blame ??= {}; p.sources ??= []; p.sacred ??= []; p.sacredWorlds ??= []; p.intrusion ??= {}; p.demands ??= {};
     p.sponsored ??= {}; p.knowledgeCooldown ??= {}; p.tributeCooldown ??= {}; p.salvaged ??= {};
@@ -449,6 +456,7 @@ export function expansionMonthly(state: GameState) {
   ancientsMonthly(state);
   devourerMonthly(state);
   omegaMonthly(state);
+  politicsMonthly(state);
   conclaveMonthly(state);
 }
 

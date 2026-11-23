@@ -7,6 +7,11 @@ import { ancientsAction, type AncientsAction } from './ancients';
 import { castVote, complyDirective, defyDirective, lobbyMember, tableMotion, withdrawMotion } from './conclave';
 import { contribute, omegaAction, type ContributionKind, type OmegaAction } from './omega';
 import { PRECURSOR_IDS } from './data/expansion';
+import { politicsAction, proposeDeal, respondOffer, type Evaluation, type PoliticsAction } from './politics';
+import type { OfferKind } from './expansionTypes';
+
+const OFFER_KINDS: OfferKind[] = ['alliance', 'protection', 'gift', 'submission', 'clientage', 'compact', 'collusion', 'concord', 'accord'];
+const POLITICS_ACTIONS: PoliticsAction[] = ['leave', 'honour', 'expose', 'confront', 'mediate', 'sow_discord'];
 
 export type ExpansionCommand =
   | { type: 'conclave'; action: 'propose'; resolution: Resolution; emergency?: boolean }
@@ -16,9 +21,12 @@ export type ExpansionCommand =
   | { type: 'conclave'; action: 'defy' | 'comply'; directiveId: number }
   | { type: 'conclave'; action: 'contribute'; kind: ContributionKind; fleetId?: number }
   | { type: 'ancients'; precursor: PrecursorId; action: AncientsAction; systemId?: number }
-  | { type: 'omega'; action: OmegaAction };
+  | { type: 'omega'; action: OmegaAction }
+  | { type: 'politics'; action: 'propose'; kind: OfferKind; to: number; target?: number | null; crisis?: 'omega' | 'devourer' }
+  | { type: 'politics'; action: 'respond'; offerId: number; accept: boolean }
+  | { type: 'politics'; action: PoliticsAction; pactId?: number };
 
-export function executeExpansion(state: GameState, e: Empire, cmd: ExpansionCommand): { ok: boolean; message?: string } {
+export function executeExpansion(state: GameState, e: Empire, cmd: ExpansionCommand): { ok: boolean; message?: string; evaluation?: Evaluation } {
   if (!state.expansion) return { ok: false, message: 'The expansion is not active in this game' };
   const done = (err: string | null | undefined, msg?: string) => (err ? { ok: false, message: err } : { ok: true, message: msg });
   switch (cmd.type) {
@@ -42,6 +50,17 @@ export function executeExpansion(state: GameState, e: Empire, cmd: ExpansionComm
       return done(r.error, r.message);
     }
     case 'omega': return done(omegaAction(state, e, cmd.action), cmd.action === 'seal' ? 'Sealing begun' : cmd.action === 'breach' ? 'The rift is destroyed' : 'The rift is bound');
+    case 'politics': {
+      let r: { error?: string; message?: string; evaluation?: Evaluation };
+      if (cmd.action === 'propose') {
+        if (!OFFER_KINDS.includes(cmd.kind) || typeof cmd.to !== 'number') return done('Unknown overture');
+        if (cmd.crisis != null && cmd.crisis !== 'omega' && cmd.crisis !== 'devourer') return done('Unknown crisis');
+        r = proposeDeal(state, e, { kind: cmd.kind, from: e.id, to: cmd.to, target: typeof cmd.target === 'number' ? cmd.target : null, crisis: cmd.crisis });
+      } else if (cmd.action === 'respond') r = respondOffer(state, e, cmd.offerId, !!cmd.accept);
+      else if (POLITICS_ACTIONS.includes(cmd.action)) r = politicsAction(state, e, cmd.action, cmd.pactId);
+      else return done('Unknown action');
+      return { ok: !r.error, message: r.error ?? r.message, evaluation: r.evaluation };
+    }
   }
   return done('Unknown command');
 }

@@ -5,6 +5,7 @@
 // player sees).
 
 import { prologueActive, protectedPrey } from './prologue';
+import { pactPartners } from './politics';
 import { sendLetter } from './envoys';
 import { fuzz, intelLevel, opinion, systemValue, hasContact, canDeclareWar } from './diplomacy';
 import { bordering, hasTreaty, ownedSystems, warBetween } from './territory';
@@ -141,12 +142,15 @@ export function warCandidates(state: GameState, e: Empire): WarCandidate[] {
   const out: WarCandidate[] = [];
   const mine = new Set(ownedSystems(state, e.id));
   const adj = adjacency(state.galaxy);
+  const partners = pactPartners(state, e.id);
   for (const o of state.empires) {
     if (!o.alive || o.id === e.id || !(o.kind === 'major' || o.kind === 'minor' || o.kind === 'rebels')) continue;
     if (!hasContact(state, e.id, o.id) || warBetween(state, e.id, o.id)) continue;
     if (o.id === state.playerId && (years < preset.playerGraceYears || prologueActive(state))) continue;
     if (protectedPrey(state, o.id)) continue;
     if (hasTreaty(state, e.id, o.id, 'alliance') || hasTreaty(state, e.id, o.id, 'defense') || hasTreaty(state, e.id, o.id, 'vassal')) continue;
+    // partners in a compact or a crisis concord do not plan war on one another (betrayal is decided in politics.ts)
+    if (partners.includes(o.id)) continue;
     const nap = hasTreaty(state, e.id, o.id, 'nap');
     if (nap && !preset.renounce && !(preset.betrayal && pers.diplomacy < 0.4 && pers.aggression > 0.6)) continue;
     const truce = canDeclareWar(state, e.id, o.id);

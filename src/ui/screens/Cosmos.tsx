@@ -17,6 +17,7 @@ import { modText } from '../modLabels';
 import type { Command } from '../../sim/commands';
 import type { Cost, GameState } from '../../sim/types';
 import type { PrecursorState } from '../../sim/expansionTypes';
+import { AncientStance, AncientsAccord } from '../components/Politics';
 
 const costLine = (c: Cost) => Object.entries(c).map(([k, v]) => `${v} ${k}`).join(', ');
 const STATUS: Record<string, string> = { dormant: 'Dormant', stirring: 'Stirring', awakened: 'Awakened', watchful: 'Watchful', fallen: 'Fallen', absent: 'Absent' };
@@ -80,6 +81,7 @@ function PowerCard({ g, ps, run }: { g: GameState; ps: PrecursorState; run: (c: 
               </div>
             )}
             {alive && !known && <div className="hint" style={{ marginTop: 4 }}>Their enclave has not been found.</div>}
+            {alive && known && <AncientStance ps={ps} />}
           </>
         )}
       </div>
@@ -134,6 +136,7 @@ export function CosmosScreen() {
               </div>
             )}
           </Section>
+          <AncientsAccord />
         </div>
         <div>
           <Section title="The Omega Incursion" aside={STAGE[o.stage]}>

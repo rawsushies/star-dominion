@@ -204,6 +204,99 @@ export interface OmegaState {
 
 export interface Boon { key: string; value: number; label: string }
 
+// ------------------------------------------------------------------ emergent politics (sim/politics.ts)
+
+/**
+ * compact:   an open league of realms against a common foe (an ancient power or a younger realm):
+ *            members come to one another's aid against it and do not plan war on one another.
+ * collusion: a secret pact between a younger realm and an ancient power against another realm.
+ * concord:   a crisis truce: realms threatened by a cosmic crisis set their wars aside until it ends.
+ * accord:    an understanding between the two ancient powers (a truce, or an alliance).
+ */
+export type PactKind = 'compact' | 'collusion' | 'concord' | 'accord';
+
+export interface Pact {
+  id: number;
+  kind: PactKind;
+  members: number[];
+  /** the realm the pact is aimed at (compact, collusion) */
+  target: number | null;
+  crisis?: 'omega' | 'devourer';
+  /** accord: a truce or a full alliance between the ancients */
+  depth?: 'truce' | 'alliance';
+  secret: boolean;
+  /** realms that know of a secret pact (its members always do) */
+  knownBy: number[];
+  founded: number;
+  /** member -> was it at war with the target last month (to notice a separate peace) */
+  fighting: Record<number, boolean>;
+  /** 0..100: conflicting interests build strain; at 100 the pact fractures */
+  strain: number;
+  reason: string;
+}
+
+export type OfferKind =
+  | 'alliance' // an ancient power and a younger realm: a full alliance
+  | 'protection' // an ancient power shelters a younger realm (a mutual defence pact)
+  | 'gift' // an ancient power hands a younger realm an exclusive technology
+  | 'submission' // the ancient power submits to the younger realm as its vassal
+  | 'clientage' // the younger realm becomes the ancient power's vassal and military partner
+  | 'compact' | 'collusion' | 'concord' | 'accord';
+
+export interface PoliticalOffer {
+  id: number;
+  kind: OfferKind;
+  from: number;
+  to: number;
+  target: number | null;
+  crisis?: 'omega' | 'devourer';
+  tick: number;
+  expires: number;
+  /** why the proposer makes it (its own reckoning, shown to the recipient) */
+  motives: [string, number][];
+  text: string;
+}
+
+/** How an ancient power regards a younger realm, each 0..100. */
+export interface Regard { respect: number; fear: number; admiration: number }
+
+export type AgendaPriority = 'survival' | 'containment' | 'conquest' | 'ascension' | 'prosperity' | 'expansion' | 'preservation' | 'dominion';
+
+/** A great realm's motives as they stand this month. */
+export interface Agenda {
+  priority: AgendaPriority;
+  /** what it wants, strongest first */
+  interests: { label: string; weight: number }[];
+  /** whom it fears, strongest first */
+  fears: { id: number; weight: number; why: string }[];
+  /** realms it is bound to (allies, pact partners, sponsor, overlord) */
+  loyalties: number[];
+  /** the realm it regards as its rival, if any */
+  rival: number | null;
+  /** how it would end the Omega Incursion */
+  vision: 'seal' | 'destroy' | 'exploit';
+  since: number;
+}
+
+export interface PoliticalRecord { id: number; tick: number; kind: string; title: string; text: string; actors: number[] }
+
+export interface PoliticsState {
+  pacts: Pact[];
+  offers: PoliticalOffer[];
+  /** `${precursorId}:${realm}` -> regard */
+  regard: Record<string, Regard>;
+  agendas: Record<number, Agenda>;
+  /** the history of the galaxy's politics, newest last (bounded) */
+  history: PoliticalRecord[];
+  /** `${actor}:${kind}:${other}` -> tick before which the same overture is not repeated */
+  cooldown: Record<string, number>;
+  /** the realm leading the struggle against the Omega Incursion, and its claim's rival */
+  warden: number | null;
+  claimant: number | null;
+  /** last tick the player was told a realm's priorities changed: realm -> tick */
+  noticed: Record<number, number>;
+}
+
 export interface ExpansionState {
   version: 1;
   precursors: PrecursorState[];
@@ -217,4 +310,6 @@ export interface ExpansionState {
   reputation: Record<number, number>;
   /** permanent rewards entering the modifier system: realm -> boons */
   boons: Record<number, Boon[]>;
+  /** emergent diplomacy: pacts, overtures, the ancients' regard, motives and political history */
+  politics: PoliticsState;
 }

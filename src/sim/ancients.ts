@@ -23,6 +23,8 @@ import { KNOWLEDGE_COOLDOWN, KNOWLEDGE_COST, KNOWLEDGE_OPINION, PRECURSORS, PRES
 import type { Cost, Empire, GameState, ShipClass } from './types';
 import type { PrecursorId, PrecursorState } from './expansionTypes';
 import { addBoon, addReputation, exp, isSovereign, precursorById, sponsorOf } from './expansion';
+import { hasAccord, regardLines } from './politics';
+import { TREATY_LABEL } from './diplomacy';
 
 const MAX_SOURCES = 24;
 
@@ -55,6 +57,13 @@ export function blameShare(ps: PrecursorState, id: number): number {
 /** How a precursor regards a younger realm. */
 export function precursorOpinionLines(state: GameState, ps: PrecursorState, other: number): [string, number][] {
   const out: [string, number][] = [['Ancient disdain', -10]];
+  const other0 = state.empires[other];
+  // the rival ancient power: enmity, unless an accord stands between them
+  if (other0?.kind === 'precursor') {
+    out.push(hasAccord(state) ? ['Accord of the ancients', 20] : ['Ancient enmity', -30]);
+    if (warBetween(state, ps.empireId, other)) out.push(['At war', -50]);
+    return out;
+  }
   const share = blameShare(ps, other);
   if (share > 0.02) out.push(['Disturbed their slumber', -Math.round(share * 40)]);
   if (ps.sponsored[other]) out.push(['Sponsored sovereign', 35]);
@@ -62,6 +71,12 @@ export function precursorOpinionLines(state: GameState, ps: PrecursorState, othe
   const pledge = state.expansion?.heaven.pledges[other];
   if (pledge === ps.id) out.push(['Fights at their side', 30]);
   else if (pledge) out.push(['Pledged to their enemy', -40]);
+  out.push(...treatyLines(state, ps.empireId, other));
+  out.push(...regardLines(state, ps, other));
+  for (const p of state.expansion?.politics?.pacts ?? []) {
+    if (p.kind === 'compact' && p.target === ps.empireId && p.members.includes(other)) out.push(['Leagued against us', -20]);
+    if (p.kind === 'collusion' && p.members.includes(ps.empireId) && p.members.includes(other)) out.push(['Our confederate', 20]);
+  }
   return out;
 }
 
@@ -71,7 +86,20 @@ export function towardPrecursorLines(state: GameState, ps: PrecursorState, self:
   if (ps.sponsored[self]) out.push(['Our sponsor', 25]);
   if (warBetween(state, ps.empireId, self)) out.push(['At war', -50]);
   if (ps.status === 'awakened') out.push(['Awakened and dangerous', -10]);
+  out.push(...treatyLines(state, self, ps.empireId));
   return out;
+}
+
+const TREATY_WEIGHT: Record<string, number> = { nap: 5, trade: 10, research: 10, defense: 15, alliance: 25, vassal: 10 };
+function treatyLines(state: GameState, a: number, b: number): [string, number][] {
+  const out: [string, number][] = [];
+  for (const t of state.treaties) if ((t.a === a && t.b === b) || (t.a === b && t.b === a)) out.push([TREATY_LABEL[t.type], TREATY_WEIGHT[t.type] ?? 0]);
+  return out;
+}
+
+/** Is a realm bound to the power by alliance, protection or vassalage (either way)? */
+export function boundToAncient(state: GameState, ps: PrecursorState, id: number): boolean {
+  return state.treaties.some((t) => (t.type === 'alliance' || t.type === 'defense' || t.type === 'vassal') && ((t.a === ps.empireId && t.b === id) || (t.b === ps.empireId && t.a === id)));
 }
 
 // ------------------------------------------------------------------ monthly
@@ -139,7 +167,7 @@ function intrusions(state: GameState, ps: PrecursorState) {
     const f = state.fleets[id];
     if (!sacred.has(f.systemId) || f.progress > 0 || !armed(f) || f.ships.every((s) => s.cls === 'scout' || s.cls === 'constructor' || s.cls === 'colony' || s.cls === 'transport' || s.cls === 'logistics')) continue;
     const o = state.empires[f.ownerId];
-    if (!isSovereign(o) || warBetween(state, ps.empireId, f.ownerId)) continue;
+    if (!isSovereign(o) || warBetween(state, ps.empireId, f.ownerId) || boundToAncient(state, ps, f.ownerId)) continue;
     intruders.add(f.ownerId);
   }
   const def = PRECURSORS[ps.id];
@@ -178,7 +206,7 @@ function tributeDemands(state: GameState, ps: PrecursorState) {
   }
   if (state.tick % 90 !== 0) return;
   for (const e of state.empires) {
-    if (!e.alive || e.kind !== 'major' || ps.demands[e.id] != null || ps.sponsored[e.id] || warBetween(state, ps.empireId, e.id)) continue;
+    if (!e.alive || e.kind !== 'major' || ps.demands[e.id] != null || ps.sponsored[e.id] || warBetween(state, ps.empireId, e.id) || boundToAncient(state, ps, e.id)) continue;
     if ((ps.tributeCooldown[e.id] ?? 0) > state.tick) continue;
     if ((e.era ?? 0) < 2 && !e.research.done.includes('ai_sentient')) continue;
     ps.demands[e.id] = state.tick + 180;
@@ -284,7 +312,7 @@ function blamedText(state: GameState, ps: PrecursorState): string {
 
 /** Realms the power blames enough to make war on (the worst offender always). */
 export function offenders(state: GameState, ps: PrecursorState): number[] {
-  const ranked = Object.entries(ps.blame).map(([id, v]) => ({ id: +id, v })).filter((o) => isSovereign(state.empires[o.id]) && !ps.sponsored[o.id]).sort((a, b) => b.v - a.v || a.id - b.id);
+  const ranked = Object.entries(ps.blame).map(([id, v]) => ({ id: +id, v })).filter((o) => isSovereign(state.empires[o.id]) && !ps.sponsored[o.id] && !boundToAncient(state, ps, o.id)).sort((a, b) => b.v - a.v || a.id - b.id);
   const total = ranked.reduce((a, o) => a + o.v, 0);
   return ranked.filter((o, i) => i === 0 || o.v >= total * 0.25).slice(0, 2).map((o) => o.id);
 }
@@ -379,7 +407,9 @@ function fall(state: GameState, ps: PrecursorState) {
 
 function startHeaven(state: GameState, a: PrecursorState, b: PrecursorState) {
   const h = exp(state).heaven;
-  if (h.active || warBetween(state, a.empireId, b.empireId)) return;
+  if (h.active || warBetween(state, a.empireId, b.empireId) || hasAccord(state)) return;
+  // an ancient power that kneels to a younger realm fights only its overlord's wars
+  if (state.treaties.some((t) => t.type === 'vassal' && (t.b === a.empireId || t.b === b.empireId))) return;
   state.empires[a.empireId].stock.influence = Math.max(state.empires[a.empireId].stock.influence, 100);
   const r = execute(state, a.empireId, { type: 'declareWar', target: b.empireId });
   if (!r.ok) return;
@@ -411,10 +441,23 @@ function heavenMonthly(state: GameState) {
   endHeaven(state, victor);
 }
 
-function endHeaven(state: GameState, victor: PrecursorId | null) {
+/** Both powers awake, no accord between them: the War in Heaven begins (after an accord breaks). */
+export function startHeavenIfRivals(state: GameState) {
+  const act = activePrecursors(state).filter((p) => p.status === 'awakened');
+  if (act.length === 2) startHeaven(state, act[0], act[1]);
+}
+
+/** The War in Heaven ended at the negotiating table (an accord of the ancients). */
+export function endHeavenByAccord(state: GameState) {
+  const h = exp(state).heaven;
+  if (!h.active) return;
+  endHeaven(state, null, 'The ancient powers have come to terms.');
+}
+
+function endHeaven(state: GameState, victor: PrecursorId | null, why?: string) {
   const h = exp(state).heaven;
   h.active = false;
-  const text = victor ? `${PRECURSORS[victor].name} prevail.` : 'Neither power prevails.';
+  const text = why ?? (victor ? `${PRECURSORS[victor].name} prevail.` : 'Neither power prevails.');
   h.ended = { tick: state.tick, victor, text };
   for (const [k, side] of Object.entries(h.pledges)) {
     const id = +k;
@@ -515,7 +558,7 @@ function demandSubmission(state: GameState, ps: PrecursorState) {
   const pe = precursorEmpire(state, ps)!;
   for (const e of state.empires) {
     if (!isSovereign(e)) continue;
-    if (warBetween(state, pe.id, e.id) || state.treaties.some((t) => t.type === 'vassal' && (t.b === e.id))) continue;
+    if (warBetween(state, pe.id, e.id) || state.treaties.some((t) => t.type === 'vassal' && (t.b === e.id || t.b === pe.id)) || boundToAncient(state, ps, e.id)) continue;
     if (!bordering(state, e.id, pe.id)) continue;
     if ((e.stats.militaryPower || 0) * 4 > (pe.stats.militaryPower || 0)) continue;
     execute(state, pe.id, { type: 'propose', to: e.id, give: [], receive: [{ kind: 'treaty', treaty: 'vassal' }] });

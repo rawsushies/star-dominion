@@ -20,6 +20,7 @@ import { boundBy, directives, exp, injunctionBlocks, isSovereign, reputation, sp
 import { activePrecursors, blameShare, precursorEmpire, tributeCost } from './ancients';
 import { aiLean, canVote, computeWeights, motionCost, validateMotion } from './conclave';
 import { omegaActive, omegaFleets, riftHeldBy } from './omega';
+import { politicsAI } from './politics';
 
 /** Monthly expansion decisions of an AI realm (called from runAI). */
 export function expansionAI(state: GameState, e: Empire) {
@@ -27,6 +28,7 @@ export function expansionAI(state: GameState, e: Empire) {
   conclaveAI(state, e);
   ancientsAI(state, e);
   if (e.kind === 'major') contributionsAI(state, e);
+  politicsAI(state, e);
 }
 
 // ------------------------------------------------------------------ Conclave

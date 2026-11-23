@@ -23,6 +23,12 @@ All notable changes to Star Dominion. Versions follow [semantic versioning](http
 - **Galactic reputation and permanent boons.**
 - **Two new windows**, High Conclave and Ancients and threats; map markers for the Devourer, the rift, corruption and sacred worlds; Codex entries.
 - **AI realms take part in every system** through the command layer.
+- **Emergent politics.** Every great realm and ancient power now pursues its own interests, and the galaxy's political history is different in every campaign.
+  - Agendas: each realm's priority, fears, wants, loyalties, rival and Omega vision, recomputed monthly and shown in Diplomacy.
+  - The ancients' regard (respect, fear, admiration) for each realm moves with what it does, and leads to alliances, protection, exclusive technology, clientage or even an ancient power's submission.
+  - Compacts against a common foe (former enemies included), secret collusion with the ancients, crisis concords, and the accord of the ancients that can end or prevent the War in Heaven and break again when its reason fades.
+  - Separate peace, ignored calls to war, opportunistic betrayal and drifting interests split coalitions. Secret pacts can be uncovered, exposed or confronted. Players can mediate between the ancients or sow discord.
+  - One itemised scoring function decides every overture from both sides; AI realms and ancient powers make their own overtures to each other and to the player. Everything goes through the command layer and is recorded in a political history.
 
 ### Compatibility
 

@@ -307,6 +307,21 @@ Three connected systems for the decades after the opening (`src/sim/expansion.ts
     - Bind it: great output, but the galaxy's and the ancients' enmity, the slowest recovery, and a yearly chance it tears free.
   - Afterwards: systems recover over years. The realm with most credit becomes Warden of the Galaxy and joins the Conclave's founders. Contributors get a reconstruction boom, and seated members who stood aside lose standing.
 
+### Emergent politics (`politics.ts`)
+
+No enemy, ally or victor is scripted. Every great realm carries an agenda recomputed monthly: a priority (survival, containment, conquest, ascension, prosperity, expansion; preservation or dominion for the ancients), what it fears and why, what it wants, whom it is loyal to, its rival and its vision for the Omega Incursion. The player is told when a realm they know turns to war, survival or the hunt for allies. Each ancient power keeps a regard for each younger realm, moving month by month: respect (strength, wars won, fighting beside it, the crisis, slaying the Devourer), fear (power against its own, the trouble caused, reach) and admiration (keeping its terms, tribute, reputation, its own measure of a good realm). Regard feeds its opinion.
+
+Every overture is weighed by both parties from their own interests with one scoring function, itemised so the player can read why. AI realms and ancient powers propose what they want; the player answers in Diplomacy and can propose the same things.
+
+- **With the ancients:** alliance (each joins the other's wars; only an awake power), protection (a mutual defence pact), exclusive knowledge (a unique technology, once), clientage (the younger realm becomes the ancient's vassal and military partner), and submission (an ancient that fears a realm, has lost its war or its enclave kneels as its vassal). Treaties are real: an allied ancient goes to war for its ally. A realm bound to an ancient is not blamed, taxed or attacked for trespass by it.
+- **Compacts:** realms that fear the same foe (an ancient power or a younger realm) stand together, even old enemies: any war between them ends. A member at war calls the others in; an AI member weighs honour against the cost, the player has three months to answer. A separate peace, an ignored call or a turn on a partner breaks the compact and is remembered; partners worn down by the common war may be betrayed by an ambitious ally. Interests drift: a receding threat or quarrelling members build strain until it fractures. Compact partners do not plan war on one another.
+- **Collusion:** a secret pact between a younger realm and an ancient power against another realm. The ancient's blame shifts to the target; when either goes to war with the target, the other is drawn in, and the pact comes to light. Intelligence can uncover it first: the target may expose it (the conspirator's reputation suffers and every realm remembers) or confront the conspirator, who backs down or defies it depending on strength and pride.
+- **Concords:** realms threatened by the Omega Incursion or the Void Devourer set their wars aside until the crisis ends, then their old quarrels resume. Betraying a concord costs more reputation than any other betrayal.
+- **The accord of the ancients:** a common threat (the Omega Incursion, a younger realm both blame or fear, a league against them) can bring the two powers to a truce or an alliance, ending or preventing the War in Heaven. When the threat fades the alliance cools and the old enmity strains the accord until it breaks; the truce is repudiated and, if both are awake, the War in Heaven begins. Younger realms may mediate an accord or sow discord between them, at a risk.
+- **The Omega crisis:** the realm with most crisis credit leads the effort (better acceptance of its overtures); when the lead changes the displaced claimant resents it; realms that would bind the rift and those that would end it grow apart.
+
+Everything is recorded in a political history (Diplomacy) and the Chronicle's headlines.
+
 ## Onboarding and guidance
 
 Players learn by playing, and guidance never takes control. Details are in `docs/GUIDANCE.md`.
@@ -350,4 +365,5 @@ A central audio manager drives music, sound effects and ambience. Details are in
 - Era 2 and beyond are late-game goals. Campaign statistics per difficulty are in `docs/CAMPAIGN.md`.
 - There is no ground-combat screen: invasions resolve automatically.
 - Diplomacy uses buttons and a deal builder. There is no free-text negotiation.
+- Emergent politics covers the great realms and the two ancient powers. Minor realms accept and honour pacts but take no initiative; there are no resistance movements inside corrupted space; a compact or collusion has one target; the player cannot propose an accord between the ancients directly (only mediate one).
 - Single-player only. The command layer is designed for a server-authoritative multiplayer layer, which does not exist yet.
