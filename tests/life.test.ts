@@ -149,8 +149,10 @@ describe('worlds', () => {
     const m = moved[0];
     const dest = g.planets[m.to].colony!;
     const p0 = dest.pops;
+    // everyone bound for that world who lands by then (other transports may share the destination)
+    const landing = life(g).migrations.filter((x) => x.to === m.to && x.arrive <= m.arrive).reduce((a, x) => a + x.pops, 0);
     while (g.tick < m.arrive) { g.tick++; lifeDaily(g); }
-    expect(dest.pops).toBeCloseTo(p0 + m.pops, 5);
+    expect(dest.pops).toBeCloseTo(p0 + landing, 5);
   });
 });
 
