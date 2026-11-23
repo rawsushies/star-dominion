@@ -39,6 +39,8 @@ import { megaInstalment } from './construction';
 import { aiPreset, coalitionWanted, estimatePower, militaryFill, planOf, reviewStrategy, victoryAim } from './strategy';
 import { hegemon } from './victory';
 import { orbitSecured } from './fleets';
+import { ascendant } from './life';
+import { expansionAI, crisisFleetOps, aiAvoidsTech, aiAvoidsMega, aiAvoidsWorld } from './expansionAI';
 
 export function runAI(state: GameState, e: Empire) {
   const isMajor = e.kind === 'major';
@@ -51,7 +53,7 @@ export function runAI(state: GameState, e: Empire) {
   if (isMajor) {
     expansion(state, e);
     scouting(state, e);
-  }
+  } else if (ascendant(state, e)) expansion(state, e); // a prosperous minor state grows (sim/life.ts)
   operations(state, e);
   if (state.tick % 30 < 5) diplomacy(state, e);
   if (state.tick % 15 < 5) characters(state, e);
@@ -60,6 +62,7 @@ export function runAI(state: GameState, e: Empire) {
   if (state.tick % 60 >= 40 && state.tick % 60 < 45) heir(state, e);
   if (state.tick % 30 >= 25 && isMajor) covert(state, e);
   if (state.tick % 20 >= 15) capitalCity(state, e);
+  if (state.tick % 30 >= 5 && state.tick % 30 < 10) expansionAI(state, e);
 }
 
 // ---------------------------------------------------------------- espionage
@@ -200,7 +203,7 @@ function economyRest(state: GameState, e: Empire) {
     const building = mine.some((sid) => state.galaxy.systems[sid].megastructures.some((m) => m.ownerId === e.id && m.building));
     for (const id of building ? [] : ['continuum_engine', 'sector_array', 'dyson_swarm', 'stellar_collector', 'grand_archive', 'lattice', 'orbital_ring', 'hypergate', 'bastion']) {
       const def = MEGA_BY_ID[id];
-      if (!hasTech(e, def.tech)) continue;
+      if (!hasTech(e, def.tech) || aiAvoidsMega(state, e, id)) continue;
       const quarter = Object.fromEntries(Object.entries(megaInstalment(def)).map(([k, v]) => [k, v * 90]));
       if (!canAfford(e, quarter as never)) continue;
       for (const sid of mine) {
@@ -269,7 +272,7 @@ const MEGA_TECHS = new Set(Object.values(MEGA_BY_ID).map((m) => m.tech).filter(B
 
 function research(state: GameState, e: Empire) {
   if (e.research.current) return;
-  const opts = availableTechs(e);
+  const opts = availableTechs(e).filter((t) => !aiAvoidsTech(state, e, t));
   if (!opts.length) return;
   // Urgent needs first: food and energy independence.
   const L = getLedger(state, e);
@@ -457,7 +460,7 @@ function expansion(state: GameState, e: Empire) {
     .filter((s) => s.owner == null && !s.outpostProject && explored.has(s.id) && dist[s.id] <= 2 && !s.features.includes('guardian') && !pending.has(s.id) && !hostileFleetAt(s.id))
     .map((s) => ({ s, v: systemValue(state, s.id) + s.planetIds.filter((p) => planetHab(state, state.planets[p], e, m) >= 0.5).length * 80 - dist[s.id] * 40 }))
     .sort((a, b) => b.v - a.v);
-  const wantExpand = owned.length < L.adminCap + 2 + Math.round(e.personality.expansion * 4);
+  const wantExpand = owned.length < L.adminCap + 2 + Math.round(e.personality.expansion * 4) + ((state.life?.arcs[e.id]?.pressure ?? 0) >= 4 ? 2 : 0);
   if (wantExpand && outpostTargets.length && ctorShips.length + queuedCtor < (e.personality.expansion > 0.7 ? 2 : 1) && yards.length && e.stock.influence > 20) {
     if (canAfford(e, withReserve(shipCost(state, e, 'constructor')))) execute(state, e.id, { type: 'queueShip', planetId: yards[0].id, cls: 'constructor' });
   }
@@ -473,7 +476,7 @@ function expansion(state: GameState, e: Empire) {
   const colonizing = new Set(myFleets.filter((f) => f.order.type === 'colonize').map((f) => (f.order as any).planetId));
   const minHab = hasTech(e, 'col_domes') ? 0.25 : 0.45;
   const colTargets = state.planets
-    .filter((p) => !p.colony && !p.colonizing && !colonizing.has(p.id) && p.type !== 'gas_giant')
+    .filter((p) => !p.colony && !p.colonizing && !colonizing.has(p.id) && p.type !== 'gas_giant' && !aiAvoidsWorld(state, e, p.id))
     .filter((p) => (ownedSet.has(p.systemId) || (state.galaxy.systems[p.systemId].owner == null && dist[p.systemId] <= 1 && explored.has(p.systemId))) && !state.galaxy.systems[p.systemId].features.includes('guardian'))
     .map((p) => ({ p, h: planetHab(state, p, e, m) }))
     .filter((x) => x.h >= minHab)
@@ -617,6 +620,9 @@ function operations(state: GameState, e: Empire) {
       for (const f of picked) { sendTo(state, e, f, e.capitalSystemId); free.delete(f.id); }
     }
   }
+
+  // duty against cosmic threats, and opportunism in the War in Heaven (sim/expansionAI.ts)
+  crisisFleetOps(state, e, fleets, free);
 
   const wars = state.wars.filter((w) => w.attackers.includes(e.id) || w.defenders.includes(e.id));
   const groups = fleets.filter((f) => free.has(f.id));

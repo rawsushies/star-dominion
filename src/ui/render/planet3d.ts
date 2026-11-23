@@ -50,6 +50,7 @@ const FRAG = /* glsl */ `
 uniform int uKind; uniform vec3 uDeep; uniform vec3 uMid; uniform vec3 uHi; uniform vec3 uAtmo;
 uniform float uAtmoK; uniform float uSea; uniform float uIce; uniform float uCloud; uniform float uLights;
 uniform vec3 uSeed; uniform float uRot; uniform float uCloudRot; uniform vec3 uLight; uniform float uDetail;
+uniform float uIndustry; uniform float uFarm; uniform float uUrban; uniform float uScar;
 varying vec3 vPos; varying vec3 vN; varying vec3 vV;
 ${NOISE_GLSL}
 vec3 rotY(vec3 p, float a){float c=cos(a),s=sin(a);return vec3(c*p.x+s*p.z,p.y,-s*p.x+c*p.z);}
@@ -124,6 +125,33 @@ void main(){
     col = mix(col, uHi, smoothstep(0.6,0.9,w));
     land = 0.0;
   }
+  // what people have made of the world (sim state: buildings, population, war damage)
+  float made = (uKind<=3 && land>0.5) ? 1.0 : 0.0;
+  if(made > 0.5){
+    float region = smoothstep(0.45, 0.6, fbm(p*2.2+uSeed+11.0,3));
+    // farmland: a patchwork of fields in the lowlands
+    if(uFarm > 0.0){
+      vec3 q = p*46.0+uSeed;
+      float fields = step(0.5, fract(q.x + 0.3*floor(q.y))) * 0.5 + step(0.5, fract(q.y)) * 0.5;
+      float m = smoothstep(0.55, 0.35, h) * smoothstep(0.42, 0.62, fbm(p*3.1+uSeed+5.0,3)) * uFarm;
+      col = mix(col, mix(vec3(0.42,0.5,0.2), vec3(0.62,0.55,0.26), fields), m*0.55);
+    }
+    // urban sprawl greys the land by day
+    if(uUrban > 0.0){
+      float sprawl = smoothstep(0.62 - uUrban*0.3, 0.7 - uUrban*0.3, fbm(p*9.0+uSeed+40.0,4)) * (region*0.6 + uUrban*0.6);
+      col = mix(col, vec3(0.38,0.38,0.4) + 0.1*snoise(p*80.0), clamp(sprawl,0.0,1.0)*0.7);
+    }
+    // industrial belts: soot-dark zones
+    if(uIndustry > 0.0){
+      float belt = 1.0 - smoothstep(0.0, 0.06 + uIndustry*0.06, abs(fbm(p*4.0+uSeed+70.0,4)-0.5));
+      col = mix(col, vec3(0.26,0.23,0.21), belt*uIndustry*0.6);
+    }
+    // war: scorched, cratered ground
+    if(uScar > 0.0){
+      float burn = smoothstep(0.58 - uScar*0.25, 0.7 - uScar*0.25, fbm(p*6.0+uSeed+90.0,4));
+      col = mix(col, vec3(0.12,0.09,0.08), burn*min(1.0,uScar*1.4)*0.85);
+    }
+  }
   // bump-mapped relief for solid worlds
   if(uKind<=3 && land>0.5){
     float e = 0.012;
@@ -145,9 +173,24 @@ void main(){
   if(uLights > 0.0 && land > 0.5){
     float region = smoothstep(0.5, 0.62, fbm(p*2.2+uSeed+11.0,3));
     float city = fbm(p*28.0+uSeed+40.0,4);
-    float th = 0.66 - uLights*0.05;
-    float k = smoothstep(th, th+0.07, city) * region * (1.0 - smoothstep(-0.05, 0.18, diff)) * (0.35 + uLights*0.65);
-    c += vec3(1.0,0.72,0.38) * k * 1.3;
+    float th = 0.67 - uLights*0.04 - uUrban*0.06;
+    float reach = clamp(region + uUrban*0.35, 0.0, 1.0);
+    float k = smoothstep(th, th+0.07, city) * reach * (1.0 - smoothstep(-0.05, 0.18, diff)) * (0.35 + uLights*0.65) * (1.0 - uScar*0.7);
+    // fine street grids inside the city regions
+    float grid = 0.55 + 0.45 * smoothstep(0.3, 0.7, fbm(p*90.0+uSeed+7.0,2));
+    c += vec3(1.0,0.72,0.38) * k * grid * 0.95;
+  }
+  float night = 1.0 - smoothstep(-0.05, 0.18, diff);
+  if(made > 0.5 && uIndustry > 0.0){
+    // furnaces and foundries glow along the industrial belts at night
+    float belt = 1.0 - smoothstep(0.0, 0.03 + uIndustry*0.03, abs(fbm(p*4.0+uSeed+70.0,4)-0.5));
+    float sparks = smoothstep(0.6, 0.75, fbm(p*40.0+uSeed+3.0,3));
+    c += vec3(1.0,0.45,0.12) * belt * sparks * uIndustry * night * 1.4;
+  }
+  if(made > 0.5 && uScar > 0.0){
+    // fires still burn in the ruins
+    float fire = smoothstep(0.78, 0.86, fbm(p*30.0+uSeed+17.0,3)) * smoothstep(0.55, 0.7, fbm(p*6.0+uSeed+90.0,4));
+    c += vec3(1.0,0.32,0.08) * fire * uScar * (0.4 + night) * 1.2;
   }
   c += emit * (1.0 - lit*0.6);
   // clouds
@@ -223,6 +266,9 @@ const LOOKS: Record<PlanetType, Look> = {
   gas_giant: { kind: 5, sea: 0, ice: 2, cloud: 0, atmoK: 0.9 },
 } as Record<PlanetType, Look>;
 
+/** What people have made of a world, for the planet shader (0..1 each; from sim state). */
+export interface WorldLook { lights: number; industry: number; farm: number; urban: number; scar: number }
+
 export interface PlanetBuild { group: THREE.Group; surface: THREE.ShaderMaterial; setLight(dir: THREE.Vector3): void; setTime(t: number): void; dispose(): void }
 
 const sphereHi = new THREE.SphereGeometry(1, 96, 64);
@@ -230,7 +276,8 @@ const sphereLo = new THREE.SphereGeometry(1, 40, 28);
 const ringGeo = new THREE.RingGeometry(1.35, 2.3, 128, 1);
 
 /** Build a planet (radius 1) with its atmosphere shell and, for some giants, a ring. */
-export function buildPlanet(type: PlanetType, seed: number, lights = 0, hi = true): PlanetBuild {
+export function buildPlanet(type: PlanetType, seed: number, lights: number | WorldLook = 0, hi = true): PlanetBuild {
+  const wl: WorldLook = typeof lights === 'number' ? { lights, industry: 0, farm: 0, urban: 0, scar: 0 } : lights;
   const def = PLANET_TYPES[type];
   const look = LOOKS[type] ?? LOOKS.barren;
   const atmo = def.atmosphere ? col(def.atmosphere) : new THREE.Color('#000000');
@@ -241,7 +288,8 @@ export function buildPlanet(type: PlanetType, seed: number, lights = 0, hi = tru
     uniforms: {
       uKind: { value: look.kind }, uDeep: { value: col(def.palette[0]) }, uMid: { value: col(def.palette[1]) }, uHi: { value: col(def.palette[2]) },
       uAtmo: { value: atmo }, uAtmoK: { value: def.atmosphere ? look.atmoK : 0 }, uSea: { value: look.sea }, uIce: { value: look.ice },
-      uCloud: { value: look.cloud }, uLights: { value: Math.min(1, lights) }, uSeed: { value: sv }, uRot: { value: (seed % 628) / 100 },
+      uCloud: { value: look.cloud }, uLights: { value: Math.min(1, wl.lights) },
+      uIndustry: { value: wl.industry }, uFarm: { value: wl.farm }, uUrban: { value: wl.urban }, uScar: { value: wl.scar }, uSeed: { value: sv }, uRot: { value: (seed % 628) / 100 },
       uCloudRot: { value: (seed % 314) / 50 }, uLight: { value: new THREE.Vector3(-0.62, 0.45, 0.64) }, uDetail: { value: 1 },
     },
   });

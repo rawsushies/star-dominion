@@ -15,6 +15,7 @@ import { setSystemOwner, hostileArmedPresence } from './territory';
 import { canAfford, log, pay, scaleCost } from './util';
 import { sendLetter } from './envoys';
 import type { BuildingId, Colony, Cost, Empire, GameState, Planet, ShipClass } from './types';
+import { injunctionBlocks, megaProject, navalAccordsBlock } from './expansion';
 
 export function buildingCost(state: GameState, e: Empire, id: BuildingId): Cost {
   return scaleCost(BUILDINGS[id].cost, Math.max(0.3, 1 + mod(empireMods(state, e), 'buildCost')));
@@ -68,6 +69,8 @@ export function canBuildShip(state: GameState, e: Empire, p: Planet, cls: ShipCl
   if (!(c.buildings.shipyard ?? 0)) return { ok: false, reason: 'Requires an Orbital Shipyard' };
   if (!hasTech(e, SHIPS[cls].tech)) return { ok: false, reason: `Requires research: ${TECH_BY_ID[SHIPS[cls].tech!]?.name ?? SHIPS[cls].tech}` };
   if (c.shipQueue.length >= 8) return { ok: false, reason: 'Shipyard queue full (8)' };
+  const accord = navalAccordsBlock(state, e, cls);
+  if (accord) return { ok: false, reason: accord };
   return { ok: true };
 }
 
@@ -134,6 +137,8 @@ export function progressConstruction(state: GameState) {
       // blockaded: hostile warships in the system stop the work (and its instalments), as they
       // stop shipments, outposts, colonisation and repairs
       if (hostileArmedPresence(state, m.ownerId, sys.id)) continue;
+      // an Ascension Injunction halts the regulated project for bound members
+      { const proj = megaProject(m.id); if (proj && injunctionBlocks(state, m.ownerId, proj)) continue; }
       // stages are paid in daily instalments, so great works fit within normal storage;
       // a day the realm cannot pay, the work waits
       if (!pay(e, megaInstalment(def))) continue;

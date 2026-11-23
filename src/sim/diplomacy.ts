@@ -12,6 +12,8 @@ import { BUILDINGS } from './data/buildings';
 import type { DealItem, Empire, GameState, PeaceTerm, Proposal, TreatyType, War, BuildingId } from './types';
 import { networkBonus } from './espionage';
 import { hegemon } from './victory';
+import { precursorOfEmpire, reputation } from './expansion';
+import { precursorOpinionLines, towardPrecursorLines } from './ancients';
 
 export const TREATY_LABEL: Record<TreatyType, string> = {
   nap: 'Non-Aggression Pact', trade: 'Trade Agreement', research: 'Research Cooperation',
@@ -36,7 +38,16 @@ export function opinionBreakdown(state: GameState, a: number, b: number): [strin
   const eb = state.empires[b];
   const out: [string, number][] = [];
   if (!ea || !eb) return out;
-  if (eb.kind === 'guardian' || eb.kind === 'raiders') return [['Hostile entity', -100]];
+  if (eb.kind === 'guardian' || eb.kind === 'raiders' || eb.kind === 'cosmic') return [['Hostile entity', -100]];
+  if (ea.kind === 'cosmic') return [['Beyond reckoning', -100]];
+  // the ancients judge younger realms by their own measure (sim/ancients.ts)
+  const pa0 = ea.kind === 'precursor' ? precursorOfEmpire(state, a) : undefined;
+  const pb0 = eb.kind === 'precursor' ? precursorOfEmpire(state, b) : undefined;
+  if (pa0 || pb0) {
+    const lines = pa0 ? precursorOpinionLines(state, pa0, b) : towardPrecursorLines(state, pb0!, a);
+    for (const m of state.opinions[key(a, b)] ?? []) lines.push([m.label, Math.round(m.value)]);
+    return lines;
+  }
   out.push(['Disposition', Math.round(ea.personality.diplomacy * 20 - 8)]);
   if (ea.government === eb.government) out.push(['Kindred government', 15]);
   else if (CLASH.some(([x, y]) => (x === ea.government && y === eb.government) || (y === ea.government && x === eb.government))) out.push(['Ideological rivalry', -10]);
@@ -56,6 +67,9 @@ export function opinionBreakdown(state: GameState, a: number, b: number): [strin
     const lead = hegemon(state);
     if (lead && lead.id === b) out.push(['Fears their ambition', -Math.round(10 + lead.fear * 25)]);
   }
+  // standing in the galaxy (the High Conclave's reputation)
+  const rep = reputation(state, b);
+  if (Math.abs(rep) >= 5 && (ea.kind === 'major' || ea.kind === 'minor' || ea.kind === 'rebels')) out.push(['Galactic reputation', Math.round(rep * 0.15)]);
   for (const m of state.opinions[key(a, b)] ?? []) out.push([m.label, Math.round(m.value)]);
   return out;
 }

@@ -11,6 +11,7 @@ import { CIV_TEMPLATES } from '../../sim/data/names';
 import { RESOURCES, type DealItem, type ResId, type TreatyType, type Proposal } from '../../sim/types';
 import { formatDate } from '../../sim/util';
 import { Sheet, Section, Emblem, Swatch, ResGlyph, RES_META, signed, cls, fmt } from '../components/common';
+import { Motives, Overtures, PactsAndHistory } from '../components/Politics';
 
 const TREATIES: TreatyType[] = ['nap', 'trade', 'research', 'defense', 'alliance'];
 
@@ -28,6 +29,7 @@ export function DiplomacyScreen() {
           {inbox.map((p) => <ProposalRow key={p.id} p={p} />)}
         </Section>
       )}
+      <Overtures />
       <div className="cols side" style={{ marginTop: inbox.length ? 10 : 0 }}>
         <div className="list" style={{ alignSelf: 'start' }}>
           {known.map((e) => {
@@ -48,6 +50,8 @@ export function DiplomacyScreen() {
         </div>
         {sel ? <EmpirePanel id={sel.id} /> : null}
       </div>
+      {sel && <Motives id={sel.id} />}
+      <PactsAndHistory />
       {void me}
     </Sheet>
   );

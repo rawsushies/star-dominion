@@ -96,7 +96,7 @@ export function SystemsScreen() {
                         <td>{PLANET_TYPES[p.type].label}</td>
                         <td className="n">{p.size}</td>
                         <td className={cls('n', hab >= 0.6 ? 'pos' : hab > 0 ? 'warn' : 'faint')}>{hab > 0 ? `${Math.round(hab * 100)}%` : '—'}</td>
-                        <td className="n">{p.deposits.minerals}/{p.deposits.energy}/{p.deposits.rare}</td>
+                        <td className="n">{Math.round(p.deposits.minerals * 10) / 10}/{p.deposits.energy}/{p.deposits.rare}</td>
                         <td>{p.colony ? <span className="row" style={{ gap: 6 }}><Swatch color={g.empires[p.colony.ownerId].color} />Colony{p.colony.ownerId === g.playerId ? `, ${fmt(p.colony.pops, 1)} pops` : ''}</span> : p.colonizing ? 'Being settled' : p.station ? `${p.station[0].toUpperCase()}${p.station.slice(1)} operation, level ${p.op?.level ?? 1}` : <span className="faint">Untouched</span>}</td>
                         <td style={{ whiteSpace: 'nowrap' }}>
                           {p.colony?.ownerId === g.playerId && <button className="btn small" onClick={() => ui.set({ screen: 'planets', planetId: p.id })}>Manage</button>}

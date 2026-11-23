@@ -196,7 +196,8 @@ Three distinct roads to victory, open to every great realm, the AI included (`sr
 - **Supremacy (war and diplomacy):** no rival great realm left independent: each has fallen or is your vassal.
 - **Ascension (civilisation):** reach the last era, Omega Sovereignty.
 - **Warnings:** the galaxy is told when a realm starts a domination hold or reaches three quarters of the way to any victory. The game pauses for these.
-- **Defeat:** you lose your last world, or a rival achieves any victory.
+- **Defeat:** you lose your last world, a rival achieves any victory, or the Omega Incursion consumes the galaxy (corruption over 45% of claimed space).
+- The Grand Expansion adds crisis outcomes without new ways to win: the Warden of the Galaxy title, the ancients' relics, the Devourer's heart. None of them replaces or shortens the three roads. An Ascension Injunction can regulate the Continuum Engine or the Omega Theorem for bound Conclave members, but any member may defy it, at a price.
 - After a victory you may keep ruling.
 
 ## Ambitions
@@ -246,6 +247,97 @@ Every AI realm issues the same validated commands as the player and sees rivals 
 
   Each choice has lasting effects: research, weapons, reputation with every court, population, stability, raiders, debts or privateers.
 
+## The Grand Expansion (late game)
+
+Three connected systems for the decades after the opening (`src/sim/expansion.ts` and its modules). The **High Conclave** and **Ancients and threats** windows show them; the galaxy map draws the Devourer, its announced path, the Omega rift and corruption, and the Archons' sacred worlds.
+
+### The High Conclave (`conclave.ts`)
+
+- **Founding:** in the third year once a great realm reaches the Interstellar Imperium, or the eighth regardless.
+- **Seats:**
+  - Founding Sovereigns: the three leading realms at founding, permanent, with a rare veto.
+  - Great Powers: era 2, and 6% of claimed space or 8% of the people, and a reputation above -50. Several conditions, not one threshold.
+  - Sponsored Sovereigns: sit while an ancient power sponsors them.
+  - Regional Delegates: rotate every five years among the rest.
+  - Observers: no vote.
+- **Weights:** standing, territory, military and reputation, each square-rooted (diminishing returns), scaled by seat, and capped at 34% of the chamber. Stockpiles never count. Weights freeze when a session opens.
+- **Sessions:**
+  - One motion at a time. Ordinary sessions run 60 days and need more yea than nay.
+  - Emergency sessions run 20 days and need two thirds of the votes cast. Only Founders or Great Powers can call one, and only against a cosmic threat or an ancient power at war with a member. They cannot be vetoed.
+  - A quorum of 40% must take a side. Failed motions cannot be retabled for two years.
+  - Members can lobby AI delegates.
+- **Directives:** each binds every seated member except its target and anyone who openly defies it.
+  - Containment War: its supporters go to war together, supply one another's fleets and share sight of the target.
+  - Market Embargo: suspends contracts, trade agreements and new deals with the target, which pays more on the market and earns less from trade.
+  - Naval Accords: no warships beyond naval capacity, and at most 2 + era battleships and dreadnoughts. Suspended during wars with the ancients or cosmic threats.
+  - Ascension Injunction: stops the Continuum Engine, Dyson Swarms or the Omega Theorem.
+  - Repeal: ends a directive in force.
+- **Defiance** costs 15 reputation, the supporters' goodwill and 4 stability for three years. A second defiance within ten years suspends a non-founding seat for five years.
+- **Reputation** (-100 to 100) feeds opinions, Conclave weight and Great Power status. Leviathan victories, crisis contributions and honouring directives raise it. Defiance, vetoes, salvage and abandoning systems to the Devourer or the Omega lower it.
+
+### The Stagnant Ascendancies (`ancients.ts`)
+
+- **The two powers:** the Archons of Veil (psionic, sacred worlds, relics, isolationist) and Automata Prime (machines, gateways, self-repair, technology tribute, hatred of forbidden machine minds). Each starts dormant in a small enclave of citadel systems.
+- **Pressure** builds from realms reaching the Galactic Hegemony, Dyson Swarms, forbidden AI (Sentient Research Engines, the Grand Archive), settling the Archons' sacred worlds, warships in protected systems, slain Sentinels, Continuum Engine work, unpaid tribute and the Omega Incursion. Each point is blamed on whoever caused it.
+- **Awakening:** warnings come at 50 and 75. At 100 the power wakes, raises hosts stronger than the strongest navy, and declares war on the realms it blames most. Their hosts besiege, land troops, take systems and demand submission from weak neighbours. Peace comes on their terms.
+- **Intrusion:** warships left in protected systems bring a warning, then war: next month for the Archons, after three months for Automata Prime.
+- **Diplomacy** goes through the ancients' own rites:
+  - Tribute eases pressure.
+  - Restricted knowledge: a technology from Automata Prime, or research, a relic and calm from the Archons.
+  - Sponsorship: favours and a Conclave seat, bound by their terms. Breaking the terms twice revokes it.
+  - Automata Prime demand technology tribute from advanced realms every few years.
+- **The War in Heaven:** when both are awake they fight each other. Younger realms may pledge to a side, join an independent coalition whose members defend one another, stay neutral, or salvage the ancients' undefended outworks.
+- **Watchful and fallen:** an awakened power left in peace for three years grows watchful. One that loses every world falls, and whoever holds its throne world inherits its relics.
+
+### Cosmic threats (`threats.ts`, `omega.ts`)
+
+- **Void Devourer:** appears once, in years 20 to 30, and leaves after 16 years.
+  - It moves every 40 days to the richest neighbouring system, and its next destination is always announced a move ahead.
+  - Where it sits: energy falls to 15% and trade through the system is cut.
+  - Where it fed: a scar leaves 70% energy for eight years, and it eats a stage of any Dyson Swarm or Stellar Collector.
+  - It grows as it feeds and starves on empty space. Whoever kills it gains +10% energy and reputation.
+- **Sentinels** guard gateways, relic vaults, shipyards or research archives. Each pays its own reward to whoever destroys the host, and angers Automata Prime.
+- **Omega Incursion:** triggered when anyone proves the Omega Theorem or brings a Continuum Engine to its second stage.
+  - Stages: anomalies (8 months), warnings with the rift's location (6 months), the rift (3 months), then the incursion.
+  - During the incursion: corruption spreads a fraction of a system a month, scaled to the galaxy and growing with strength. Defended systems resist. Stronger waves of fleets push out along the fronts. Corrupted worlds produce half and lose people, and an undefended one is lost after six months. Galactic trade and the energy and rare-element markets suffer.
+  - The answer: fleets holding the rift wear down its integrity, 25% faster under an emergency containment. Members can contribute resources, intelligence, containment lattices and fleets.
+  - The holder of the rift chooses:
+    - Seal it: 180 days of holding the rift; the remnants wither.
+    - Destroy its source: costs two warships in five; every Omega fleet is destroyed.
+    - Bind it: great output, but the galaxy's and the ancients' enmity, the slowest recovery, and a yearly chance it tears free.
+  - Afterwards: systems recover over years. The realm with most credit becomes Warden of the Galaxy and joins the Conclave's founders. Contributors get a reconstruction boom, and seated members who stood aside lose standing.
+
+### Emergent politics (`politics.ts`)
+
+No enemy, ally or victor is scripted. Every great realm carries an agenda recomputed monthly: a priority (survival, containment, conquest, ascension, prosperity, expansion; preservation or dominion for the ancients), what it fears and why, what it wants, whom it is loyal to, its rival and its vision for the Omega Incursion. The player is told when a realm they know turns to war, survival or the hunt for allies. Each ancient power keeps a regard for each younger realm, moving month by month: respect (strength, wars won, fighting beside it, the crisis, slaying the Devourer), fear (power against its own, the trouble caused, reach) and admiration (keeping its terms, tribute, reputation, its own measure of a good realm). Regard feeds its opinion.
+
+Every overture is weighed by both parties from their own interests with one scoring function, itemised so the player can read why. AI realms and ancient powers propose what they want; the player answers in Diplomacy and can propose the same things.
+
+- **With the ancients:** alliance (each joins the other's wars; only an awake power), protection (a mutual defence pact), exclusive knowledge (a unique technology, once), clientage (the younger realm becomes the ancient's vassal and military partner), and submission (an ancient that fears a realm, has lost its war or its enclave kneels as its vassal). Treaties are real: an allied ancient goes to war for its ally. A realm bound to an ancient is not blamed, taxed or attacked for trespass by it.
+- **Compacts:** realms that fear the same foe (an ancient power or a younger realm) stand together, even old enemies: any war between them ends. A member at war calls the others in; an AI member weighs honour against the cost, the player has three months to answer. A separate peace, an ignored call or a turn on a partner breaks the compact and is remembered; partners worn down by the common war may be betrayed by an ambitious ally. Interests drift: a receding threat or quarrelling members build strain until it fractures. Compact partners do not plan war on one another.
+- **Collusion:** a secret pact between a younger realm and an ancient power against another realm. The ancient's blame shifts to the target; when either goes to war with the target, the other is drawn in, and the pact comes to light. Intelligence can uncover it first: the target may expose it (the conspirator's reputation suffers and every realm remembers) or confront the conspirator, who backs down or defies it depending on strength and pride.
+- **Concords:** realms threatened by the Omega Incursion or the Void Devourer set their wars aside until the crisis ends, then their old quarrels resume. Betraying a concord costs more reputation than any other betrayal.
+- **The accord of the ancients:** a common threat (the Omega Incursion, a younger realm both blame or fear, a league against them) can bring the two powers to a truce or an alliance, ending or preventing the War in Heaven. When the threat fades the alliance cools and the old enmity strains the accord until it breaks; the truce is repudiated and, if both are awake, the War in Heaven begins. Younger realms may mediate an accord or sow discord between them, at a risk.
+- **The Omega crisis:** the realm with most crisis credit leads the effort (better acceptance of its overtures); when the lead changes the displaced claimant resents it; realms that would bind the rift and those that would end it grow apart.
+
+Everything is recorded in a political history (Diplomacy) and the Chronicle's headlines.
+
+## The living galaxy (`life.ts`)
+
+The galaxy runs on its own. Every world produces and consumes; what it lacks must be carried to it.
+
+- **Merchant routes.** Each month merchants plan routes from what the worlds actually produce and consume: supply routes from a realm's producing worlds and its capital's stores to the worlds that need them, and trade between realms at peace when one has a deficit, low stores or a glut the other lacks. Standing routes keep their path and history; routes with nothing to carry for three months are retired. Exporters earn the market price, importers pay it and fill their stores; trade treaties add a tariff for both. Internal shipping earns a little for the crown.
+- **Disruption.** Corsairs on a lane take half the cargo; hostile warships blockade it; war between the trading realms or Omega corruption severs it. A cut route is re-planned around the danger if a safe way exists. A world whose imports do not arrive goes short: up to −14 stability and −15% output, and slower growth when grain is missing. Famines, blockades and their culprits enter history.
+- **War damage.** Battles in a system, enemy warships in orbit, corruption and conquest devastate worlds: less output, less housing, lower stability, scorched cities on the planet view. Worlds rebuild over years, faster when prosperous.
+- **Prosperity and settlement.** Each world's prosperity follows its stability, employment, supply, trade and safety, and gently feeds back into stability. New colonies fill out over years (their settlement maturity), and the map shows it.
+- **Migration.** People leave crowded, jobless, hungry or war-torn worlds for prosperous worlds with homes and work, aboard transports that take days to arrive. Refugees cross the border to peaceful neighbours, who are remembered for taking them in. Crowded realms feel colonisation pressure and expand.
+- **Depletion.** Heavily worked mines lose their rich ore over generations.
+- **The arcs of realms.** Each year a realm's course is read from its economy, prosperity and troubles: founding, rising, golden age (+5 stability for a year), stable, declining, in crisis, recovering. Decline and crisis name their main cause (lost systems, wrecked worlds, cut routes, shortages, exhaustion, overextension, unrest). An AI realm in crisis for a year may lose its outer worlds to secession; a breakaway state that endures eight years is recognised as a minor realm; a prosperous minor realm expands and, grown large enough, becomes a great power.
+- **Prices.** The galaxy's net surpluses and deficits push market prices (within half to twice their base); trading moves them further.
+- **History.** Every notable development is kept with its cause, consequence, participants and date (Chronicle, filterable), and the greatest also reach the news. History feeds later decisions through opinion memories (fed us in famine, strangled our commerce, ravaged our worlds, sheltered our people, former oppressor) and through the AI's war choices, which weigh trade ties and coveted goods.
+
+On the map every cargo ship is a convoy of a real route on its schedule; transports carry real migrants; couriers carry real overtures; formations are real fleets sized by their strength; rings of light show each settled system's maturity and condition (thriving, prosperous, developing, struggling, declining, devastated, occupied, under siege, frontier); war fronts, blockades, sieges, construction and ruins are drawn where they are.
+
 ## Onboarding and guidance
 
 Players learn by playing, and guidance never takes control. Details are in `docs/GUIDANCE.md`.
@@ -289,4 +381,6 @@ A central audio manager drives music, sound effects and ambience. Details are in
 - Era 2 and beyond are late-game goals. Campaign statistics per difficulty are in `docs/CAMPAIGN.md`.
 - There is no ground-combat screen: invasions resolve automatically.
 - Diplomacy uses buttons and a deal builder. There is no free-text negotiation.
+- Emergent politics covers the great realms and the two ancient powers. Minor realms accept and honour pacts but take no initiative; there are no resistance movements inside corrupted space; a compact or collusion has one target; the player cannot propose an accord between the ancients directly (only mediate one).
+- The living galaxy is an aggregate model: routes carry monthly volumes and migrations move whole pops; there are no individual freighters or citizens. Merchant convoys are drawn on the map but are not fleets: they cannot be attacked directly (attack the realm or blockade the lane instead). The player cannot draw routes by hand. Secession applies to AI realms only (the player's worlds still revolt one by one). Planet surfaces show development through shading, not modelled buildings; megastructures keep their existing models.
 - Single-player only. The command layer is designed for a server-authoritative multiplayer layer, which does not exist yet.

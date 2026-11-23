@@ -49,6 +49,11 @@ export function buildFleetFormation(f: Fleet, color: string, scale = 0.85, maxSh
 import { hash2 } from '../../sim/rng';
 import type { GameState, Planet, StarSystem } from '../../sim/types';
 import { buildPlanet, hexA, NOISE_GLSL, type PlanetBuild } from './planet3d';
+import { worldLook, worldLookKey } from './worldLook';
+import { convoyPositions } from '../../sim/life';
+import { routeIndexAt } from './galaxyLife';
+import { civStyle, drawShip } from './civStyle';
+import { simClock } from '../store';
 import { releaseView } from './assets/release';
 import { SystemMegastructures } from './megastructures3d';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
@@ -267,7 +272,7 @@ export class SystemView3D {
       const R = orbitR(p.orbit);
       this.scene.add(ring(R, lineMat));
       const radius = p.type === 'gas_giant' ? 1.25 : 0.38 + p.size * 0.022;
-      const build = buildPlanet(p.type, p.id * 7919 + 13, p.colony ? Math.min(1, p.colony.pops / 25) : 0, true);
+      const build = buildPlanet(p.type, p.id * 7919 + 13, worldLook(state, p), true);
       build.group.scale.setScalar(radius);
       this.scene.add(build.group);
       const body: Body = { planet: p, build, radius, orbitR: R, phase: hash2(p.id, 5, 3) * Math.PI * 2, speed: 0.00006 / Math.sqrt(p.orbit + 1), pos: new THREE.Vector3() };
@@ -329,7 +334,7 @@ export class SystemView3D {
   }
 
   frame(state: GameState, sys: StarSystem, w: number, h: number, dpr: number, time: number, selPlanet: number | null, selFleet: number | null, ov: CanvasRenderingContext2D): SysHit[] {
-    const sig = `${sys.id}:${sys.starbase}:${sys.megastructures.map((m) => m.id + m.stage).join()}:${state.planets.filter((p) => p.systemId === sys.id).map((p) => (p.colony ? Math.round(p.colony.pops / 5) : -1)).join()}`;
+    const sig = `${sys.id}:${sys.starbase}:${sys.megastructures.map((m) => m.id + m.stage).join()}:${state.planets.filter((p) => p.systemId === sys.id).map((p) => (p.colony ? worldLookKey(state, p) : -1)).join()}`;
     if (sig !== this.sig) {
       const newSystem = !this.sig.startsWith(`${sys.id}:`);
       this.sig = sig;
@@ -393,6 +398,36 @@ export class SystemView3D {
         ov.fillText(p.name, s.x, s.y + rpx + 6);
       }
       hits.push({ kind: 'planet', id: p.id, x: s.x, y: s.y, r: Math.max(10, rpx + 4) });
+    }
+    // merchant traffic: convoys of real routes leave and reach this system's worlds, heading for the next star on their path
+    const routes = state.life?.routes ?? [];
+    if (routes.length && visibleSystems(state, state.playerId).has(sys.id)) {
+      const t = state.tick + simClock.frac;
+      const edge = this.maxR * 1.35;
+      const gsys = state.galaxy.systems;
+      const bodyPos = (pid: number) => this.bodies.find((b) => b.planet.id === pid)?.pos ?? null;
+      for (const r of routes) {
+        const i = r.path.indexOf(sys.id);
+        if (i < 0) continue;
+        const style = civStyle(state.empires[r.a]);
+        const col = r.a !== r.b ? '#f0dcae' : (state.empires[r.a]?.color ?? '#aaa');
+        for (const c of convoyPositions(r, t)) {
+          const at = routeIndexAt(state, r, c.u);
+          const k = at - i;
+          if (Math.abs(k) > 0.5 && !(c.docked && i === 0)) continue;
+          // where in this system: from a world (at an end of the route) or the star (passing through) out toward a neighbour
+          const anchor = i === 0 ? bodyPos(r.from) : i === r.path.length - 1 ? bodyPos(r.to) : null;
+          const nb = k >= 0 ? r.path[i + 1] : r.path[i - 1];
+          const dir = new THREE.Vector3();
+          if (nb != null) dir.set(gsys[nb].x - sys.x, 0, gsys[nb].y - sys.y).normalize();
+          const base = anchor ? anchor.clone() : new THREE.Vector3();
+          const pos = c.docked ? base.clone().add(new THREE.Vector3(0.6, 0.2, 0)) : base.clone().lerp(dir.clone().multiplyScalar(edge), Math.min(1, Math.abs(k) * 2));
+          const s = proj(pos);
+          if (s.z > 1) continue;
+          const ahead = proj(pos.clone().add(dir.clone().multiplyScalar((c.laden === (k >= 0)) ? 1 : -1)));
+          drawShip(ov, 'cargo', style, s.x, s.y, Math.atan2(ahead.y - s.y, ahead.x - s.x), 4.5, c.docked ? '#e2543f' : col, c.laden ? 0.95 : 0.6);
+        }
+      }
     }
     if (this.starbase) {
       const s = proj(this.starbase.position);

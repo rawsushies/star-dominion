@@ -34,6 +34,10 @@ import { emptyStock, log, nextId } from './util';
 import { RESOURCES, type Climate, type Colony, type Empire, type GameSettings, type GameState, type GovernmentId, type PlanetType, type BuildingId, type ResId } from './types';
 import { successionMonthly, ensureRuler } from './succession';
 import { espionageTick } from './espionage';
+import { setupExpansion, expansionDaily, expansionMonthly } from './expansion';
+import { precursorTick } from './ancients';
+import { onSentinelsDefeated } from './threats';
+import { lifeDaily, lifeMonthly, emptyLife } from './life';
 
 export const SAVE_VERSION = 1;
 
@@ -53,7 +57,7 @@ export const DEFAULT_SETTINGS: GameSettings = {
   difficulty: 'standard',
 };
 
-function blankEmpire(id: number, partial: Partial<Empire>): Empire {
+export function blankEmpire(id: number, partial: Partial<Empire>): Empire {
   return {
     id,
     name: 'Unknown',
@@ -121,6 +125,7 @@ export function newGame(settings: Partial<GameSettings> = {}): GameState {
     disruptedRoutes: {},
     playerId: 0,
     gameOver: null,
+    life: emptyLife(),
   };
 
   // --- choose capitals by farthest-point sampling over hyperlane distance ---
@@ -233,6 +238,9 @@ export function newGame(settings: Partial<GameSettings> = {}): GameState {
 
   state.empires[state.playerId].relics = START_RELICS;
 
+  // the Grand Expansion: ancient powers, cosmic realms, the Sentinels' charges (own seeded stream)
+  setupExpansion(state);
+
   // Initial exploration & stats
   for (const e of state.empires) {
     if (e.capitalSystemId == null) continue;
@@ -328,7 +336,7 @@ export function step(state: GameState) {
   progressCapitals(state);
 
   for (const e of state.empires) {
-    if (!e.alive || e.kind === 'guardian' || e.kind === 'raiders') continue;
+    if (!e.alive || e.kind === 'guardian' || e.kind === 'raiders' || e.kind === 'cosmic') continue;
     const ledger = getLedger(state, e, true);
     const started = applyLedgerDay(state, e, ledger);
     for (const r of started) {
@@ -360,6 +368,8 @@ export function step(state: GameState) {
     if (e.kind === 'major') for (const sid of visibleSystems(state, e.id)) if (!isExplored(e, sid)) markExplored(state, e, sid);
   }
 
+  expansionDaily(state);
+  lifeDaily(state);
   if (state.tick % 30 === 0) monthly(state);
 
   for (const e of state.empires) {
@@ -370,6 +380,7 @@ export function step(state: GameState) {
     }
   }
   if (state.tick % 3 === 0) runRaiders(state);
+  if (state.tick % 10 === 7) precursorTick(state);
   if (state.prologue && state.tick % 5 === 0) prologueTick(state);
 }
 
@@ -408,6 +419,8 @@ function monthly(state: GameState) {
   successionMonthly(state);
   espionageTick(state, 30);
   operationsMonthly(state);
+  expansionMonthly(state);
+  lifeMonthly(state);
   if (state.tick % 360 === 0) refreshCandidates(state);
   updateStats(state);
   if (state.tick % 360 === 0) recordYear(state);
@@ -435,7 +448,7 @@ function colonyMonthly(state: GameState) {
     if (c.resistance > 0) {
       const garrisons = c.buildings.garrison ?? 0;
       const decay = (1.2 + garrisons * 1.5) * (1 + (e.policies.border_security === 'fortified' ? 0.5 : 0));
-      c.resistance = Math.max(0, c.resistance - decay + (c.stability < 25 ? 2 : 0));
+      c.resistance = Math.min(100, Math.max(0, c.resistance - decay + (c.stability < 25 ? 2 : 0)));
     }
     // Rebellion
     if (c.stability < 12 && e.capitalPlanetId !== p.id) c.lowStabilityMonths++;
@@ -505,8 +518,10 @@ function guardiansCheck(state: GameState) {
     if (!sys.features.includes('guardian')) continue;
     const alive = Object.values(state.fleets).some((f) => f.systemId === sys.id && state.empires[f.ownerId].kind === 'guardian');
     if (!alive) {
+      // the victor claims what the Sentinels guarded (sim/threats.ts)
+      const victor = onSentinelsDefeated(state, sys.id);
       sys.features = sys.features.filter((f) => f !== 'guardian');
-      log(state, { kind: 'guardian', severity: 'good', title: `Sentinels of ${sys.name} destroyed`, text: 'The precursor ruins are now open to survey by any fleet that arrives.', empires: [], systemId: sys.id });
+      if (victor == null) log(state, { kind: 'guardian', severity: 'good', title: `Sentinels of ${sys.name} destroyed`, text: 'The precursor ruins are now open to survey by any fleet that arrives.', empires: [], systemId: sys.id });
     }
   }
 }
@@ -529,14 +544,14 @@ function randomEvents(state: GameState) {
       case 2: {
         // epidemics are now the fever chain (sim/chains.ts); a realm with regenerative medicine shrugs off minor ones
         if (e.research.done.includes('bio_medicine')) { ev('info', 'Epidemic contained', `Regenerative medicine halted an outbreak on ${p.name}.`); break; }
-        c.stability -= 5; ev('warn', 'Sickness', `A seasonal sickness keeps the workers of ${p.name} at home (-5 stability).`); break;
+        c.stability = Math.max(0, c.stability - 5); ev('warn', 'Sickness', `A seasonal sickness keeps the workers of ${p.name} at home (-5 stability).`); break;
       }
       case 3: e.timedMods.push({ key: 'stability', value: 6, until: state.tick + 360, label: 'Cultural renaissance' }); ev('good', 'Cultural renaissance', 'A flowering of the arts lifts spirits across the realm (+6 stability for a year).'); break;
       case 4: e.timedMods.push({ key: 'tradeValue', value: 0.25, until: state.tick + 360, label: 'Trade boom' }); ev('good', 'Trade boom', 'Merchant houses report record profits (+25% trade value for a year).'); break;
       case 5: spawnRaiders(state, e); break;
       case 6: e.research.progress += 120; ev('good', 'Scientific breakthrough', 'A serendipitous discovery advances current research (+120).'); break;
-      case 7: c.pops += 2; c.stability -= 4; ev('info', 'Refugee wave', `Refugees from beyond the frontier settle on ${p.name} (+2 pops, -4 stability).`); break;
-      case 8: c.stability -= 12; ev('warn', 'Labour strikes', `Workers on ${p.name} walk out over conditions (-12 stability).`); break;
+      case 7: c.pops += 2; c.stability = Math.max(0, c.stability - 4); ev('info', 'Refugee wave', `Refugees from beyond the frontier settle on ${p.name} (+2 pops, -4 stability).`); break;
+      case 8: c.stability = Math.max(0, c.stability - 12); ev('warn', 'Labour strikes', `Workers on ${p.name} walk out over conditions (-12 stability).`); break;
     }
   }
 }
@@ -562,7 +577,7 @@ export function spawnRaiders(state: GameState, target: Empire) {
 
 function eliminationCheck(state: GameState) {
   for (const e of state.empires) {
-    if (!e.alive || e.kind === 'guardian' || e.kind === 'raiders') continue;
+    if (!e.alive || e.kind === 'guardian' || e.kind === 'raiders' || e.kind === 'cosmic') continue;
     const colonies = state.planets.filter((p) => p.colony?.ownerId === e.id);
     if (colonies.length) {
       if (e.capitalPlanetId == null || state.planets[e.capitalPlanetId].colony?.ownerId !== e.id) relocateCapital(state, e.id);
@@ -585,7 +600,7 @@ export function updateStats(state: GameState) {
     for (const p of state.planets) if (p.colony?.ownerId === e.id) { pop += p.colony.pops; col++; stab += p.colony.stability; }
     let mil = 0;
     for (const id in state.fleets) if (state.fleets[id].ownerId === e.id) mil += fleetPower(state, state.fleets[id]);
-    const L = e.kind === 'guardian' || e.kind === 'raiders' ? null : getLedger(state, e, true);
+    const L = e.kind === 'guardian' || e.kind === 'raiders' || e.kind === 'cosmic' ? null : getLedger(state, e, true);
     e.stats = {
       population: Math.round(pop * 10) / 10,
       colonies: col,

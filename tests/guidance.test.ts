@@ -18,7 +18,7 @@ import { currentHints, snoozeHint } from '../src/guidance/hints';
 import { SCREEN_INFO } from '../src/guidance/screens';
 import { codexEntries, codexEntry, searchCodex, CODEX_CATS } from '../src/guidance/codex';
 
-const SCREENS = ['kingdom', 'planets', 'system', 'fleets', 'military', 'economy', 'industry', 'research', 'techtree', 'diplomacy', 'intel', 'construction', 'trade', 'journal', 'heroes', 'council', 'capital', 'operations', 'throne', 'warroom', 'chronicle', 'codex'];
+const SCREENS = ['kingdom', 'planets', 'system', 'fleets', 'military', 'economy', 'industry', 'research', 'techtree', 'diplomacy', 'intel', 'construction', 'trade', 'journal', 'heroes', 'council', 'capital', 'operations', 'throne', 'warroom', 'chronicle', 'codex', 'conclave', 'cosmos'];
 const ui = (p: Partial<UIState> = {}) => ({ speed: 0, windows: [], view: 'galaxy', screen: 'map', systemId: null, planetId: null, fleetId: null, rev: 0, ...p }) as unknown as UIState;
 const fresh = () => newGame({ seed: 7, galaxySize: 'small', aiCount: 2 });
 

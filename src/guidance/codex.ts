@@ -4,6 +4,7 @@
 // governments, policies, planets, stars, operations, covert operations) are generated from the
 // game's own data tables, so their numbers are always the numbers the game uses.
 
+import { OFFER_COST, OFFER_LABEL, PRIORITY_LABEL } from '../sim/data/politics';
 import type { ScreenId } from '../ui/store';
 import type { Cost } from '../sim/types';
 import { RESOURCES } from '../sim/types';
@@ -24,10 +25,11 @@ import { COVERT, COVERT_KINDS } from '../sim/espionage';
 import { TREATY_LABEL } from '../sim/diplomacy';
 import { HEIR_COST } from '../sim/succession';
 import { modText } from '../ui/modLabels';
+import { DEVOURER, DIRECTIVES, EMERGENCY_DAYS, FOUNDING, KNOWLEDGE_COST, OMEGA, PRECURSORS, PRESSURE, QUORUM, SEAT_LABEL, SENTINEL_SITES, SESSION_DAYS, SPONSOR_COST, SPONSOR_OPINION, VETO_COOLDOWN, VETO_COST, WATCHFUL_YEARS, WEIGHT_CAP } from '../sim/data/expansion';
 
 export type CodexCat =
   | 'galaxy' | 'worlds' | 'capital' | 'economy' | 'production' | 'colonization' | 'fleets' | 'diplomacy'
-  | 'research' | 'eras' | 'characters' | 'council' | 'houses' | 'espionage' | 'megastructures';
+  | 'research' | 'eras' | 'characters' | 'council' | 'houses' | 'espionage' | 'megastructures' | 'expansion';
 
 export const CODEX_CATS: { id: CodexCat; label: string }[] = [
   { id: 'galaxy', label: 'Galaxy and exploration' },
@@ -45,6 +47,7 @@ export const CODEX_CATS: { id: CodexCat; label: string }[] = [
   { id: 'houses', label: 'Great Houses and succession' },
   { id: 'espionage', label: 'Espionage' },
   { id: 'megastructures', label: 'Megastructures' },
+  { id: 'expansion', label: 'Conclave, ancients and crises' },
 ];
 
 export interface CodexEntry {
@@ -104,6 +107,11 @@ const MECHANICS: CodexEntry[] = [
     what: 'A system is a star and everything orbiting it; territory is claimed system by system. A planet is one world; an inhabited planet is a colony with its own population, buildings, stability and queue. A province is a sector: a named group of systems that one governor can administer. The capital is the world that seats your crown.',
     does: 'Trade value from every world must travel to the capital. The capital hosts the Citadel and its city. Governors raise output and stability across a whole province.',
     related: ['mech.capital', 'role.governor', 'mech.designation', 'mech.trade'], screen: 'council' },
+  { id: 'mech.life', cat: 'worlds', title: 'The living galaxy', summary: 'Worlds trade, people move, realms rise and fall, and history remembers.',
+    what: 'Each world produces and consumes goods. Merchants turn surpluses into standing routes: supply routes inside a realm, and trade between realms at peace. Every cargo ship on the map is a convoy of a real route, every transport carries real migrants, and every courier carries a real overture.',
+    does: 'A world whose imports do not arrive goes short: up to −14 stability and −15% output, and slower growth when grain is missing. Battles, sieges and conquest devastate worlds (lower output and housing until rebuilt). People leave crowded, jobless, hungry or war-torn worlds for prosperous ones, sometimes across borders. Realms enter golden ages, decline, fall into crisis and may lose their outer worlds to secession; rebel states that endure become recognised, and prosperous minor states can become great powers. Mines run out over generations.',
+    how: 'Keep the lanes to importing worlds safe from corsairs and enemy fleets. Trade with peaceful neighbours: exporters earn the market price and importers fill their stores. Realms remember who fed them in famine, who blockaded their trade and who ravaged their worlds. The Chronicle keeps the galactic history; the map shows each system\'s condition.',
+    related: ['mech.trade', 'mech.stability', 'mech.shortage'], screen: 'trade' },
   { id: 'mech.stability', cat: 'worlds', title: 'Stability and unrest', summary: 'Each colony\'s contentment; below 40 output suffers, very low stability leads to revolt.',
     what: 'Stability (0–100) is computed per colony from government, policies, buildings, governors, decrees, shortages, occupation and more; the Planets window lists every factor.',
     does: 'Output and taxes are cut by up to 40% below stability 40 (60% of normal below 20), and rise by up to 15% above 70. A colony that stays below 12 for months rises in revolt and may break away to form a rebel realm.',
@@ -281,6 +289,36 @@ const MECHANICS: CodexEntry[] = [
     does: 'Each stage takes hundreds of days and its cost is paid in daily instalments; on a day the treasury cannot pay, work waits. Every completed stage adds its modifiers and flat output at once. Energy from megastructures feeds the Kardashev rating, and some eras require specific stages.',
     how: 'Construction → Megastructures: pick an eligible system you own and press "Begin construction".',
     related: ['cat.megastructures', 'mech.kardashev', 'mech.eras'], screen: 'construction' },
+  // the Grand Expansion
+  { id: 'mech.conclave', cat: 'expansion', title: 'The High Conclave', summary: 'A galactic assembly with influence, not unlimited authority: weighted votes, motions and directives.',
+    what: `Founded in the ${FOUNDING.earliest / 360}rd year once a great realm reaches the Interstellar Imperium (the ${FOUNDING.latest / 360}th regardless). Seats: ${Object.values(SEAT_LABEL).join(', ')}. The three leading realms at its founding are Founding Sovereigns for good; Great Powers need the Stellar Ascendancy and 6% of claimed space or 8% of the galaxy's people, without a disgraced reputation; Sponsored Sovereigns sit while an ancient power sponsors them; Regional Delegates rotate every five years; everyone else observes.`,
+    does: `Weights combine political standing, territory, military strength and reputation, each with diminishing returns, scaled by seat and capped at ${Math.round(WEIGHT_CAP * 100)}% of the chamber; they freeze when a session opens. Ordinary sessions last ${SESSION_DAYS} days and need more yea than nay; a Founding Sovereign may veto one every ${VETO_COOLDOWN / 360} years for ${VETO_COST} influence. Emergency sessions last ${EMERGENCY_DAYS} days, need two thirds and cannot be vetoed. A quorum of ${Math.round(QUORUM * 100)}% must take a side. A directive binds every seated member but its target and those who defy it; defiance costs 15 reputation, the supporters' goodwill and 4 stability for three years, and a second within ten years suspends a seat.`,
+    facts: Object.values(DIRECTIVES).map((d) => [d.label, `${d.summary} Tabling costs ${d.cost} influence${d.years ? `; in force ${d.years} years` : ''}.`] as [string, string]),
+    how: 'High Conclave window: vote, lobby AI delegates, table a motion when no session runs, defy or comply with directives.',
+    related: ['mech.ancients', 'mech.omega', 'mech.diplomacy'], screen: 'conclave' },
+  { id: 'mech.ancients', cat: 'expansion', title: 'The Stagnant Ascendancies', summary: 'Two ancient powers, dormant until the galaxy provokes them: the Archons of Veil and Automata Prime.',
+    what: Object.values(PRECURSORS).map((p) => `${p.name}: ${p.lore}`).join(' '),
+    does: `Pressure builds from what realms do, and each point is blamed on whoever caused it. Warnings come at ${PRESSURE.stir} and ${PRESSURE.final}; at ${PRESSURE.awaken} a power wakes, raises its hosts and makes war on those it blames most. Warships left in their protected systems bring a warning and then war. When both are awake they fight the War in Heaven: younger realms may pledge to a side, join an independent coalition whose members defend one another, stay out, or salvage the ancients' outworks. An awakened power left in peace for ${WATCHFUL_YEARS} years grows watchful; one that loses every world falls, and its throne world's new master inherits its relics.`,
+    facts: Object.values(PRECURSORS).flatMap((p) => [[`${p.name}: what wakes them`, p.wakes.join('; ')], [`${p.name}: sponsorship`, `${p.sponsorDuty} Favours: ${p.sponsorBoons.map((b) => b.label).join(', ')}.`]] as [string, string][]),
+    how: `Ancients and threats window: pay tribute, seek restricted knowledge (${KNOWLEDGE_COST} influence), seek sponsorship (${SPONSOR_COST} influence, their opinion ${SPONSOR_OPINION}), and act in the War in Heaven.`,
+    related: ['mech.conclave', 'mech.threats'], screen: 'cosmos' },
+  { id: 'mech.threats', cat: 'expansion', title: 'The Void Devourer and the Sentinels', summary: 'A roaming stellar leviathan, and the ancient guardians of what the precursors left.',
+    what: `The Void Devourer enters the galaxy between its ${DEVOURER.earliestYear}th and ${DEVOURER.latestYear}th year and leaves after ${DEVOURER.lifespanYears}. It moves every ${DEVOURER.moveDays} days to the richest neighbouring system, announcing its next destination a full move ahead.`,
+    does: `Where it sits, energy falls to ${Math.round(DEVOURER.drain * 100)}% and trade through the system is cut; where it fed, a scar dims energy to ${Math.round(DEVOURER.scar * 100)}% for ${DEVOURER.scarYears} years and a stage of any Dyson Swarm or Stellar Collector is eaten. It grows as it feeds and starves on empty space. Whoever kills it gains +10% energy for good and reputation; leaving your systems to it with no fleet near costs reputation. Sentinels guard four kinds of site; destroying a host gives its reward and reputation, and angers Automata Prime.`,
+    facts: Object.values(SENTINEL_SITES).map((s) => [s.label, s.reward] as [string, string]),
+    how: 'Ancients and threats window, and the galaxy map (the Devourer, its path and the days to its next move are drawn there).',
+    related: ['mech.ancients', 'mech.combat'], screen: 'cosmos' },
+  { id: 'mech.omega', cat: 'expansion', title: 'The Omega Incursion', summary: 'A multi-year crisis drawn by the Omega Theorem or an advanced Continuum Engine.',
+    what: `Anomalies (${OMEGA.anomalyMonths} months), warnings with the rift's location (${OMEGA.warningMonths} months), the rift opening (${OMEGA.riftMonths} months), then the incursion: corruption spreads along the fronts, Omega fleets grow stronger, corrupted worlds produce half and lose their people, and a corrupted world with no defending fleet is lost after ${OMEGA.neglectMonths} months. Galactic trade and markets suffer. If corruption takes ${Math.round(OMEGA.consumeShare * 100)}% of claimed space, the galaxy is consumed and the reign ends.`,
+    does: `Warships holding the rift wear down its integrity (faster under a Conclave containment). At integrity ${OMEGA.sealIntegrity} a holder may seal it (${OMEGA.sealDays} days); at ${OMEGA.breachIntegrity}, destroy its source at the cost of two warships in five; at ${OMEGA.exploitIntegrity}, with the Transcendent Continuum or a Continuum Engine, bind it for great power and the galaxy's enmity, with a yearly chance it tears free. Sealing or destroying it names a Warden of the Galaxy (the realm with most credit), who joins the Conclave's founders; contributors enjoy a reconstruction boom and members who stood aside lose standing. Corrupted systems take years to recover.`,
+    how: 'Ancients and threats window for the rift; High Conclave window for emergency containment and contributions.',
+    related: ['mech.conclave', 'mech.eras', 'mech.mega'], screen: 'cosmos' },
+  { id: 'mech.politics', cat: 'expansion', title: 'Emergent politics', summary: 'Every realm and ancient power pursues its own interests: alliances, compacts, conspiracies, concords and betrayals arise from circumstance, not script.',
+    what: `Each great realm carries motives recomputed every month: a priority (${Object.values(PRIORITY_LABEL).join(', ').toLowerCase()}), what it fears and why, what it wants, whom it is loyal to, its rival and how it would end the Omega Incursion. Each ancient power keeps a regard for every younger realm (respect for strength and deeds, admiration for conduct it approves of, fear of power and trouble caused) that moves month by month and feeds its opinion.`,
+    does: `Overtures are weighed by both sides from their own interests, with itemised reasons. ${Object.entries(OFFER_LABEL).map(([k, v]) => `${v}${OFFER_COST[k as keyof typeof OFFER_COST] ? ` (${OFFER_COST[k as keyof typeof OFFER_COST]} influence)` : ''}`).join(', ')}. Alliances, protection and vassalage are real treaties: allies join wars. Compact members are called into one another's wars against their common foe and do not plan war on one another; a member who makes a separate peace, ignores the call or turns on a partner breaks it, and drifting interests strain it until it fractures. A collusion is secret: the ancient power's blame shifts to the target and each partner is drawn into the other's war; intelligence can uncover it, and the target may expose or confront the conspirator. A concord sets wars aside until a cosmic crisis ends. An accord between the ancients ends or prevents the War in Heaven while a common threat holds them together, and breaks when it fades.`,
+    facts: [['Overtures', `Answer within ${Math.round(120 / 30)} months; a refusal is remembered and the same overture is not repeated for a year.`], ['Honour', 'A compact member called to war has three months to answer.'], ['Mediation', 'Brokering an accord between the ancients earns their admiration and the galaxy\'s esteem; sowing discord between them risks both turning on you.']],
+    how: 'Diplomacy window: political overtures, each realm\'s motives, compacts and concords, pacts and political history. Ancients and threats window: the ancients\' regard, petitions to them, collusion, mediation and discord.',
+    related: ['mech.ancients', 'mech.conclave', 'mech.diplomacy'], screen: 'diplomacy' },
 ];
 
 // ---------------------------------------------------------------- generated catalogues

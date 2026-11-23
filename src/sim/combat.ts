@@ -388,7 +388,7 @@ function captureIfUndefended(state: GameState, sid: number) {
   if (sys.owner == null || sys.starbaseDamage < WRECKED) return;
   const holds = sys.planetIds.some((pid) => state.planets[pid].colony?.ownerId === sys.owner);
   if (holds) return;
-  const victor = Object.values(state.fleets).find((f) => f.systemId === sid && f.progress === 0 && armed(f) && isHostile(state, f.ownerId, sys.owner!) && state.empires[f.ownerId].kind === 'major');
+  const victor = Object.values(state.fleets).find((f) => f.systemId === sid && f.progress === 0 && armed(f) && isHostile(state, f.ownerId, sys.owner!) && (state.empires[f.ownerId].kind === 'major' || state.empires[f.ownerId].kind === 'precursor'));
   if (!victor) return;
   const prev = sys.owner;
   setSystemOwner(state, sid, victor.ownerId);

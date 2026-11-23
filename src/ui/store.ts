@@ -12,11 +12,13 @@ import type { GameEvent, GameSettings, GameState } from '../sim/types';
 
 export type ScreenId =
   | 'map' | 'kingdom' | 'planets' | 'system' | 'fleets' | 'military' | 'economy' | 'industry'
-  | 'research' | 'diplomacy' | 'intel' | 'construction' | 'trade' | 'journal' | 'techtree' | 'heroes' | 'council' | 'capital' | 'operations' | 'throne' | 'warroom' | 'chronicle' | 'codex' | 'vault';
+  | 'research' | 'diplomacy' | 'intel' | 'construction' | 'trade' | 'journal' | 'techtree' | 'heroes' | 'council' | 'capital' | 'operations' | 'throne' | 'warroom' | 'chronicle' | 'codex' | 'vault' | 'conclave' | 'cosmos';
 
 export type MapMode = 'political' | 'resources' | 'military' | 'trade' | 'supply';
 
 export const SPEEDS = [0, 2, 6, 15]; // days per second
+/** How far the simulation is into the next day (0..1), for smooth motion on the map; display only. */
+export const simClock = { frac: 0 };
 
 export interface Toast { id: number; ev: GameEvent }
 
@@ -24,6 +26,7 @@ export interface Win { id: Exclude<ScreenId, 'map'>; x: number; y: number; w: nu
 
 /** Default footprint of each window (fractions of the viewport, clamped in px). */
 const WIN_SIZE: Partial<Record<ScreenId, [number, number]>> = {
+  conclave: [1180, 780], cosmos: [1180, 800],
   kingdom: [1040, 720], planets: [1120, 740], system: [980, 680], fleets: [980, 660], military: [1040, 700],
   economy: [1060, 700], industry: [1060, 720], research: [900, 660], techtree: [1180, 760], diplomacy: [1080, 720],
   intel: [940, 680], construction: [980, 660], trade: [940, 640], journal: [720, 640], heroes: [1120, 760], council: [1180, 780], capital: [1200, 820], operations: [1100, 720], throne: [1180, 800], warroom: [1160, 760], chronicle: [980, 760], codex: [1080, 760],
@@ -239,6 +242,7 @@ export function startLoop() {
         steps++;
       }
       if (acc > 3) acc = 3; // don't spiral if the machine can't keep up
+      simClock.frac = Math.min(0.999, Math.max(0, acc));
       if (steps) {
         surfaceEvents(g);
         if (now - lastBump > 180) { lastBump = now; useUI.setState({ rev: useUI.getState().rev + 1 }); }

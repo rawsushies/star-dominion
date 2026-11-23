@@ -4,6 +4,7 @@ import { getLedger } from '../../sim/engine';
 import { formatDate } from '../../sim/util';
 import { Sheet, Section, Stat, Swatch, fmt, signed, cls, ResGlyph } from '../components/common';
 import type { ResId } from '../../sim/types';
+import { routeVolume } from '../../sim/life';
 
 const STATUS: Record<string, [string, string]> = {
   capital: ['Capital', ''], secure: ['Secure', 'good'], raided: ['Raided', 'gold'], disrupted: ['Disrupted', 'bad'], cut: ['Cut off', 'bad'],
@@ -51,6 +52,7 @@ export function TradeScreen() {
           <p className="hint">Each lane without a Starport and not patrolled in the last 45 days loses 2.5% of the value passing through it (up to 50%). Spaceports and Commerce Exchanges generate trade value; corporate governments and free-market law multiply it.</p>
         </Section>
         <div>
+          <MerchantRoutes />
           <Section title="Trade agreements" aside="+8% of collected trade and +2 credits each">
             {!agreements.length && <div className="empty">No trade agreements. Propose them from Diplomacy.</div>}
             {agreements.map((t) => { const o = g.empires[t.a === g.playerId ? t.b : t.a]; return <div key={o.id} className="row between" style={{ padding: '4px 0' }}><span className="row" style={{ gap: 6 }}><Swatch color={o.color} />{o.name}</span><span className="hint">since {formatDate(t.since)}</span></div>; })}
@@ -80,5 +82,42 @@ export function TradeScreen() {
         </div>
       </div>
     </Sheet>
+  );
+}
+
+/** The realm's merchant routes (sim/life.ts): supply routes between its worlds and trade with other realms. */
+function MerchantRoutes() {
+  const g = useGame();
+  const ui = useUI();
+  const me = g.playerId;
+  const all = g.life?.routes ?? [];
+  const mine = all.filter((r) => r.a === me || r.b === me);
+  const internal = mine.filter((r) => r.a === r.b);
+  const abroad = mine.filter((r) => r.a !== r.b);
+  const cut = mine.filter((r) => r.status === 'blockaded' || r.status === 'severed');
+  const vol = g.life?.volume ?? [];
+  const max = Math.max(1, ...vol);
+  return (
+    <Section title={<Term entry="mech.life">Merchant routes</Term>} aside={`${internal.length} supply · ${abroad.length} with other realms`}>
+      <div data-testid="merchant-routes">
+        {cut.length > 0 && <div className="tag bad" style={{ marginBottom: 6 }}>{cut.length} route{cut.length > 1 ? 's' : ''} cut: {cut.map((r) => g.planets[r.to].name).join(', ')} going short</div>}
+        {!abroad.length && <div className="empty">No trade with other realms yet. Merchants trade with realms at peace with you that have what you lack, or lack what you have plenty of.</div>}
+        {abroad.length > 0 && <table className="t">
+          <thead><tr><th>With</th><th>Goods / month</th><th className="n">Days</th><th>Status</th></tr></thead>
+          <tbody>{abroad.map((r) => {
+            const out = r.a === me;
+            const o = g.empires[out ? r.b : r.a];
+            return <tr key={r.id} className="click" onClick={() => ui.set({ screen: 'planets', planetId: out ? r.from : r.to })}>
+              <td className="row" style={{ gap: 6 }}><Swatch color={o.color} />{out ? 'Exports to' : 'Imports from'} {o.name}</td>
+              <td>{Object.entries(r.cargo).map(([k, v]) => <span key={k}><ResGlyph r={k as ResId} /> {fmt(v ?? 0, 1)} </span>)}</td>
+              <td className="n">{r.days}</td>
+              <td><span className={cls('tag', r.status === 'open' ? 'good' : r.status === 'raided' ? 'gold' : 'bad')}>{r.status}</span></td>
+            </tr>;
+          })}</tbody>
+        </table>}
+        <p className="hint">Supply routes carry {fmt(internal.reduce((a, r) => a + routeVolume(r), 0), 0)} units a month between your worlds. Galactic interstellar trade: {vol.length ? fmt(vol[vol.length - 1], 0) : 0} units a month.</p>
+        {vol.length > 2 && <svg viewBox="0 0 120 24" style={{ width: '100%', height: 30 }} role="img" aria-label="Galactic trade volume over the last years"><polyline fill="none" stroke="var(--gold, #dcae62)" strokeWidth="1" points={vol.map((v, i) => `${(i / (vol.length - 1)) * 120},${22 - (v / max) * 20}`).join(' ')} /></svg>}
+      </div>
+    </Section>
   );
 }

@@ -164,6 +164,10 @@ describe('3. AI transports and invasions', () => {
     for (let d = 0; d < 360 * 6; d++) {
       step(g); g.gameOver = null;
       if (d % 30 === 0) { for (const r of RESOURCES) A.stock[r] = Math.max(A.stock[r], 20_000); maxTroops = Math.max(maxTroops, troopsOf(g, a)); }
+      // B stays a lone fortress: its crowded people would otherwise settle softer targets nearby (sim/life.ts), and allies
+      // who join it would offer the attacker softer worlds to invade instead
+      for (const p of g.planets) if (p.colony?.ownerId === b && p !== bCap) p.colony = null;
+      for (const w of g.wars) if (w.attackers.includes(a)) w.defenders = w.defenders.filter((x) => x === b);
       if (bCap.colony?.ownerId !== b || !g.wars.some((w) => w.attackers.includes(a) && w.defenders.includes(b))) break;
     }
     // before the fix the realm stopped at exactly 96 soldiers and waited in orbit for the rest of the war

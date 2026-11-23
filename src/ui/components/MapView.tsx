@@ -1,13 +1,14 @@
 import type { GameState } from '../../sim/types';
 import { useEffect, useRef } from 'react';
 import { questBeacons } from '../../guidance/beacons';
-import { useUI } from '../store';
+import { useUI, simClock } from '../store';
+import { lifeStats } from '../render/galaxyLife';
 import { GalaxyView3D, galaxyCam, focusGalaxyOn, type FleetMark } from '../render/galaxy3d';
 import { SystemView3D, orbitCam, type SysHit } from '../render/system3d';
 import { PlanetView3D, planetCam } from '../render/planetScene';
 import { getLedger } from '../../sim/engine';
 import { isExplored } from '../../sim/territory';
-import { FrameGate, ResolutionGovernor, currentViewQuality } from '../graphics';
+import { FrameGate, ResolutionGovernor, currentViewQuality, reducedMotion, trafficShare } from '../graphics';
 
 let cameraForGame: unknown = null;
 
@@ -85,6 +86,8 @@ export function MapView() {
     const gate = new FrameGate();
     const gov = new ResolutionGovernor();
     (window as unknown as { __sdRes?: ResolutionGovernor }).__sdRes = gov;
+    (window as unknown as { __sdLife?: typeof lifeStats }).__sdLife = lifeStats;
+    (window as unknown as { __sdCam?: typeof galaxyCam }).__sdCam = galaxyCam;
     let seenTick = -1;
     const unsub = useUI.subscribe((st, prev) => {
       if (st.view !== prev.view || st.systemId !== prev.systemId || st.planetId !== prev.planetId || st.fleetId !== prev.fleetId || st.mapMode !== prev.mapMode || st.pendingOrder !== prev.pendingOrder) gate.poke(400);
@@ -133,7 +136,7 @@ export function MapView() {
             const L = getLedger(g, g.empires[g.playerId]);
             routes = Object.values(L.planets).filter((p) => p.routePath.length > 1).map((p) => ({ path: p.routePath, status: p.routeStatus }));
           }
-          marks = gal ? gal.frame(g, { w, h, dpr, time: t, selectedSystem: ui.systemId, selectedFleet: ui.fleetId, hoverSystem: hover, mode: ui.mapMode, routes, beacons: cachedBeacons(g, ui.rev) }, ctx) : [];
+          marks = gal ? gal.frame(g, { w, h, dpr, time: t, selectedSystem: ui.systemId, selectedFleet: ui.fleetId, hoverSystem: hover, mode: ui.mapMode, routes, beacons: cachedBeacons(g, ui.rev), simT: g.tick + (ui.speed > 0 ? simClock.frac : 0), reduced: reducedMotion(), traffic: trafficShare() }, ctx) : [];
           hits = [];
         }
       }

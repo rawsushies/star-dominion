@@ -5,6 +5,7 @@ import { BUILDINGS } from './data/buildings';
 import { SHIPS } from './data/ships';
 import { empireMods, mod, type Mods } from './modifiers';
 import type { BuildingId, Empire, GameState, Planet } from './types';
+import { containmentPartners, containmentSig, extraVision } from './expansion';
 
 /** Bumped whenever ownership changes through setSystemOwner. */
 let ownershipEpoch = 0;
@@ -48,6 +49,7 @@ export function isHostile(state: GameState, a: number, b: number): boolean {
   if (!ea || !eb) return false;
   if (ea.kind === 'guardian' || eb.kind === 'guardian') return true;
   if (ea.kind === 'raiders' || eb.kind === 'raiders') return true;
+  if (ea.kind === 'cosmic' || eb.kind === 'cosmic') return true;
   return !!warBetween(state, a, b);
 }
 
@@ -63,6 +65,8 @@ export function friends(state: GameState, id: number): number[] {
     if (t.a === id) out.push(t.b);
     else if (t.b === id) out.push(t.a);
   }
+  // a Conclave containment war: its members supply one another's fleets
+  for (const p of containmentPartners(state, id)) if (!out.includes(p)) out.push(p);
   return out;
 }
 
@@ -102,7 +106,7 @@ function ownershipSig(state: GameState): string {
   // exactly, so swapping one pact for another the same day cannot reuse a stale network
   let friendsSig = '';
   for (const t of state.treaties) if (t.type === 'alliance' || t.type === 'vassal') friendsSig += `${t.type[0]}${t.a}-${t.b},`;
-  return `${state.tick}:${ownershipEpoch}:${friendsSig}`;
+  return `${state.tick}:${ownershipEpoch}:${friendsSig}:${containmentSig(state)}`;
 }
 
 export function armed(f: { ships: { cls: string }[] }): boolean {
@@ -183,6 +187,7 @@ export function visibleSystems(state: GameState, empireId: number): Set<number> 
       if (range > 0) for (const id of jumpsWithin(state.galaxy, f.systemId, range).keys()) set.add(id);
     }
   }
+  for (const sid of extraVision(state, empireId)) set.add(sid);
   c.map.set(empireId, set);
   return set;
 }

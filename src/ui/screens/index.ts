@@ -21,6 +21,8 @@ import { WarRoomScreen } from './WarRoom';
 import { ChronicleScreen } from './Chronicle';
 import { CodexScreen } from './Codex';
 import { VaultScreen } from './Vault';
+import { ConclaveScreen } from './Conclave';
+import { CosmosScreen } from './Cosmos';
 
 // The capital pulls in the whole city renderer (models, metro, traffic): load it on first visit.
 const CapitalScreen = lazy(() => import('./Capital').then((m) => ({ default: m.CapitalScreen })));
@@ -49,4 +51,6 @@ export const SCREENS: Record<Exclude<ScreenId, 'map'>, ComponentType> = {
   chronicle: ChronicleScreen,
   codex: CodexScreen,
   vault: VaultScreen,
+  conclave: ConclaveScreen,
+  cosmos: CosmosScreen,
 };
