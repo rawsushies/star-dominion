@@ -198,7 +198,7 @@ function PlanetCtx({ p }: { p: Planet }) {
       <div className="kv" style={{ marginTop: 8 }}>
         <span>System</span><span><button className="linkish" onClick={() => ui.selectSystem(p.systemId)}>{sys.name}</button></span>
         <span>Habitability for your people</span><span className={hab >= 0.6 ? 'pos' : hab > 0 ? 'warn' : 'neg'}>{Math.round(hab * 100)}%</span>
-        <span>Mineral / energy deposits</span><span>{p.deposits.minerals} / {p.deposits.energy}</span>
+        <span>Mineral / energy deposits</span><span>{Math.round(p.deposits.minerals * 10) / 10} / {p.deposits.energy}</span>
         {p.deposits.rare > 0 && <><span>Rare element vein</span><span>{p.deposits.rare}</span></>}
         {p.deposits.research > 0 && <><span>Research anomaly</span><span>{p.deposits.research}</span></>}
         {c && <><span>Colony of</span><span>{ownerLine(g, c.ownerId)}</span></>}

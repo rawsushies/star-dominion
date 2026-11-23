@@ -15,6 +15,7 @@ import { opReport, OP_KINDS, logisticsCapacity, logisticsUsed } from './operatio
 import { supplyNetwork, hostileArmedPresence, isHostile, adminCapacity, ownedSystems } from './territory';
 import { DESIGNATIONS } from './data/designations';
 import { embargoed, isCorrupted, sponsorOf, systemCondition } from './expansion';
+import { tradeLedgerLines } from './life';
 
 export type LedgerKey = ResId | 'research';
 export interface LedgerLine { key: LedgerKey; label: string; amount: number }
@@ -249,6 +250,8 @@ export function computeLedger(state: GameState, e: Empire): Ledger {
     for (const r in gives) add(r as ResId, `Trade deal: ${other}`, -(gives as any)[r]);
     for (const r in gets) add(r as ResId, `Trade deal: ${other}`, (gets as any)[r]);
   }
+  // merchant routes between realms and the realm's own shipping (sim/life.ts)
+  tradeLedgerLines(state, e, add, (o) => state.treaties.some((t) => t.type === 'trade' && ((t.a === e.id && t.b === o) || (t.b === e.id && t.a === o))));
   // Trade agreements: +8% of trade value per partner
   const partners = state.treaties.filter((t) => t.type === 'trade' && (t.a === e.id || t.b === e.id) && !embargoed(state, t.a, t.b)).length;
   if (partners) add('credits', 'Trade agreements', (tradeTotal - tradeLost) * 0.08 * partners + 2 * partners);
@@ -305,6 +308,7 @@ function colonyReport(state: GameState, e: Empire, p: Planet, c: Colony, mods: M
 
   // Housing & jobs
   let housing = 5;
+  const ruin = 1 - (c.devastation ?? 0) / 300;
   const filled: Partial<Record<BuildingId, number>> = {};
   let jobs = 0;
   for (const b in c.buildings) {
@@ -313,6 +317,7 @@ function colonyReport(state: GameState, e: Empire, p: Planet, c: Colony, mods: M
     housing += d.housing * n;
     jobs += d.jobs * n;
   }
+  housing *= ruin;
   let free = Math.floor(c.pops);
   for (const b of JOB_PRIORITY) {
     const n = c.buildings[b] ?? 0;
@@ -349,11 +354,17 @@ function colonyReport(state: GameState, e: Empire, p: Planet, c: Colony, mods: M
   // the Devourer, its scars, Omega corruption and recovery (sim/expansion.ts); null in ordinary systems
   const cond = systemCondition(state, p.systemId);
   if (cond) sf.push([cond.label, cond.stability]);
+  // the living galaxy (sim/life.ts): war damage, imports that do not arrive, and the world's fortunes
+  const devast = c.devastation ?? 0;
+  if (devast >= 1) sf.push(['War devastation', -Math.round(devast * 0.15)]);
+  const supply = c.supply ?? 1;
+  if (supply < 0.95 && c.want?.length) sf.push([`Supply shortfall (${c.want.join(', ')})`, -Math.round((1 - supply) * 14)]);
+  if (c.prosperity != null && Math.abs(c.prosperity - 50) >= 8) sf.push([c.prosperity >= 50 ? 'Prosperity' : 'Hardship', Math.round((c.prosperity - 50) * 0.06)]);
   const ind = industrialistBonus(state, p.id);
   const stabilityTarget = Math.max(0, Math.min(100, sf.reduce((a, [, v]) => a + v, 0)));
 
   const conn = connected ? 1 : 0.5;
-  const outputMult = (cond ? cond.output : 1) * stabilityOutputMult(c.stability) * (1 - c.resistance / 200) * conn * (1 + gov.output + ind.output);
+  const outputMult = (1 - devast / 250) * (1 - (1 - supply) * 0.15) * (cond ? cond.output : 1) * stabilityOutputMult(c.stability) * (1 - c.resistance / 200) * conn * (1 + gov.output + ind.output);
   // province designation: matching yields gain, the rest pay a little; a governor adds a third again
   const desig = DESIGNATIONS[c.designation ?? 'balanced'];
   const govSpec = gov.name ? 1 + (gov.output > 0 ? 0.35 : 0.2) : 1;
@@ -448,6 +459,7 @@ function colonyReport(state: GameState, e: Empire, p: Planet, c: Colony, mods: M
     const room = Math.max(0, Math.min(1, (maxPops - c.pops) / 3));
     growth = (0.32 * (0.4 + 0.6 * hab) * (1 + mod(mods, 'growth')) + (c.pops < 4 ? 0.15 : 0)) * room;
     if (c.stability < 25) growth *= 0.5;
+    if (c.want?.includes('food') && supply < 0.6) growth *= 0.4;
   }
   if (cond?.corrupted) growth = Math.min(growth, -0.3);
 

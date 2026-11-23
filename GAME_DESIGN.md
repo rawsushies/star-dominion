@@ -322,6 +322,22 @@ Every overture is weighed by both parties from their own interests with one scor
 
 Everything is recorded in a political history (Diplomacy) and the Chronicle's headlines.
 
+## The living galaxy (`life.ts`)
+
+The galaxy runs on its own. Every world produces and consumes; what it lacks must be carried to it.
+
+- **Merchant routes.** Each month merchants plan routes from what the worlds actually produce and consume: supply routes from a realm's producing worlds and its capital's stores to the worlds that need them, and trade between realms at peace when one has a deficit, low stores or a glut the other lacks. Standing routes keep their path and history; routes with nothing to carry for three months are retired. Exporters earn the market price, importers pay it and fill their stores; trade treaties add a tariff for both. Internal shipping earns a little for the crown.
+- **Disruption.** Corsairs on a lane take half the cargo; hostile warships blockade it; war between the trading realms or Omega corruption severs it. A cut route is re-planned around the danger if a safe way exists. A world whose imports do not arrive goes short: up to −14 stability and −15% output, and slower growth when grain is missing. Famines, blockades and their culprits enter history.
+- **War damage.** Battles in a system, enemy warships in orbit, corruption and conquest devastate worlds: less output, less housing, lower stability, scorched cities on the planet view. Worlds rebuild over years, faster when prosperous.
+- **Prosperity and settlement.** Each world's prosperity follows its stability, employment, supply, trade and safety, and gently feeds back into stability. New colonies fill out over years (their settlement maturity), and the map shows it.
+- **Migration.** People leave crowded, jobless, hungry or war-torn worlds for prosperous worlds with homes and work, aboard transports that take days to arrive. Refugees cross the border to peaceful neighbours, who are remembered for taking them in. Crowded realms feel colonisation pressure and expand.
+- **Depletion.** Heavily worked mines lose their rich ore over generations.
+- **The arcs of realms.** Each year a realm's course is read from its economy, prosperity and troubles: founding, rising, golden age (+5 stability for a year), stable, declining, in crisis, recovering. Decline and crisis name their main cause (lost systems, wrecked worlds, cut routes, shortages, exhaustion, overextension, unrest). An AI realm in crisis for a year may lose its outer worlds to secession; a breakaway state that endures eight years is recognised as a minor realm; a prosperous minor realm expands and, grown large enough, becomes a great power.
+- **Prices.** The galaxy's net surpluses and deficits push market prices (within half to twice their base); trading moves them further.
+- **History.** Every notable development is kept with its cause, consequence, participants and date (Chronicle, filterable), and the greatest also reach the news. History feeds later decisions through opinion memories (fed us in famine, strangled our commerce, ravaged our worlds, sheltered our people, former oppressor) and through the AI's war choices, which weigh trade ties and coveted goods.
+
+On the map every cargo ship is a convoy of a real route on its schedule; transports carry real migrants; couriers carry real overtures; formations are real fleets sized by their strength; rings of light show each settled system's maturity and condition (thriving, prosperous, developing, struggling, declining, devastated, occupied, under siege, frontier); war fronts, blockades, sieges, construction and ruins are drawn where they are.
+
 ## Onboarding and guidance
 
 Players learn by playing, and guidance never takes control. Details are in `docs/GUIDANCE.md`.
@@ -366,4 +382,5 @@ A central audio manager drives music, sound effects and ambience. Details are in
 - There is no ground-combat screen: invasions resolve automatically.
 - Diplomacy uses buttons and a deal builder. There is no free-text negotiation.
 - Emergent politics covers the great realms and the two ancient powers. Minor realms accept and honour pacts but take no initiative; there are no resistance movements inside corrupted space; a compact or collusion has one target; the player cannot propose an accord between the ancients directly (only mediate one).
+- The living galaxy is an aggregate model: routes carry monthly volumes and migrations move whole pops; there are no individual freighters or citizens. Merchant convoys are drawn on the map but are not fleets: they cannot be attacked directly (attack the realm or blockade the lane instead). The player cannot draw routes by hand. Secession applies to AI realms only (the player's worlds still revolt one by one). Planet surfaces show development through shading, not modelled buildings; megastructures keep their existing models.
 - Single-player only. The command layer is designed for a server-authoritative multiplayer layer, which does not exist yet.

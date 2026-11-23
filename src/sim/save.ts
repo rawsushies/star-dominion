@@ -10,6 +10,7 @@ import type { GameState } from './types';
 import { upgradeGalaxy } from './galaxy';
 import { migrateAdmirals } from './characters';
 import { setupExpansion, migrateExpansion } from './expansion';
+import { migrateLife } from './life';
 
 export function serialize(state: GameState): string {
   return JSON.stringify(state);
@@ -34,6 +35,7 @@ export function deserialize(json: string): GameState {
   // the Grand Expansion arrives in older saves in its starting state (dormant ancients, no Conclave yet)
   if (!s.expansion) setupExpansion(s);
   else migrateExpansion(s);
+  migrateLife(s);
   if (s.empires.some((e) => e.alive && e.kind === 'major' && e.stats?.powerW == null)) updateStats(s);
   // the old ten-step advisor becomes the first guided lesson
   if (s.tutorial) {

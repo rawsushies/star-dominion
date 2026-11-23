@@ -37,6 +37,7 @@ import { espionageTick } from './espionage';
 import { setupExpansion, expansionDaily, expansionMonthly } from './expansion';
 import { precursorTick } from './ancients';
 import { onSentinelsDefeated } from './threats';
+import { lifeDaily, lifeMonthly, emptyLife } from './life';
 
 export const SAVE_VERSION = 1;
 
@@ -124,6 +125,7 @@ export function newGame(settings: Partial<GameSettings> = {}): GameState {
     disruptedRoutes: {},
     playerId: 0,
     gameOver: null,
+    life: emptyLife(),
   };
 
   // --- choose capitals by farthest-point sampling over hyperlane distance ---
@@ -367,6 +369,7 @@ export function step(state: GameState) {
   }
 
   expansionDaily(state);
+  lifeDaily(state);
   if (state.tick % 30 === 0) monthly(state);
 
   for (const e of state.empires) {
@@ -417,6 +420,7 @@ function monthly(state: GameState) {
   espionageTick(state, 30);
   operationsMonthly(state);
   expansionMonthly(state);
+  lifeMonthly(state);
   if (state.tick % 360 === 0) refreshCandidates(state);
   updateStats(state);
   if (state.tick % 360 === 0) recordYear(state);

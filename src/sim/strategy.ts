@@ -4,6 +4,7 @@
 // what the realm could not know (rival strength comes through the same fuzzed intelligence the
 // player sees).
 
+import { tradeTies, resourceLure } from './life';
 import { prologueActive, protectedPrey } from './prologue';
 import { pactPartners } from './politics';
 import { sendLetter } from './envoys';
@@ -169,6 +170,11 @@ export function warCandidates(state: GameState, e: Empire): WarCandidate[] {
     // opportunism: a realm already worn down by another war is easier prey
     const busy = state.wars.find((w) => w.attackers.includes(o.id) || w.defenders.includes(o.id));
     if (busy) { const theirs = busy.attackers.includes(o.id) ? busy.score : -busy.score; score *= 1 + Math.max(0, -theirs) / 100 + Math.min(0.4, o.warExhaustion / 100) + (1 - pers.diplomacy) * 0.2; }
+    // the economy weighs in: trade partners are costly to fight, a realm that exports what we lack is tempting
+    const ties = tradeTies(state, e.id, o.id);
+    if (ties > 0) score /= 1 + ties / (15 + pers.aggression * 25);
+    const lure = resourceLure(state, e, o);
+    if (lure) score *= 1 + 0.2 * lure;
     out.push({ id: o.id, score, ratio });
   }
   return out.sort((a, b) => b.score - a.score);
@@ -270,7 +276,9 @@ export function reviewStrategy(state: GameState, e: Empire) {
     }
   }
   // 4) Peaceful goals.
-  if (freeSystemsNear(state, e) > 0 && e.stats.systems < (L.adminCap ?? 0) + 3 + pers.expansion * 4) setGoal(state, e, 'expand');
+  // crowded, jobless worlds press the crown to settle new ones (sim/life.ts)
+  const crowded = (state.life?.arcs[e.id]?.pressure ?? 0) >= 4;
+  if (freeSystemsNear(state, e) > 0 && e.stats.systems < (L.adminCap ?? 0) + 3 + pers.expansion * 4 + (crowded ? 3 : 0)) setGoal(state, e, 'expand');
   else if ((e.era ?? 0) >= 2 || (e.era ?? 0) >= 1 && e.research.done.length >= (victoryAim(e) === 'ascension' ? 20 : 24)) setGoal(state, e, 'ascend');
   else setGoal(state, e, 'develop');
 }

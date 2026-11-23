@@ -3,11 +3,15 @@ import * as THREE from 'three';
 import type { Planet } from '../../sim/types';
 import { buildPlanet } from '../render/planet3d';
 import { FrameGate, currentViewQuality } from '../graphics';
+import { worldLook, worldLookKey } from '../render/worldLook';
+import { useUI } from '../store';
 
 /** A live, slowly rotating 3D render of one planet (used for large portraits). */
 export function PlanetHero({ planet, size }: { planet: Planet; size: number }) {
   const ref = useRef<HTMLCanvasElement>(null);
+  const game = useUI((st) => st.game);
   const lights = planet.colony ? Math.min(1, planet.colony.pops / 25) : 0;
+  const lookKey = game ? worldLookKey(game, planet) : '';
   useEffect(() => {
     const cv = ref.current!;
     let renderer: THREE.WebGLRenderer;
@@ -22,7 +26,7 @@ export function PlanetHero({ planet, size }: { planet: Planet; size: number }) {
     const cam = new THREE.PerspectiveCamera(22, 1, 0.1, 50);
     cam.position.set(0, 0.25, 6.6);
     cam.lookAt(0, 0, 0);
-    const p = buildPlanet(planet.type, planet.id * 7919 + 13, lights, true);
+    const p = buildPlanet(planet.type, planet.id * 7919 + 13, game ? worldLook(game, planet) : lights, true);
     if (planet.type === 'gas_giant') p.group.scale.setScalar(0.62);
     scene.add(p.group);
     p.setLight(new THREE.Vector3(-0.85, 0.35, 0.55));
@@ -42,6 +46,6 @@ export function PlanetHero({ planet, size }: { planet: Planet; size: number }) {
     };
     raf = requestAnimationFrame(loop);
     return () => { io?.disconnect(); cancelAnimationFrame(raf); p.dispose(); renderer.dispose(); renderer.forceContextLoss(); };
-  }, [planet.type, planet.id, size, lights]);
+  }, [planet.type, planet.id, size, lights, lookKey]);
   return <canvas ref={ref} className="planet-hero" style={{ width: size * 1.3, height: size * 1.3, margin: -size * 0.15 }} aria-hidden />;
 }

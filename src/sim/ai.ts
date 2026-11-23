@@ -39,6 +39,7 @@ import { megaInstalment } from './construction';
 import { aiPreset, coalitionWanted, estimatePower, militaryFill, planOf, reviewStrategy, victoryAim } from './strategy';
 import { hegemon } from './victory';
 import { orbitSecured } from './fleets';
+import { ascendant } from './life';
 import { expansionAI, crisisFleetOps, aiAvoidsTech, aiAvoidsMega, aiAvoidsWorld } from './expansionAI';
 
 export function runAI(state: GameState, e: Empire) {
@@ -52,7 +53,7 @@ export function runAI(state: GameState, e: Empire) {
   if (isMajor) {
     expansion(state, e);
     scouting(state, e);
-  }
+  } else if (ascendant(state, e)) expansion(state, e); // a prosperous minor state grows (sim/life.ts)
   operations(state, e);
   if (state.tick % 30 < 5) diplomacy(state, e);
   if (state.tick % 15 < 5) characters(state, e);
@@ -459,7 +460,7 @@ function expansion(state: GameState, e: Empire) {
     .filter((s) => s.owner == null && !s.outpostProject && explored.has(s.id) && dist[s.id] <= 2 && !s.features.includes('guardian') && !pending.has(s.id) && !hostileFleetAt(s.id))
     .map((s) => ({ s, v: systemValue(state, s.id) + s.planetIds.filter((p) => planetHab(state, state.planets[p], e, m) >= 0.5).length * 80 - dist[s.id] * 40 }))
     .sort((a, b) => b.v - a.v);
-  const wantExpand = owned.length < L.adminCap + 2 + Math.round(e.personality.expansion * 4);
+  const wantExpand = owned.length < L.adminCap + 2 + Math.round(e.personality.expansion * 4) + ((state.life?.arcs[e.id]?.pressure ?? 0) >= 4 ? 2 : 0);
   if (wantExpand && outpostTargets.length && ctorShips.length + queuedCtor < (e.personality.expansion > 0.7 ? 2 : 1) && yards.length && e.stock.influence > 20) {
     if (canAfford(e, withReserve(shipCost(state, e, 'constructor')))) execute(state, e.id, { type: 'queueShip', planetId: yards[0].id, cls: 'constructor' });
   }

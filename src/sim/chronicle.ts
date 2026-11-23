@@ -4,7 +4,7 @@
 
 import type { ChronicleYear, GameState } from './types';
 
-const HEADLINE_KINDS = new Set(['war', 'peace', 'victory', 'gameover', 'fall', 'rebellion', 'government', 'capital', 'era', 'megastructure', 'capture', 'character', 'guardian', 'treaty', 'conclave', 'ancients', 'devourer', 'omega', 'politics']);
+const HEADLINE_KINDS = new Set(['war', 'peace', 'victory', 'gameover', 'fall', 'rebellion', 'government', 'capital', 'era', 'megastructure', 'capture', 'character', 'guardian', 'treaty', 'conclave', 'ancients', 'devourer', 'omega', 'politics', 'history']);
 
 /** Record the year that has just ended. Called on each new year (and at game start). */
 export function recordYear(state: GameState) {

@@ -8,10 +8,18 @@ import type { QualityTier } from './render/pipeline';
 
 export type CapitalStyle = 'auto' | 'megacity' | 'classic';
 export type QualityPref = 'auto' | QualityTier;
-export interface GraphicsSettings { capital: CapitalStyle; quality: QualityPref; /** frame-rate readout in the capital */ stats: boolean }
+export type MotionPref = 'auto' | 'full' | 'reduced';
+export type TrafficPref = 'low' | 'normal' | 'high';
+export interface GraphicsSettings {
+  capital: CapitalStyle; quality: QualityPref; /** frame-rate readout in the capital */ stats: boolean;
+  /** ambient animation on the map (twinkle, drifting nebulae, pulses); 'auto' follows the system's reduced-motion setting */
+  motion: MotionPref;
+  /** how many merchant convoys, migrants and couriers the map draws (all of them are real) */
+  traffic: TrafficPref;
+}
 
 export const GRAPHICS_KEY = 'sd.graphics.v1';
-export const GRAPHICS_DEFAULTS: GraphicsSettings = { capital: 'auto', quality: 'auto', stats: false };
+export const GRAPHICS_DEFAULTS: GraphicsSettings = { capital: 'auto', quality: 'auto', stats: false, motion: 'auto', traffic: 'normal' };
 
 function storage(): Storage | null {
   try { return typeof localStorage !== 'undefined' ? localStorage : null; } catch { return null; }
@@ -24,6 +32,8 @@ export function loadGraphics(store: Pick<Storage, 'getItem'> | null = storage())
       capital: (['auto', 'megacity', 'classic'] as const).includes(raw.capital as CapitalStyle) ? raw.capital as CapitalStyle : GRAPHICS_DEFAULTS.capital,
       quality: (['auto', 'mobile', 'medium', 'desktop'] as const).includes(raw.quality as QualityPref) ? raw.quality as QualityPref : GRAPHICS_DEFAULTS.quality,
       stats: raw.stats === true,
+      motion: (['auto', 'full', 'reduced'] as const).includes(raw.motion as MotionPref) ? raw.motion as MotionPref : GRAPHICS_DEFAULTS.motion,
+      traffic: (['low', 'normal', 'high'] as const).includes(raw.traffic as TrafficPref) ? raw.traffic as TrafficPref : GRAPHICS_DEFAULTS.traffic,
     };
   } catch { return { ...GRAPHICS_DEFAULTS }; }
 }
@@ -154,4 +164,15 @@ export class ResolutionGovernor {
     }
     this.lastFrame = t;
   }
+}
+
+/** Whether ambient map animation should be reduced (the setting, or the system preference on 'auto'). */
+export function reducedMotion(s: Pick<GraphicsSettings, 'motion'> = graphics()): boolean {
+  if (s.motion !== 'auto') return s.motion === 'reduced';
+  try { return typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches; } catch { return false; }
+}
+
+/** Share of real traffic drawn on the map at each setting (every drawn ship is a real convoy, migrant ship or courier). */
+export function trafficShare(s: Pick<GraphicsSettings, 'traffic'> = graphics()): number {
+  return s.traffic === 'low' ? 0.35 : s.traffic === 'high' ? 1 : 0.7;
 }

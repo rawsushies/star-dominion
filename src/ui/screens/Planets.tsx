@@ -12,6 +12,8 @@ import type { BuildingId, Planet, ShipClass } from '../../sim/types';
 import type { LedgerKey } from '../../sim/economy';
 import { DESIGNATIONS, DESIGNATION_IDS, DESIGNATION_COOLDOWN, DESIGNATION_COST } from '../../sim/data/designations';
 import { governorBonus } from '../../sim/characters';
+import { worldCondition, worldRole, type WorldRole } from '../../sim/life';
+import { CONDITION_COLOR, CONDITION_LABEL } from '../render/galaxyLife';
 
 const ROUTE_LABEL: Record<string, string> = { capital: 'Capital', secure: 'Secure', raided: 'Raided', disrupted: 'Disrupted', cut: 'Cut off' };
 
@@ -81,6 +83,8 @@ function PlanetDetail({ p }: { p: Planet }) {
             {c.resistance > 0 && <span className="tag bad">Occupation resistance {Math.round(c.resistance)}</span>}
             {c.lowStabilityMonths > 0 && <span className="tag bad">Unrest: revolt in {Math.max(0, 4 - c.lowStabilityMonths)} months if unchecked</span>}
             <span className="tag">Trade route: {ROUTE_LABEL[rep.routeStatus]}</span>
+            <span className="tag" data-testid="world-condition" style={{ borderColor: CONDITION_COLOR[worldCondition(g, p)], color: CONDITION_COLOR[worldCondition(g, p)] }}>{CONDITION_LABEL[worldCondition(g, p)]}</span>
+            <span className="tag">{ROLE_LABEL[worldRole(g, p)]}</span>
           </div>
         </div>
         <div className="row"><button className="btn" onClick={() => { ui.set({ screen: 'map', view: 'system', systemId: p.systemId, planetId: p.id }); }}>View in system</button></div>
@@ -161,6 +165,7 @@ function PlanetDetail({ p }: { p: Planet }) {
               ])}
             </div>
           </Section>
+          <WorldFortunes p={p} />
           <Section title={<Term entry="mech.stability">Stability factors</Term>}>
             <div className="kv">
               {rep.stabilityFactors.map(([k, v]) => [<span key={k}>{k}</span>, <span key={k + 'v'} className={v >= 0 ? 'pos' : 'neg'}>{signed(v, 0)}</span>])}
@@ -168,7 +173,7 @@ function PlanetDetail({ p }: { p: Planet }) {
           </Section>
           <Section title="Deposits">
             <div className="kv">
-              <span>Minerals</span><span>{p.deposits.minerals}</span>
+              <span>Minerals</span><span>{fmt(p.deposits.minerals, 1)}{p.deposits.minerals < 0.5 ? ' (worked out)' : ''}</span>
               <span>Energy</span><span>{p.deposits.energy}</span>
               <span>Rare elements</span><span>{p.deposits.rare || '—'}</span>
               <span>Research anomaly</span><span>{p.deposits.research || '—'}</span>
@@ -271,5 +276,42 @@ export function ShipyardPanel({ p }: { p: Planet }) {
         );
       })}
     </div>
+  );
+}
+
+const ROLE_LABEL: Record<WorldRole, string> = {
+  capital: 'Capital world', agrarian: 'Agrarian world', mining: 'Mining world', energy: 'Energy world', industrial: 'Industrial world', technological: 'Technological world',
+  research: 'Research world', trade: 'Trade hub', fortress: 'Fortress world', urban: 'Urban world', frontier: 'Frontier colony',
+};
+
+/** Prosperity, war damage, maturity, imports and the merchant routes and migrants of one world (sim/life.ts). */
+function WorldFortunes({ p }: { p: Planet }) {
+  const g = useGame();
+  const ui = useUI();
+  const c = p.colony!;
+  const routes = (g.life?.routes ?? []).filter((r) => r.from === p.id || r.to === p.id);
+  const migr = (g.life?.migrations ?? []).filter((m) => m.from === p.id || m.to === p.id);
+  return (
+    <Section title={<Term entry="mech.life">The world's fortunes</Term>}>
+      <div className="kv" data-testid="world-fortunes">
+        <span>Prosperity</span><span className={cls((c.prosperity ?? 50) >= 60 ? 'pos' : (c.prosperity ?? 50) < 40 ? 'neg' : '')}>{Math.round(c.prosperity ?? 50)} / 100</span>
+        <span>Settlement</span><span>{Math.round(c.dev ?? 0)}% established</span>
+        <span>War damage</span><span className={cls((c.devastation ?? 0) >= 20 && 'neg')}>{(c.devastation ?? 0) >= 1 ? `${Math.round(c.devastation ?? 0)}%` : 'none'}</span>
+        <span>Imports delivered</span><span className={cls((c.supply ?? 1) < 0.6 ? 'neg' : (c.supply ?? 1) < 0.95 ? 'warn' : '')}>{Math.round((c.supply ?? 1) * 100)}%{c.want?.length ? ` · short of ${c.want.join(', ')}` : ''}</span>
+      </div>
+      {routes.length > 0 && <table className="t" style={{ marginTop: 6 }}>
+        <thead><tr><th>Merchant route</th><th>Cargo / month</th><th>Status</th></tr></thead>
+        <tbody>{routes.map((r) => {
+          const out = r.from === p.id;
+          const other = g.planets[out ? r.to : r.from];
+          return <tr key={r.id} className="click" onClick={() => ui.set({ screen: 'planets', planetId: other.id })}>
+            <td>{out ? 'to' : 'from'} {other.name}{r.a !== r.b ? ` (${g.empires[out ? r.b : r.a].name})` : ''}</td>
+            <td>{Object.entries(r.cargo).map(([k, v]) => `${fmt(v ?? 0, 1)} ${k}`).join(', ') || 'none'}</td>
+            <td><span className={cls('tag', r.status === 'open' ? 'good' : r.status === 'raided' ? 'gold' : 'bad')}>{r.status}</span></td>
+          </tr>;
+        })}</tbody>
+      </table>}
+      {migr.length > 0 && <div className="hint" style={{ marginTop: 6 }}>{migr.map((m) => `${fmt(m.pops, 1)} ${m.kind} ${m.to === p.id ? `arriving from ${g.planets[m.from].name}` : `leaving for ${g.planets[m.to].name}`} (${Math.max(0, m.arrive - g.tick)}d)`).join(' · ')}</div>}
+    </Section>
   );
 }

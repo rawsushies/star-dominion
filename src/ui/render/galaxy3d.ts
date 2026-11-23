@@ -11,7 +11,6 @@
 
 import * as THREE from 'three';
 import { STAR_TYPES } from '../../sim/data/planets';
-import { SHIPS } from '../../sim/data/ships';
 import { visibleSystems, supplyNetwork, armed, isExplored } from '../../sim/territory';
 import { fleetPower } from '../../sim/fleets';
 import { laneLength, sampleGalaxyPoint, galaxyShape } from '../../sim/galaxy';
@@ -21,6 +20,9 @@ import type { MapMode } from '../store';
 import { bakeGalaxyNebula } from './nebula';
 import { hexA } from './planet3d';
 import { releaseView } from './assets/release';
+import { drawLifeUnder, drawLifeOver, systemLooks, CONDITION_COLOR, type Projector, type LifeOpts } from './galaxyLife';
+import { civStyle, drawShip, fleetRole } from './civStyle';
+import { fleetSpeed } from '../../sim/fleets';
 
 export interface GalaxyCam { tx: number; ty: number; tz: number; dist: number; yaw: number; pitch: number }
 /** Shared camera state (sim-space target), so other UI can focus systems. */
@@ -34,6 +36,12 @@ export interface GalaxyFrameOpts {
   preview?: boolean;
   /** systems the current quest or lesson is about: a gold beacon, or an arrow at the screen edge */
   beacons?: number[];
+  /** simulation time in fractional days (smooth motion between days) */
+  simT?: number;
+  /** ambient animation reduced (twinkle, drift, pulses) */
+  reduced?: boolean;
+  /** share of real civilian traffic to draw */
+  traffic?: number;
 }
 
 export interface FleetMark { id: number; x: number; y: number }
@@ -42,23 +50,27 @@ export interface FleetMark { id: number; x: number; y: number }
 export const renderStats = { dynamic: 0, render: 0, overlay: 0, frames: 0 };
 
 const STAR_VERT = /* glsl */ `
-attribute float aSize; attribute vec3 aColor; attribute float aAlpha;
-varying vec3 vColor; varying float vAlpha;
-uniform float uScale;
+attribute float aSize; attribute vec3 aColor; attribute float aAlpha; attribute float aSeed;
+varying vec3 vColor; varying float vAlpha; varying float vSeed;
+uniform float uScale; uniform float uTime;
 void main(){
   vec4 mv = modelViewMatrix * vec4(position, 1.0);
-  gl_PointSize = clamp(aSize * uScale / -mv.z, 1.2, 34.0);
-  vColor = aColor; vAlpha = aAlpha;
+  // every star has its own size and a slow, faint scintillation
+  float tw = 1.0 + 0.07 * sin(uTime * (0.6 + fract(aSeed * 7.3)) + aSeed * 40.0);
+  gl_PointSize = clamp(aSize * (0.8 + fract(aSeed * 3.7) * 0.45) * tw * uScale / -mv.z, 1.2, 38.0);
+  vColor = aColor; vAlpha = aAlpha; vSeed = aSeed;
   gl_Position = projectionMatrix * mv;
 }`;
 const STAR_FRAG = /* glsl */ `
-varying vec3 vColor; varying float vAlpha;
+varying vec3 vColor; varying float vAlpha; varying float vSeed;
 void main(){
   vec2 c = gl_PointCoord - 0.5;
   float d = length(c) * 2.0;
   float core = smoothstep(0.35, 0.0, d);
   float halo = exp(-d * d * 5.0) * 0.55;
-  float a = (core + halo) * vAlpha;
+  // diffraction spikes on the brighter stars
+  float spike = fract(vSeed * 11.1) > 0.7 ? max(0.0, 1.0 - abs(c.x) * 26.0) * (1.0 - d) + max(0.0, 1.0 - abs(c.y) * 26.0) * (1.0 - d) : 0.0;
+  float a = (core + halo + spike * 0.35) * vAlpha;
   if (a < 0.01) discard;
   gl_FragColor = vec4(vColor * (core * 1.2 + halo), a);
 }`;
@@ -97,6 +109,27 @@ void main(){
   gl_FragColor = vec4(vColor * a, a);
 }`;
 
+// settled systems glow with the light of their cities, coloured by how they fare
+const GLOW_VERT = /* glsl */ `
+attribute float aSize; attribute vec3 aColor; attribute float aFlicker;
+varying vec3 vColor; varying float vFlicker;
+uniform float uScale; uniform float uTime;
+void main(){
+  vec4 mv = modelViewMatrix * vec4(position, 1.0);
+  gl_PointSize = clamp(aSize * uScale / -mv.z, 3.0, 90.0);
+  vColor = aColor;
+  vFlicker = aFlicker > 0.5 ? 0.65 + 0.35 * sin(uTime * 5.0 + position.x) : 1.0;
+  gl_Position = projectionMatrix * mv;
+}`;
+const GLOW_FRAG = /* glsl */ `
+varying vec3 vColor; varying float vFlicker;
+void main(){
+  float d = length(gl_PointCoord - 0.5) * 2.0;
+  float a = exp(-d * d * 3.2) * 0.42 * vFlicker;
+  if (a < 0.01) discard;
+  gl_FragColor = vec4(vColor * a, a);
+}`;
+
 function softSprite(): THREE.Texture {
   const c = document.createElement('canvas');
   c.width = c.height = 128;
@@ -123,6 +156,8 @@ export class GalaxyView3D {
   private lanes: THREE.LineSegments | null = null;
   private terr: THREE.Points | null = null;
   private routeLines: THREE.LineSegments | null = null;
+  private glow: THREE.Points | null = null;
+  private glowSig = '';
   private stateSig = '';
   private disposables: { dispose(): void }[] = [];
   private sprite = softSprite();
@@ -237,14 +272,17 @@ export class GalaxyView3D {
       geo.setAttribute('aColor', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
       geo.setAttribute('aSize', new THREE.BufferAttribute(new Float32Array(n), 1));
       geo.setAttribute('aAlpha', new THREE.BufferAttribute(new Float32Array(n), 1));
-      const mat = new THREE.ShaderMaterial({ vertexShader: STAR_VERT, fragmentShader: STAR_FRAG, uniforms: { uScale: { value: 1 } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+      const seeds = new Float32Array(n);
+      for (let i = 0; i < n; i++) seeds[i] = ((i * 2654435761) >>> 0) / 4294967296;
+      geo.setAttribute('aSeed', new THREE.BufferAttribute(seeds, 1));
+      const mat = new THREE.ShaderMaterial({ vertexShader: STAR_VERT, fragmentShader: STAR_FRAG, uniforms: { uScale: { value: 1 }, uTime: { value: 0 } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
       this.systems = new THREE.Points(geo, mat);
       this.systems.frustumCulled = false;
       this.scene.add(this.systems);
       this.disposables.push(geo, mat);
     }
-    this.lanes = null; this.terr = null; this.routeLines = null;
-    this.stateSig = '';
+    this.lanes = null; this.terr = null; this.routeLines = null; this.glow = null;
+    this.stateSig = ''; this.glowSig = '';
   }
 
   private addPoints(p: Float32Array, c: Float32Array, sz: Float32Array, vs: string, fs: string, inGalaxy: boolean) {
@@ -326,6 +364,34 @@ export class GalaxyView3D {
     void n;
   }
 
+  /** City light of settled systems (rebuilt when the worlds change, at most daily). */
+  private buildGlow(state: GameState, preview: boolean) {
+    const me = state.empires[state.playerId];
+    const sig = `${state.tick}:${me?.explored.length}:${preview}`;
+    if (sig === this.glowSig) return;
+    this.glowSig = sig;
+    if (this.glow) { this.scene.remove(this.glow); this.glow.geometry.dispose(); (this.glow.material as THREE.Material).dispose(); this.glow = null; }
+    const p: number[] = [], c: number[] = [], s: number[] = [], fl: number[] = [];
+    const tmp = new THREE.Color();
+    for (const [sid, l] of systemLooks(state)) {
+      if (!preview && !isExplored(me, sid)) continue;
+      p.push(this.pos[sid * 3], this.pos[sid * 3 + 1], this.pos[sid * 3 + 2]);
+      tmp.set(CONDITION_COLOR[l.cond]);
+      c.push(tmp.r, tmp.g, tmp.b);
+      s.push(500 + Math.sqrt(l.pops) * 160 + l.dev * 6);
+      fl.push(l.cond === 'devastated' || l.cond === 'besieged' ? 1 : 0);
+    }
+    if (!p.length) return;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
+    geo.setAttribute('aColor', new THREE.Float32BufferAttribute(c, 3));
+    geo.setAttribute('aSize', new THREE.Float32BufferAttribute(s, 1));
+    geo.setAttribute('aFlicker', new THREE.Float32BufferAttribute(fl, 1));
+    this.glow = new THREE.Points(geo, new THREE.ShaderMaterial({ vertexShader: GLOW_VERT, fragmentShader: GLOW_FRAG, uniforms: { uScale: { value: 1 }, uTime: { value: 0 } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+    this.glow.frustumCulled = false;
+    this.scene.add(this.glow);
+  }
+
   private setRoutes(routes: { path: number[]; status: string }[] | undefined) {
     if (this.routeLines) { this.scene.remove(this.routeLines); this.routeLines.geometry.dispose(); (this.routeLines.material as THREE.Material).dispose(); this.routeLines = null; }
     if (!routes?.length) return;
@@ -365,6 +431,7 @@ export class GalaxyView3D {
     if (key !== this.gKey) { this.gKey = key; this.buildStatic(state); }
     let t0 = performance.now();
     this.buildDynamic(state, !!o.preview);
+    this.buildGlow(state, !!o.preview);
     renderStats.dynamic = performance.now() - t0;
     const { w, h } = o;
     const dpr = Math.min(o.dpr, this.q.maxDpr);
@@ -376,10 +443,17 @@ export class GalaxyView3D {
     const scale = (h * dpr) / (2 * Math.tan((this.camera.fov * Math.PI) / 360)) / 100;
     // emission nebulae fade out as the camera comes in close, so local space stays clear
     const fog = Math.min(1, Math.max(0, (galaxyCam.dist - this.R * 0.12) / (this.R * 0.5)));
+    const secs = o.reduced ? 0 : o.time / 1000;
     this.scene.traverse((ob) => {
       const m = (ob as THREE.Points).material as THREE.ShaderMaterial;
       if (m?.uniforms?.uScale) m.uniforms.uScale.value = scale;
-      if (ob.userData.nebula != null) ((ob as THREE.Sprite).material as THREE.SpriteMaterial).opacity = ob.userData.nebula * fog;
+      if (m?.uniforms?.uTime) m.uniforms.uTime.value = secs;
+      if (ob.userData.nebula != null) {
+        const sm = (ob as THREE.Sprite).material as THREE.SpriteMaterial;
+        sm.opacity = ob.userData.nebula * fog;
+        // nebulae turn very slowly: the sky is never quite still
+        sm.rotation = secs * 0.004 * ((ob.id % 2) ? 1 : -1);
+      }
     });
     if (this.terr) (this.terr.material as THREE.ShaderMaterial).uniforms.uK.value = o.mode === 'political' ? 0.17 : 0.07;
     this.setRoutes(o.mode === 'trade' ? o.routes : undefined);
@@ -475,6 +549,16 @@ export class GalaxyView3D {
         ctx.fillText(label.split('').join('\u200a'), sp[0], sp[1]);
       }
     }
+    // the living galaxy: routes, war fronts, military concentrations, settled systems
+    const P3 = this.proj, ok3 = this.projOk, fovK = h / (2 * Math.tan((this.camera.fov * Math.PI) / 360));
+    const projector: Projector = {
+      sys: (id) => (ok3[id] ? [P3[id * 3], P3[id * 3 + 1], P3[id * 3 + 2]] : null),
+      pt: (x, y, z) => this.screenOf(x, y, z, w, h),
+      ppu: (d) => fovK / d / 100,
+      R: this.R, dist: galaxyCam.dist, w, h,
+    };
+    const lifeOpts: LifeOpts = { time: o.time, t: o.simT ?? state.tick, known: (id) => isExplored(me, id) || vis.has(id), vis, reduced: !!o.reduced, traffic: o.traffic ?? 0.7, mode: o.mode };
+    drawLifeUnder(ctx, state, projector, lifeOpts);
     // supply lens
     if (o.mode === 'supply') {
       ctx.fillStyle = 'rgba(108,201,146,0.10)';
@@ -667,17 +751,31 @@ export class GalaxyView3D {
       }
       ctx.restore();
     }
+    drawLifeOver(ctx, state, projector, lifeOpts);
     // fleets
     const marks: FleetMark[] = [];
     const perSys = new Map<number, number>();
+    // far out, a realm's fleets at one system are drawn as one formation (sized by their combined strength)
+    const farOut = galaxyCam.dist > this.R * 0.9;
+    const zk = Math.max(0.5, Math.min(1, 1.15 - (galaxyCam.dist / this.R) * 0.3));
+    const groups = new Map<string, { power: number; n: number; lead: number }>();
+    if (farOut) for (const f of Object.values(state.fleets).sort((a, b) => a.id - b.id)) {
+      if (f.progress > 0 || !f.ships.length) continue;
+      const k = `${f.ownerId}:${f.systemId}`;
+      const gr = groups.get(k) ?? { power: 0, n: 0, lead: f.id };
+      gr.power += fleetPower(state, f); gr.n++;
+      groups.set(k, gr);
+    }
     for (const f of Object.values(state.fleets).sort((a, b) => a.id - b.id)) {
       const own = f.ownerId === pid;
       const seen = own || (vis.has(f.systemId) && (f.progress === 0 || vis.has(f.path[0] ?? -1)));
       if (!seen || !f.ships.length) continue;
-      const sp = fleetScreen(this, state, f, w, h);
+      const sp = fleetScreen(this, state, f, w, h, o.simT != null ? o.simT - state.tick : 0);
       if (!sp || sp[0] < -20 || sp[0] > w + 20 || sp[1] < -20 || sp[1] > h + 20) continue;
       if (sp[2] > Math.max(detailDist * 2.2, 3000) && !own && o.selectedFleet !== f.id) continue;
       let [x, y] = sp;
+      const grp = farOut && f.progress === 0 ? groups.get(`${f.ownerId}:${f.systemId}`) : undefined;
+      if (grp && grp.lead !== f.id) { marks.push({ id: f.id, x: x - 16, y: y - 10 }); continue; }
       if (f.progress === 0) {
         const k = perSys.get(f.systemId) ?? 0;
         perSys.set(f.systemId, k + 1);
@@ -685,16 +783,25 @@ export class GalaxyView3D {
         y += -10 - Math.floor(k / 3) * 9;
       }
       const e = state.empires[f.ownerId];
-      const civ = f.ships.every((sh) => SHIPS[sh.cls].civilian);
-      ctx.fillStyle = e.color;
-      ctx.strokeStyle = 'rgba(0,0,0,0.8)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      if (civ) ctx.rect(x - 3, y - 3, 6, 6);
-      else { ctx.moveTo(x + 6, y); ctx.lineTo(x - 5, y - 4.5); ctx.lineTo(x - 2.5, y); ctx.lineTo(x - 5, y + 4.5); ctx.closePath(); }
-      ctx.fill(); ctx.stroke();
+      const pw = grp ? grp.power : fleetPower(state, f);
+      // heading: toward the next system on its path (on screen)
+      let ang = 0;
+      if (f.path.length) { const nx = ok[f.path[0]] ? [P[f.path[0] * 3], P[f.path[0] * 3 + 1]] : null; if (nx) ang = Math.atan2(nx[1] - sp[1], nx[0] - sp[0]); }
+      const role = fleetRole(f, pw);
+      // a fleet's size on the map follows its strength (within limits)
+      const size = (role === 'warfleet' || role === 'armada' ? Math.min(11, 5 + Math.sqrt(pw) * 0.35) : 4.5) * zk;
+      drawShip(ctx, farOut && role === 'armada' ? 'warfleet' : role, civStyle(e), x, y, ang, size, e.color);
+      if (grp && grp.n > 1) {
+        ctx.font = "600 10px 'Saira Semi Condensed', sans-serif"; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+        ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillText(`×${grp.n}`, x + size + 3, y + 1);
+        ctx.fillStyle = hexA(e.color, 0.95); ctx.fillText(`×${grp.n}`, x + size + 2, y);
+      }
+      if (f.path.length && f.progress > 0 && !o.reduced) {
+        // a faint wake behind a moving fleet
+        ctx.strokeStyle = hexA(e.color, 0.35); ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(x - Math.cos(ang) * size, y - Math.sin(ang) * size); ctx.lineTo(x - Math.cos(ang) * size * 3, y - Math.sin(ang) * size * 3); ctx.stroke();
+      }
       if (o.mode === 'military' && armed(f)) {
-        const pw = fleetPower(state, f);
         ctx.strokeStyle = hexA(e.color, 0.6);
         ctx.beginPath(); ctx.arc(x, y, 6 + Math.sqrt(pw) * 0.7, 0, Math.PI * 2); ctx.stroke();
       }
@@ -713,12 +820,13 @@ export class GalaxyView3D {
   }
 }
 
-function fleetScreen(v: GalaxyView3D, state: GameState, f: Fleet, w: number, h: number) {
+function fleetScreen(v: GalaxyView3D, state: GameState, f: Fleet, w: number, h: number, frac = 0) {
   const s = state.galaxy.systems[f.systemId];
   let x = s.x, y = s.y, z = s.z ?? 0;
-  if (f.progress > 0 && f.path.length) {
+  if (f.path.length && (f.progress > 0 || frac > 0)) {
     const n = state.galaxy.systems[f.path[0]];
-    const t = Math.min(1, f.progress / laneLength(state.galaxy, f.systemId, f.path[0]));
+    // between days, the fleet keeps moving at its speed (display only)
+    const t = Math.min(1, (f.progress + (frac > 0 ? fleetSpeed(state, f) * frac : 0)) / laneLength(state.galaxy, f.systemId, f.path[0]));
     x += (n.x - x) * t; y += (n.y - y) * t; z += ((n.z ?? 0) - z) * t;
   }
   return v.screenOf(x, y, z, w, h);

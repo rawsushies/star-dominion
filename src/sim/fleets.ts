@@ -14,6 +14,7 @@ import { planetHab, computeLedger } from './economy';
 import type { Empire, Fleet, GameState, Ship, ShipClass, Character } from './types';
 import { fleetLeader, fleetLeaderBonus, grantXp, unassign, type LeaderBonus } from './characters';
 import { ITEM_BY_ID } from './data/characters';
+import { sackWorld } from './life';
 
 export interface ShipStats {
   hull: number; armor: number; shields: number; damage: number; strike: number;
@@ -393,6 +394,7 @@ export function conquerPlanet(state: GameState, planetId: number, newOwner: numb
   c.lowStabilityMonths = 0;
   if (c.buildings.capital) delete c.buildings.capital;
   c.pops = Math.max(1, c.pops * 0.9);
+  sackWorld(c);
   adjustWarScoreForEvent(state, newOwner, oldOwner, wasCapital ? 30 : 15);
   // System ownership follows when the defender keeps no colony there.
   const sys = state.galaxy.systems[p.systemId];

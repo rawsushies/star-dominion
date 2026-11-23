@@ -44,6 +44,17 @@ if (import.meta.env.DEV) {
       const ui = useUI.getState();
       if (ui.game) { runDays(ui.game, days); ui.bump(); }
     },
+    /** let every realm, the player's too, govern itself for a while (browser tests of the living galaxy) */
+    autopilot: async (days: number) => {
+      const { runDays } = await import('./sim/engine');
+      const ui = useUI.getState();
+      const g = ui.game;
+      if (!g) return;
+      const me = g.empires[g.playerId];
+      me.isPlayer = false;
+      try { runDays(g, days); } finally { me.isPlayer = true; }
+      ui.bump();
+    },
     /** put the Grand Expansion into a later state (browser tests) */
     expansion: async (what: 'conclave' | 'ancients' | 'omega' | 'devourer' | 'politics') => {
       const { expansionScenario } = await import('./dev/expansionScenario');

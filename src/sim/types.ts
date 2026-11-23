@@ -73,6 +73,17 @@ export interface Colony {
   // Cached last-month figures for UI (written by the economy step)
   lastJobs?: number;
   lastHousing?: number;
+  // The living galaxy (sim/life.ts); absent until the first monthly review
+  /** 0..100 smoothed well-being of the world: employment, stability, supply, trade, security */
+  prosperity?: number;
+  /** 0..100 war damage to the world's cities and industry; recovers slowly */
+  devastation?: number;
+  /** 0..100 maturity of the settlement (rises slowly as it fills out; visible on the map) */
+  dev?: number;
+  /** 0..1 share of the world's imported needs its merchant routes actually deliver */
+  supply?: number;
+  /** goods the world imports but does not receive */
+  want?: import('./lifeTypes').TradeGood[];
 }
 
 export interface Planet {
@@ -513,6 +524,8 @@ export interface GameState {
   gameOver: null | { won: boolean; reason: string; kind?: 'domination' | 'supremacy' | 'ascension' | 'consumed'; winner?: number };
   /** the Grand Expansion: High Conclave, Precursors, cosmic threats, Omega Incursion (absent in older saves until loaded) */
   expansion?: import('./expansionTypes').ExpansionState;
+  /** the living galaxy: merchant routes, migrants, the arcs of civilisations, galactic history (sim/life.ts) */
+  life?: import('./lifeTypes').LifeState;
   /** @deprecated legacy guided first-reign progress; migrated to `guidance` on load */
   tutorial?: { step: number; base: { explored: number; buildings: number; ships: number } } | null;
   /** tutorial lessons, first-visit cards and hint snoozes (UI only, never read by the simulation) */

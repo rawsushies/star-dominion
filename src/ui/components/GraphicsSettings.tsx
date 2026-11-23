@@ -2,7 +2,7 @@
 // Codex settings tab; kept in this browser (src/ui/graphics.ts).
 
 import { useEffect, useState } from 'react';
-import { currentDevice, graphics, onGraphicsChange, resolveCapital, setGraphics, viewQuality, type CapitalStyle, type QualityPref } from '../graphics';
+import { currentDevice, graphics, onGraphicsChange, resolveCapital, setGraphics, viewQuality, type CapitalStyle, type QualityPref, type MotionPref, type TrafficPref } from '../graphics';
 
 const STYLES: { value: CapitalStyle; label: string }[] = [
   { value: 'auto', label: 'Automatic' },
@@ -35,6 +35,22 @@ export function GraphicsSettings() {
         <label htmlFor="gfx-quality">Graphics quality</label>
         <select id="gfx-quality" value={s.quality} onChange={(e) => setGraphics({ quality: e.target.value as QualityPref })}>
           {QUALITY.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+      </div>
+      <div className="field">
+        <label htmlFor="gfx-motion">Map animation</label>
+        <select id="gfx-motion" data-testid="gfx-motion" value={s.motion} onChange={(e) => setGraphics({ motion: e.target.value as MotionPref })}>
+          <option value="auto">Automatic (follow system setting)</option>
+          <option value="full">Full</option>
+          <option value="reduced">Reduced motion</option>
+        </select>
+      </div>
+      <div className="field">
+        <label htmlFor="gfx-traffic">Map traffic</label>
+        <select id="gfx-traffic" data-testid="gfx-traffic" value={s.traffic} onChange={(e) => setGraphics({ traffic: e.target.value as TrafficPref })}>
+          <option value="low">Light (fewer ships drawn)</option>
+          <option value="normal">Normal</option>
+          <option value="high">Every convoy</option>
         </select>
       </div>
       <label className="row setting">

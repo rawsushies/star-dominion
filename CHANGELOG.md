@@ -6,6 +6,15 @@ All notable changes to Star Dominion. Versions follow [semantic versioning](http
 
 ### Added
 
+- **The living galaxy.** The galaxy develops on its own (see GAME_DESIGN.md, "The living galaxy").
+  - Planetary economy: worlds have prosperity, settlement maturity, war devastation, import supply and depleting mines, each with real effects on stability, output, housing and growth.
+  - Autonomous trade: standing merchant routes inside realms and between realms at peace, planned from real surpluses and deficits, with convoys on a schedule; corsairs raid, warships blockade, war severs; worlds at the end go short; prices answer the galaxy's real supply and demand.
+  - Migration: settlers, workers and refugees move toward prosperity and away from war and hunger, in transit for days; refugees cross borders; crowded realms push to expand.
+  - Civilisations rise, enjoy golden ages, decline, fall into crisis, fracture into breakaway states, recover; breakaway states can be recognised and minor states can become great powers. AI war choices weigh trade ties and coveted goods.
+  - Galactic history with causes, consequences, participants and dates (Chronicle), feeding later decisions through opinion memories.
+  - The map comes alive: cargo convoys, migrant transports and diplomatic couriers from real state; fleet silhouettes by role and civilisation style, sized by strength, moving smoothly; settled systems with rings of light by maturity and condition, stations and yards; war fronts, military concentrations, blockades, sieges, construction and ruins; per-star character, turning nebulae and city glow. Planets show city lights, industry, farmland, sprawl and war scars from their real state, with shipyards, defence platforms, shields, scaffolding and traffic in orbit.
+  - Graphics settings: reduced motion and map traffic density.
+
 - **The High Conclave.** A galactic assembly founded in the early game, with seats for Founding Sovereigns, Great Powers, Sponsored Sovereigns, rotating Regional Delegates and Observers.
   - Weighted votes balance standing, territory, military and reputation with diminishing returns and a cap. Weights freeze when a session opens.
   - Ordinary and emergency sessions, abstentions, a rare founding veto, quorum, failed motions, lobbying, and defiance with consequences.

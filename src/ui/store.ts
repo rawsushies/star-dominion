@@ -17,6 +17,8 @@ export type ScreenId =
 export type MapMode = 'political' | 'resources' | 'military' | 'trade' | 'supply';
 
 export const SPEEDS = [0, 2, 6, 15]; // days per second
+/** How far the simulation is into the next day (0..1), for smooth motion on the map; display only. */
+export const simClock = { frac: 0 };
 
 export interface Toast { id: number; ev: GameEvent }
 
@@ -240,6 +242,7 @@ export function startLoop() {
         steps++;
       }
       if (acc > 3) acc = 3; // don't spiral if the machine can't keep up
+      simClock.frac = Math.min(0.999, Math.max(0, acc));
       if (steps) {
         surfaceEvents(g);
         if (now - lastBump > 180) { lastBump = now; useUI.setState({ rev: useUI.getState().rev + 1 }); }

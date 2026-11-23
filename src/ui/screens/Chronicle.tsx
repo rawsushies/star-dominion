@@ -4,6 +4,8 @@ import { formatDate } from '../../sim/util';
 import { ERAS } from '../../sim/data/eras';
 import { Sheet, Section, Swatch, cls, fmt } from '../components/common';
 import type { ChronicleStat } from '../../sim/types';
+import { PHASE_LABEL } from '../../sim/data/life';
+import { useUI } from '../store';
 
 type Metric = 'k' | 'pop' | 'systems' | 'military';
 const METRICS: Record<Metric, string> = { k: 'Kardashev index', pop: 'Population', systems: 'Systems held', military: 'Fleet strength' };
@@ -48,6 +50,7 @@ export function ChronicleScreen() {
         <HistoryChart metric={metric} />
         <div className="row wrap" style={{ gap: 10, marginTop: 4 }}>{g.empires.filter((e) => e.kind === 'major').map((e) => <span key={e.id} className="row hint" style={{ gap: 4 }}><Swatch color={e.color} />{e.name}{e.id === me.id ? ' (you)' : ''}{e.alive ? '' : ' (fallen)'}</span>)}</div>
       </Section>
+      <GalacticHistory />
       <Section title="The years">
         <div className="list" data-testid="chronicle-years">
           {years.map((y, i) => {
@@ -66,5 +69,39 @@ export function ChronicleScreen() {
         </div>
       </Section>
     </Sheet>
+  );
+}
+
+const KIND_LABEL: Record<string, string> = {
+  trade: 'Trade', blockade: 'Blockade', famine: 'Famine', migration: 'Migration', refugees: 'Refugees', rise: 'Rise', decline: 'Decline', golden: 'Golden age',
+  collapse: 'Crisis', recovery: 'Recovery', secession: 'Secession', recognition: 'Recognition', ascendant: 'New great power', depletion: 'Depletion',
+  devastation: 'Devastation', rebuilt: 'Rebuilt', boom: 'Boom', bust: 'Bust',
+};
+
+/** Galactic history (sim/life.ts): what happened, why, to whom, and what came of it; and where every realm stands now. */
+function GalacticHistory() {
+  const g = useGame();
+  const ui = useUI();
+  const [who, setWho] = useState<'all' | 'mine' | 'great'>('great');
+  const L = g.life;
+  const list = (L?.history ?? []).filter((h) => who === 'all' || (who === 'mine' ? h.who.includes(g.playerId) : h.weight >= 2)).slice().reverse().slice(0, 80);
+  const realms = g.empires.filter((e) => e.alive && (e.kind === 'major' || e.kind === 'minor' || e.kind === 'rebels'));
+  return (
+    <Section title="Galactic history" aside={<div className="seg">{(['great', 'mine', 'all'] as const).map((k) => <button key={k} className={cls(who === k && 'on')} onClick={() => setWho(k)}>{k === 'great' ? 'Great events' : k === 'mine' ? 'Our realm' : 'Everything'}</button>)}</div>}>
+      <table className="t" data-testid="realm-arcs" style={{ marginBottom: 8 }}>
+        <thead><tr><th>Realm</th><th>Fortune</th><th className="n">Prosperity</th><th className="n">Systems</th><th className="n">People</th></tr></thead>
+        <tbody>{realms.map((e) => { const a = L?.arcs[e.id]; return <tr key={e.id}><td className="row" style={{ gap: 6 }}><Swatch color={e.color} />{e.name}{e.kind !== 'major' ? <span className="faint"> ({e.kind === 'rebels' ? 'breakaway' : 'minor'})</span> : null}</td><td>{a ? `${PHASE_LABEL[a.phase]} since ${formatDate(a.since).slice(0, 4)}` : '—'}</td><td className="n">{a?.prosperity ?? '—'}</td><td className="n">{e.stats.systems}</td><td className="n">{fmt(e.stats.population)}</td></tr>; })}</tbody>
+      </table>
+      <div className="list" data-testid="galactic-history">
+        {!list.length && <div className="empty">History is still being written.</div>}
+        {list.map((h) => (
+          <div key={h.id} className={cls(h.systemId != null && 'click')} style={{ padding: '6px 0', borderBottom: '1px solid var(--rule)' }} onClick={() => { if (h.systemId != null) ui.set({ screen: 'map', view: 'galaxy', systemId: h.systemId }); }}>
+            <div className="row between"><span style={{ fontWeight: 600 }}>{h.title}</span><span className="hint">{KIND_LABEL[h.kind] ?? h.kind} · {formatDate(h.tick)}</span></div>
+            <div className="muted" style={{ fontSize: 12.5 }}><b>Cause:</b> {h.cause} <b>Consequence:</b> {h.effect}</div>
+            {h.who.length > 0 && <div className="row" style={{ gap: 8, marginTop: 2 }}>{h.who.map((id) => g.empires[id] && <span key={id} className="row hint" style={{ gap: 4 }}><Swatch color={g.empires[id].color} />{g.empires[id].name}</span>)}</div>}
+          </div>
+        ))}
+      </div>
+    </Section>
   );
 }
