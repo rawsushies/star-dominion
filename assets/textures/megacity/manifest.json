@@ -1,0 +1,72 @@
+{
+  "source": "Poly Haven",
+  "license": "CC0 1.0",
+  "licenseUrl": "https://polyhaven.com/license",
+  "assets": [
+    {
+      "role": "sky",
+      "id": "kloppenheim_06_puresky",
+      "name": "Kloppenheim 06 (Pure Sky)",
+      "authors": [
+        "Greg Zaal",
+        "Jarod Guest"
+      ],
+      "page": "https://polyhaven.com/a/kloppenheim_06_puresky",
+      "files": [
+        "assets/textures/megacity/sky.jpg"
+      ]
+    },
+    {
+      "role": "street",
+      "id": "clean_asphalt",
+      "name": "Clean Asphalt",
+      "authors": [
+        "Dimitrios Savva"
+      ],
+      "page": "https://polyhaven.com/a/clean_asphalt",
+      "files": [
+        "assets/textures/megacity/street_color.jpg",
+        "assets/textures/megacity/street_normal.jpg"
+      ]
+    },
+    {
+      "role": "lot",
+      "id": "metal_plate",
+      "name": "Metal Plate",
+      "authors": [
+        "Rob Tuytel"
+      ],
+      "page": "https://polyhaven.com/a/metal_plate",
+      "files": [
+        "assets/textures/megacity/lot_color.jpg",
+        "assets/textures/megacity/lot_normal.jpg"
+      ]
+    },
+    {
+      "role": "plaza",
+      "id": "hexagonal_concrete_paving",
+      "name": "Hexagonal Concrete Paving",
+      "authors": [
+        "Stephan Seeliger"
+      ],
+      "page": "https://polyhaven.com/a/hexagonal_concrete_paving",
+      "files": [
+        "assets/textures/megacity/plaza_color.jpg",
+        "assets/textures/megacity/plaza_normal.jpg"
+      ]
+    },
+    {
+      "role": "land",
+      "id": "hangar_concrete_floor",
+      "name": "Hangar Concrete Floor",
+      "authors": [
+        "Dimitrios Savva"
+      ],
+      "page": "https://polyhaven.com/a/hangar_concrete_floor",
+      "files": [
+        "assets/textures/megacity/land_color.jpg",
+        "assets/textures/megacity/land_normal.jpg"
+      ]
+    }
+  ]
+}
