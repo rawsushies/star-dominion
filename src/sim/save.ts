@@ -9,6 +9,7 @@ import { ensureRuler } from './succession';
 import type { GameState } from './types';
 import { upgradeGalaxy } from './galaxy';
 import { migrateAdmirals } from './characters';
+import { setupExpansion, migrateExpansion } from './expansion';
 
 export function serialize(state: GameState): string {
   return JSON.stringify(state);
@@ -30,6 +31,9 @@ export function deserialize(json: string): GameState {
   s.chronicle ??= [];
   migrateAdmirals(s as GameState & { admirals?: never[] });
   for (const e of s.empires) { e.council ??= {}; e.armory ??= []; ensureHouses(s, e); ensureCapital(e); ensureRuler(s, e); }
+  // the Grand Expansion arrives in older saves in its starting state (dormant ancients, no Conclave yet)
+  if (!s.expansion) setupExpansion(s);
+  else migrateExpansion(s);
   if (s.empires.some((e) => e.alive && e.kind === 'major' && e.stats?.powerW == null)) updateStats(s);
   // the old ten-step advisor becomes the first guided lesson
   if (s.tutorial) {
@@ -104,6 +108,15 @@ function validateStructure(s: GameState) {
   }
   for (const k of ['treaties', 'wars', 'truces', 'tributes', 'tradeDeals', 'proposals', 'events', 'battles'] as const) {
     if (s[k] != null && !Array.isArray(s[k])) bad(`the ${k} list is malformed`);
+  }
+  const x = s.expansion;
+  if (x != null) {
+    if (!obj(x) || !Array.isArray(x.precursors) || !obj(x.conclave) || !obj(x.omega) || !obj(x.devourer)) bad('the expansion state is malformed');
+    for (const p of x.precursors) if (!obj(p) || (p.empireId !== -1 && !empOk(p.empireId)) || !num(p.pressure) || !Array.isArray(p.sacred) || !p.sacred.every(sysOk)) bad('an ancient power is malformed');
+    if (!Array.isArray(x.conclave.directives) || !Array.isArray(x.conclave.founders) || !x.conclave.founders.every(empOk)) bad('the High Conclave is malformed');
+    if (x.omega.rift != null && !sysOk(x.omega.rift)) bad('the Omega rift is in a system that does not exist');
+    if (!num(x.omega.integrity) || !num(x.omega.strength)) bad('the Omega Incursion is malformed');
+    if (x.devourer.empireId !== -1 && !empOk(x.devourer.empireId)) bad('the Void Devourer is malformed');
   }
 }
 

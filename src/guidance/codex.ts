@@ -24,10 +24,11 @@ import { COVERT, COVERT_KINDS } from '../sim/espionage';
 import { TREATY_LABEL } from '../sim/diplomacy';
 import { HEIR_COST } from '../sim/succession';
 import { modText } from '../ui/modLabels';
+import { DEVOURER, DIRECTIVES, EMERGENCY_DAYS, FOUNDING, KNOWLEDGE_COST, OMEGA, PRECURSORS, PRESSURE, QUORUM, SEAT_LABEL, SENTINEL_SITES, SESSION_DAYS, SPONSOR_COST, SPONSOR_OPINION, VETO_COOLDOWN, VETO_COST, WATCHFUL_YEARS, WEIGHT_CAP } from '../sim/data/expansion';
 
 export type CodexCat =
   | 'galaxy' | 'worlds' | 'capital' | 'economy' | 'production' | 'colonization' | 'fleets' | 'diplomacy'
-  | 'research' | 'eras' | 'characters' | 'council' | 'houses' | 'espionage' | 'megastructures';
+  | 'research' | 'eras' | 'characters' | 'council' | 'houses' | 'espionage' | 'megastructures' | 'expansion';
 
 export const CODEX_CATS: { id: CodexCat; label: string }[] = [
   { id: 'galaxy', label: 'Galaxy and exploration' },
@@ -45,6 +46,7 @@ export const CODEX_CATS: { id: CodexCat; label: string }[] = [
   { id: 'houses', label: 'Great Houses and succession' },
   { id: 'espionage', label: 'Espionage' },
   { id: 'megastructures', label: 'Megastructures' },
+  { id: 'expansion', label: 'Conclave, ancients and crises' },
 ];
 
 export interface CodexEntry {
@@ -281,6 +283,30 @@ const MECHANICS: CodexEntry[] = [
     does: 'Each stage takes hundreds of days and its cost is paid in daily instalments; on a day the treasury cannot pay, work waits. Every completed stage adds its modifiers and flat output at once. Energy from megastructures feeds the Kardashev rating, and some eras require specific stages.',
     how: 'Construction → Megastructures: pick an eligible system you own and press "Begin construction".',
     related: ['cat.megastructures', 'mech.kardashev', 'mech.eras'], screen: 'construction' },
+  // the Grand Expansion
+  { id: 'mech.conclave', cat: 'expansion', title: 'The High Conclave', summary: 'A galactic assembly with influence, not unlimited authority: weighted votes, motions and directives.',
+    what: `Founded in the ${FOUNDING.earliest / 360}rd year once a great realm reaches the Interstellar Imperium (the ${FOUNDING.latest / 360}th regardless). Seats: ${Object.values(SEAT_LABEL).join(', ')}. The three leading realms at its founding are Founding Sovereigns for good; Great Powers need the Stellar Ascendancy and 6% of claimed space or 8% of the galaxy's people, without a disgraced reputation; Sponsored Sovereigns sit while an ancient power sponsors them; Regional Delegates rotate every five years; everyone else observes.`,
+    does: `Weights combine political standing, territory, military strength and reputation, each with diminishing returns, scaled by seat and capped at ${Math.round(WEIGHT_CAP * 100)}% of the chamber; they freeze when a session opens. Ordinary sessions last ${SESSION_DAYS} days and need more yea than nay; a Founding Sovereign may veto one every ${VETO_COOLDOWN / 360} years for ${VETO_COST} influence. Emergency sessions last ${EMERGENCY_DAYS} days, need two thirds and cannot be vetoed. A quorum of ${Math.round(QUORUM * 100)}% must take a side. A directive binds every seated member but its target and those who defy it; defiance costs 15 reputation, the supporters' goodwill and 4 stability for three years, and a second within ten years suspends a seat.`,
+    facts: Object.values(DIRECTIVES).map((d) => [d.label, `${d.summary} Tabling costs ${d.cost} influence${d.years ? `; in force ${d.years} years` : ''}.`] as [string, string]),
+    how: 'High Conclave window: vote, lobby AI delegates, table a motion when no session runs, defy or comply with directives.',
+    related: ['mech.ancients', 'mech.omega', 'mech.diplomacy'], screen: 'conclave' },
+  { id: 'mech.ancients', cat: 'expansion', title: 'The Stagnant Ascendancies', summary: 'Two ancient powers, dormant until the galaxy provokes them: the Archons of Veil and Automata Prime.',
+    what: Object.values(PRECURSORS).map((p) => `${p.name}: ${p.lore}`).join(' '),
+    does: `Pressure builds from what realms do, and each point is blamed on whoever caused it. Warnings come at ${PRESSURE.stir} and ${PRESSURE.final}; at ${PRESSURE.awaken} a power wakes, raises its hosts and makes war on those it blames most. Warships left in their protected systems bring a warning and then war. When both are awake they fight the War in Heaven: younger realms may pledge to a side, join an independent coalition whose members defend one another, stay out, or salvage the ancients' outworks. An awakened power left in peace for ${WATCHFUL_YEARS} years grows watchful; one that loses every world falls, and its throne world's new master inherits its relics.`,
+    facts: Object.values(PRECURSORS).flatMap((p) => [[`${p.name}: what wakes them`, p.wakes.join('; ')], [`${p.name}: sponsorship`, `${p.sponsorDuty} Favours: ${p.sponsorBoons.map((b) => b.label).join(', ')}.`]] as [string, string][]),
+    how: `Ancients and threats window: pay tribute, seek restricted knowledge (${KNOWLEDGE_COST} influence), seek sponsorship (${SPONSOR_COST} influence, their opinion ${SPONSOR_OPINION}), and act in the War in Heaven.`,
+    related: ['mech.conclave', 'mech.threats'], screen: 'cosmos' },
+  { id: 'mech.threats', cat: 'expansion', title: 'The Void Devourer and the Sentinels', summary: 'A roaming stellar leviathan, and the ancient guardians of what the precursors left.',
+    what: `The Void Devourer enters the galaxy between its ${DEVOURER.earliestYear}th and ${DEVOURER.latestYear}th year and leaves after ${DEVOURER.lifespanYears}. It moves every ${DEVOURER.moveDays} days to the richest neighbouring system, announcing its next destination a full move ahead.`,
+    does: `Where it sits, energy falls to ${Math.round(DEVOURER.drain * 100)}% and trade through the system is cut; where it fed, a scar dims energy to ${Math.round(DEVOURER.scar * 100)}% for ${DEVOURER.scarYears} years and a stage of any Dyson Swarm or Stellar Collector is eaten. It grows as it feeds and starves on empty space. Whoever kills it gains +10% energy for good and reputation; leaving your systems to it with no fleet near costs reputation. Sentinels guard four kinds of site; destroying a host gives its reward and reputation, and angers Automata Prime.`,
+    facts: Object.values(SENTINEL_SITES).map((s) => [s.label, s.reward] as [string, string]),
+    how: 'Ancients and threats window, and the galaxy map (the Devourer, its path and the days to its next move are drawn there).',
+    related: ['mech.ancients', 'mech.combat'], screen: 'cosmos' },
+  { id: 'mech.omega', cat: 'expansion', title: 'The Omega Incursion', summary: 'A multi-year crisis drawn by the Omega Theorem or an advanced Continuum Engine.',
+    what: `Anomalies (${OMEGA.anomalyMonths} months), warnings with the rift's location (${OMEGA.warningMonths} months), the rift opening (${OMEGA.riftMonths} months), then the incursion: corruption spreads along the fronts, Omega fleets grow stronger, corrupted worlds produce half and lose their people, and a corrupted world with no defending fleet is lost after ${OMEGA.neglectMonths} months. Galactic trade and markets suffer. If corruption takes ${Math.round(OMEGA.consumeShare * 100)}% of claimed space, the galaxy is consumed and the reign ends.`,
+    does: `Warships holding the rift wear down its integrity (faster under a Conclave containment). At integrity ${OMEGA.sealIntegrity} a holder may seal it (${OMEGA.sealDays} days); at ${OMEGA.breachIntegrity}, destroy its source at the cost of two warships in five; at ${OMEGA.exploitIntegrity}, with the Transcendent Continuum or a Continuum Engine, bind it for great power and the galaxy's enmity, with a yearly chance it tears free. Sealing or destroying it names a Warden of the Galaxy (the realm with most credit), who joins the Conclave's founders; contributors enjoy a reconstruction boom and members who stood aside lose standing. Corrupted systems take years to recover.`,
+    how: 'Ancients and threats window for the rift; High Conclave window for emergency containment and contributions.',
+    related: ['mech.conclave', 'mech.eras', 'mech.mega'], screen: 'cosmos' },
 ];
 
 // ---------------------------------------------------------------- generated catalogues

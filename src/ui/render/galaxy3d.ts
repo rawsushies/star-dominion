@@ -572,6 +572,65 @@ export class GalaxyView3D {
         ctx.fillText(s.name, x, ly);
       }
     }
+    // the Grand Expansion on the map: Omega corruption and the rift, the tracked Devourer and its
+    // announced path, the Archons' sacred worlds
+    const xs = state.expansion;
+    if (xs) {
+      const at = (sid: number) => { const sy = g.systems[sid]; return sy ? this.screenOf(sy.x, sy.y, sy.z ?? 0, w, h) : null; };
+      const pulse = 0.5 + 0.5 * Math.sin(o.time / 220);
+      ctx.save();
+      ctx.font = "600 11px 'Saira Semi Condensed', sans-serif";
+      ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      for (const k in xs.omega.corrupted) {
+        const sid = +k;
+        if (!vis.has(sid) && !isExplored(me, sid)) continue;
+        const sp = at(sid); if (!sp) continue;
+        ctx.fillStyle = `rgba(210,74,138,${0.16 + pulse * 0.1})`;
+        ctx.beginPath(); ctx.arc(sp[0], sp[1], 16, 0, Math.PI * 2); ctx.fill();
+      }
+      const om = xs.omega;
+      if (om.rift != null && (om.stage === 'warnings' || om.stage === 'rift' || om.stage === 'incursion')) {
+        const sp = at(om.rift);
+        if (sp) {
+          ctx.strokeStyle = `rgba(232,96,160,${0.55 + pulse * 0.45})`; ctx.lineWidth = 2;
+          ctx.beginPath();
+          for (let k = 0; k < 8; k++) { const a2 = (Math.PI / 4) * k; const rr = k % 2 ? 7 : 16 + pulse * 4; const px = sp[0] + Math.cos(a2) * rr, py = sp[1] + Math.sin(a2) * rr; k ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
+          ctx.closePath(); ctx.stroke();
+          ctx.fillStyle = 'rgba(0,0,0,0.75)'; ctx.fillText(om.stage === 'warnings' ? 'Rift forming' : `Omega rift · ${Math.round(om.integrity)}%`, sp[0] + 1, sp[1] - 21);
+          ctx.fillStyle = '#f08cc0'; ctx.fillText(om.stage === 'warnings' ? 'Rift forming' : `Omega rift · ${Math.round(om.integrity)}%`, sp[0], sp[1] - 22);
+        }
+      }
+      const dv = xs.devourer;
+      const df = dv.status === 'roaming' && dv.fleetId != null ? state.fleets[dv.fleetId] : null;
+      if (df) {
+        const sp = at(df.systemId);
+        const tp = dv.target != null ? at(dv.target) : null;
+        if (sp && tp) {
+          ctx.strokeStyle = 'rgba(160,120,230,0.85)'; ctx.lineWidth = 1.5; ctx.setLineDash([3, 5]);
+          ctx.beginPath(); ctx.moveTo(sp[0], sp[1]); ctx.lineTo(tp[0], tp[1]); ctx.stroke(); ctx.setLineDash([]);
+          const days = Math.max(0, dv.nextMoveTick - state.tick);
+          ctx.fillStyle = 'rgba(0,0,0,0.75)'; ctx.fillText(`next · ${days}d`, tp[0] + 1, tp[1] - 13);
+          ctx.fillStyle = '#c8a8ff'; ctx.fillText(`next · ${days}d`, tp[0], tp[1] - 14);
+        }
+        if (sp) {
+          ctx.strokeStyle = `rgba(160,120,230,${0.6 + pulse * 0.4})`; ctx.lineWidth = 2.2;
+          ctx.beginPath(); ctx.arc(sp[0], sp[1], 13 + pulse * 3, 0, Math.PI * 2); ctx.stroke();
+          ctx.fillStyle = 'rgba(0,0,0,0.75)'; ctx.fillText('Void Devourer', sp[0] + 1, sp[1] - 19);
+          ctx.fillStyle = '#c8a8ff'; ctx.fillText('Void Devourer', sp[0], sp[1] - 20);
+        }
+      }
+      const veil = xs.precursors.find((p) => p.id === 'veil' && p.status !== 'fallen' && p.status !== 'absent');
+      if (veil) {
+        ctx.fillStyle = 'rgba(143,211,232,0.9)';
+        for (const pid of veil.sacredWorlds) {
+          const sid = state.planets[pid]?.systemId;
+          if (sid == null || !isExplored(me, sid)) continue;
+          const sp = at(sid); if (!sp) continue;
+          ctx.beginPath(); ctx.moveTo(sp[0] - 12, sp[1] + 8); ctx.lineTo(sp[0] - 8, sp[1] + 2); ctx.lineTo(sp[0] - 4, sp[1] + 8); ctx.closePath(); ctx.fill();
+        }
+      }
+      ctx.restore();
+    }
     // quest beacons: where the current objective is
     if (o.beacons?.length) {
       const bob = Math.sin(o.time / 260) * 3;

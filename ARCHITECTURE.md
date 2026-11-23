@@ -22,6 +22,14 @@ src/
     modifiers.ts    additive modifier aggregation (government, policy, tech, eras, council,
                     decrees, capital, characters, timed effects), cached by signature
     ai.ts           AI kingdoms and corsairs (issue Commands like the player)
+    expansion.ts    the Grand Expansion: state, setup and save migration, and the hooks other systems call
+                    (system conditions, embargo, Naval Accords, injunctions, containment supply and vision, modifiers)
+    ancients.ts     the Stagnant Ascendancies: pressure and blame, awakening, rites, the War in Heaven
+    conclave.ts     the High Conclave: seats, frozen weighted votes, sessions, directives, defiance
+    threats.ts      the Void Devourer and the Sentinels' rewards
+    omega.ts        the Omega Incursion: stages, corruption, waves, siege, seal / breach / bind
+    expansionAI.ts  how AI realms take part (motions, votes, lobbying, rites, crisis fleets)
+    expansionCommands.ts  the expansion's commands, dispatched from execute()
     save.ts         serialise / deserialise with migrations for older saves
   persistence/
     idb.ts          IndexedDB save slots (local)
@@ -78,6 +86,7 @@ tests/              vitest: simulation suite, milestone suites, 30-year soak
 - **One write path.** Every intentional change goes through `execute(state, empireId, command)`, which validates it and returns `{ ok, message }`. The AI uses the same call. This is the seam for multiplayer: a server can run `step()` authoritatively and accept `Command`s from clients.
 - **Daily vs monthly.** `step()` advances one day: movement, combat, construction, research, ledger application (monthly figures divided by 30) and AI turns on a staggered schedule. `monthly()` runs diplomacy, colony stability and revolt, events, statistics, eras and victory checks.
 - **Modifiers.** Every bonus is a named additive key such as `output.energy`, `admin`, `navalCap` or `shipHull`, aggregated in one place. Systems read `mod(mods, key)` and never know where a bonus came from.
+- **Grand Expansion.** `GameState.expansion` holds the Conclave, the two precursor realms (`Empire.kind: 'precursor'`), the cosmic realms that own the Devourer's and the Omega Incursion's fleets (`kind: 'cosmic'`, hostile to all, never eliminated for lacking worlds), the Sentinels' sites, reputation and permanent boons. It is created by `newGame` and, for saves from before the expansion, by `deserialize`, using its own stream seeded from the game seed so the main stream is untouched. `expansionDaily` only checks deadlines (votes, the Devourer's next move, waves, the sealing project); `expansionMonthly` does the bounded strategic work. Nothing scans the galaxy daily. The rest of the simulation calls small hooks: `systemCondition` (economy), `embargoed` (economy, commands), `navalAccordsBlock` (construction), `injunctionBlocks` (construction, research, commands), `containmentPartners` and `extraVision` (territory), `expansionMods` (modifiers).
 - **Eras.** `eras.ts` evaluates requirement lists against `stats` (refreshed monthly before the check), advances `Empire.era` and logs an `era` event. Era bonuses enter through `modifiers.ts`. `TechDef.era` gates research in both `canResearch` and the command layer.
 
 ## UI

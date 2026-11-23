@@ -10,6 +10,7 @@ import { ERAS } from './data/eras';
 import { councilMods, councilSig } from './characters';
 import { governanceMods, governanceSig } from './governance';
 import type { Empire, GameState } from './types';
+import { expansionMods, expansionSig } from './expansion';
 
 export type Mods = Record<string, number>;
 
@@ -49,6 +50,7 @@ function signature(state: GameState, e: Empire, megas: { id: string; stage: numb
     councilSig(state, e),
     governanceSig(state, e),
     capitalSig(e),
+    expansionSig(state, e),
   ].join('|');
 }
 
@@ -94,6 +96,7 @@ function compute(state: GameState, e: Empire) {
   add(councilMods(state, e));
   add(governanceMods(state, e));
   add(capitalMods(e));
+  add(expansionMods(state, e));
   for (const tm of e.timedMods) mods[tm.key] = (mods[tm.key] ?? 0) + tm.value;
   // Difficulty never changes what a realm is given: it changes how well the rivals play (sim/strategy.ts).
   const entry = { sig, mods, flags };

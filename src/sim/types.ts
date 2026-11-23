@@ -280,7 +280,8 @@ export interface Empire {
   adjective: string;
   color: string;
   isPlayer: boolean;
-  kind: 'major' | 'minor' | 'guardian' | 'raiders' | 'rebels';
+  /** precursor: an ancient Stagnant Ascendancy; cosmic: a threat beyond diplomacy (sim/expansion) */
+  kind: 'major' | 'minor' | 'guardian' | 'raiders' | 'rebels' | 'precursor' | 'cosmic';
   /** a scripted realm (the Prologue's Pretender) */
   role?: 'pretender';
   alive: boolean;
@@ -509,7 +510,9 @@ export interface GameState {
   playerId: number;
   /** the Prologue starter quest (src/sim/prologue.ts) */
   prologue?: { pretenderId: number; crownPlanetId?: number; stage: number; done: boolean; startBuildings?: number; doneTick?: number };
-  gameOver: null | { won: boolean; reason: string; kind?: 'domination' | 'supremacy' | 'ascension'; winner?: number };
+  gameOver: null | { won: boolean; reason: string; kind?: 'domination' | 'supremacy' | 'ascension' | 'consumed'; winner?: number };
+  /** the Grand Expansion: High Conclave, Precursors, cosmic threats, Omega Incursion (absent in older saves until loaded) */
+  expansion?: import('./expansionTypes').ExpansionState;
   /** @deprecated legacy guided first-reign progress; migrated to `guidance` on load */
   tutorial?: { step: number; base: { explored: number; buildings: number; ships: number } } | null;
   /** tutorial lessons, first-visit cards and hint snoozes (UI only, never read by the simulation) */

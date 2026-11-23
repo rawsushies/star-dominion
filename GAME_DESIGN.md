@@ -196,7 +196,8 @@ Three distinct roads to victory, open to every great realm, the AI included (`sr
 - **Supremacy (war and diplomacy):** no rival great realm left independent: each has fallen or is your vassal.
 - **Ascension (civilisation):** reach the last era, Omega Sovereignty.
 - **Warnings:** the galaxy is told when a realm starts a domination hold or reaches three quarters of the way to any victory. The game pauses for these.
-- **Defeat:** you lose your last world, or a rival achieves any victory.
+- **Defeat:** you lose your last world, a rival achieves any victory, or the Omega Incursion consumes the galaxy (corruption over 45% of claimed space).
+- The Grand Expansion adds crisis outcomes without new ways to win: the Warden of the Galaxy title, the ancients' relics, the Devourer's heart. None of them replaces or shortens the three roads. An Ascension Injunction can regulate the Continuum Engine or the Omega Theorem for bound Conclave members, but any member may defy it, at a price.
 - After a victory you may keep ruling.
 
 ## Ambitions
@@ -245,6 +246,66 @@ Every AI realm issues the same validated commands as the player and sees rivals 
   - The corsair warlord: when raiders are inside your borders.
 
   Each choice has lasting effects: research, weapons, reputation with every court, population, stability, raiders, debts or privateers.
+
+## The Grand Expansion (late game)
+
+Three connected systems for the decades after the opening (`src/sim/expansion.ts` and its modules). The **High Conclave** and **Ancients and threats** windows show them; the galaxy map draws the Devourer, its announced path, the Omega rift and corruption, and the Archons' sacred worlds.
+
+### The High Conclave (`conclave.ts`)
+
+- **Founding:** in the third year once a great realm reaches the Interstellar Imperium, or the eighth regardless.
+- **Seats:**
+  - Founding Sovereigns: the three leading realms at founding, permanent, with a rare veto.
+  - Great Powers: era 2, and 6% of claimed space or 8% of the people, and a reputation above -50. Several conditions, not one threshold.
+  - Sponsored Sovereigns: sit while an ancient power sponsors them.
+  - Regional Delegates: rotate every five years among the rest.
+  - Observers: no vote.
+- **Weights:** standing, territory, military and reputation, each square-rooted (diminishing returns), scaled by seat, and capped at 34% of the chamber. Stockpiles never count. Weights freeze when a session opens.
+- **Sessions:**
+  - One motion at a time. Ordinary sessions run 60 days and need more yea than nay.
+  - Emergency sessions run 20 days and need two thirds of the votes cast. Only Founders or Great Powers can call one, and only against a cosmic threat or an ancient power at war with a member. They cannot be vetoed.
+  - A quorum of 40% must take a side. Failed motions cannot be retabled for two years.
+  - Members can lobby AI delegates.
+- **Directives:** each binds every seated member except its target and anyone who openly defies it.
+  - Containment War: its supporters go to war together, supply one another's fleets and share sight of the target.
+  - Market Embargo: suspends contracts, trade agreements and new deals with the target, which pays more on the market and earns less from trade.
+  - Naval Accords: no warships beyond naval capacity, and at most 2 + era battleships and dreadnoughts. Suspended during wars with the ancients or cosmic threats.
+  - Ascension Injunction: stops the Continuum Engine, Dyson Swarms or the Omega Theorem.
+  - Repeal: ends a directive in force.
+- **Defiance** costs 15 reputation, the supporters' goodwill and 4 stability for three years. A second defiance within ten years suspends a non-founding seat for five years.
+- **Reputation** (-100 to 100) feeds opinions, Conclave weight and Great Power status. Leviathan victories, crisis contributions and honouring directives raise it. Defiance, vetoes, salvage and abandoning systems to the Devourer or the Omega lower it.
+
+### The Stagnant Ascendancies (`ancients.ts`)
+
+- **The two powers:** the Archons of Veil (psionic, sacred worlds, relics, isolationist) and Automata Prime (machines, gateways, self-repair, technology tribute, hatred of forbidden machine minds). Each starts dormant in a small enclave of citadel systems.
+- **Pressure** builds from realms reaching the Galactic Hegemony, Dyson Swarms, forbidden AI (Sentient Research Engines, the Grand Archive), settling the Archons' sacred worlds, warships in protected systems, slain Sentinels, Continuum Engine work, unpaid tribute and the Omega Incursion. Each point is blamed on whoever caused it.
+- **Awakening:** warnings come at 50 and 75. At 100 the power wakes, raises hosts stronger than the strongest navy, and declares war on the realms it blames most. Their hosts besiege, land troops, take systems and demand submission from weak neighbours. Peace comes on their terms.
+- **Intrusion:** warships left in protected systems bring a warning, then war: next month for the Archons, after three months for Automata Prime.
+- **Diplomacy** goes through the ancients' own rites:
+  - Tribute eases pressure.
+  - Restricted knowledge: a technology from Automata Prime, or research, a relic and calm from the Archons.
+  - Sponsorship: favours and a Conclave seat, bound by their terms. Breaking the terms twice revokes it.
+  - Automata Prime demand technology tribute from advanced realms every few years.
+- **The War in Heaven:** when both are awake they fight each other. Younger realms may pledge to a side, join an independent coalition whose members defend one another, stay neutral, or salvage the ancients' undefended outworks.
+- **Watchful and fallen:** an awakened power left in peace for three years grows watchful. One that loses every world falls, and whoever holds its throne world inherits its relics.
+
+### Cosmic threats (`threats.ts`, `omega.ts`)
+
+- **Void Devourer:** appears once, in years 20 to 30, and leaves after 16 years.
+  - It moves every 40 days to the richest neighbouring system, and its next destination is always announced a move ahead.
+  - Where it sits: energy falls to 15% and trade through the system is cut.
+  - Where it fed: a scar leaves 70% energy for eight years, and it eats a stage of any Dyson Swarm or Stellar Collector.
+  - It grows as it feeds and starves on empty space. Whoever kills it gains +10% energy and reputation.
+- **Sentinels** guard gateways, relic vaults, shipyards or research archives. Each pays its own reward to whoever destroys the host, and angers Automata Prime.
+- **Omega Incursion:** triggered when anyone proves the Omega Theorem or brings a Continuum Engine to its second stage.
+  - Stages: anomalies (8 months), warnings with the rift's location (6 months), the rift (3 months), then the incursion.
+  - During the incursion: corruption spreads a fraction of a system a month, scaled to the galaxy and growing with strength. Defended systems resist. Stronger waves of fleets push out along the fronts. Corrupted worlds produce half and lose people, and an undefended one is lost after six months. Galactic trade and the energy and rare-element markets suffer.
+  - The answer: fleets holding the rift wear down its integrity, 25% faster under an emergency containment. Members can contribute resources, intelligence, containment lattices and fleets.
+  - The holder of the rift chooses:
+    - Seal it: 180 days of holding the rift; the remnants wither.
+    - Destroy its source: costs two warships in five; every Omega fleet is destroyed.
+    - Bind it: great output, but the galaxy's and the ancients' enmity, the slowest recovery, and a yearly chance it tears free.
+  - Afterwards: systems recover over years. The realm with most credit becomes Warden of the Galaxy and joins the Conclave's founders. Contributors get a reconstruction boom, and seated members who stood aside lose standing.
 
 ## Onboarding and guidance
 

@@ -37,6 +37,8 @@ export const NAV: { id: ScreenId; label: string; key?: string }[] = [
   { id: 'journal', label: 'Journal' },
   { id: 'chronicle', label: 'Chronicle' },
   { id: 'vault', label: 'Relic Vault' },
+  { id: 'conclave', label: 'High Conclave' },
+  { id: 'cosmos', label: 'Ancients and threats' },
   { id: 'codex', label: 'Imperial Codex', key: 'F2' },
 ];
 

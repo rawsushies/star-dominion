@@ -40,7 +40,7 @@ const GROUPS: ScreenId[][] = [
   ['economy', 'industry', 'operations', 'construction', 'trade'],
   ['research', 'techtree'],
   ['vault'],
-  ['diplomacy', 'intel', 'journal', 'chronicle'],
+  ['diplomacy', 'conclave', 'cosmos', 'intel', 'journal', 'chronicle'],
   ['codex'],
 ];
 

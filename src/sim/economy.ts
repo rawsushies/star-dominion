@@ -14,6 +14,7 @@ import { governorBonus, industrialistBonus, charactersOf, salary } from './chara
 import { opReport, OP_KINDS, logisticsCapacity, logisticsUsed } from './operations';
 import { supplyNetwork, hostileArmedPresence, isHostile, adminCapacity, ownedSystems } from './territory';
 import { DESIGNATIONS } from './data/designations';
+import { embargoed, isCorrupted, sponsorOf, systemCondition } from './expansion';
 
 export type LedgerKey = ResId | 'research';
 export interface LedgerLine { key: LedgerKey; label: string; amount: number }
@@ -174,7 +175,8 @@ export function computeLedger(state: GameState, e: Empire): Ledger {
       if (!pl.station || pl.colony) continue;
       const r = opReport(state, e, pl, mods, { network, logisticsEff });
       const label = OP_KINDS[pl.station].label + 's';
-      for (const [k, v] of r.output) add(k, label, v);
+      const sc = systemCondition(state, sid);
+      for (const [k, v] of r.output) add(k, label, sc ? v * sc.output * (k === 'energy' ? sc.energy : 1) : v);
       for (const [k, v] of r.upkeep) add(k, 'Operation upkeep', v);
     }
     for (const m of sys.megastructures) {
@@ -184,7 +186,8 @@ export function computeLedger(state: GameState, e: Empire): Ledger {
         const key = k as LedgerKey;
         const base = (def.outputPerStage as any)[k] * m.stage;
         const m2 = 1 + mod(mods, `output.${k}`);
-        add(key, def.label, base * m2);
+        const mc = k === 'energy' ? systemCondition(state, sid)?.energy ?? 1 : 1;
+        add(key, def.label, base * m2 * mc);
       }
     }
   }
@@ -239,6 +242,7 @@ export function computeLedger(state: GameState, e: Empire): Ledger {
   for (const d of state.tradeDeals) {
     if (d.until < state.tick) continue;
     if (d.a !== e.id && d.b !== e.id) continue;
+    if (embargoed(state, d.a, d.b)) continue; // suspended by a Conclave embargo
     const gives = d.a === e.id ? d.aGives : d.bGives;
     const gets = d.a === e.id ? d.bGives : d.aGives;
     const other = state.empires[d.a === e.id ? d.b : d.a].name;
@@ -246,12 +250,18 @@ export function computeLedger(state: GameState, e: Empire): Ledger {
     for (const r in gets) add(r as ResId, `Trade deal: ${other}`, (gets as any)[r]);
   }
   // Trade agreements: +8% of trade value per partner
-  const partners = state.treaties.filter((t) => t.type === 'trade' && (t.a === e.id || t.b === e.id)).length;
+  const partners = state.treaties.filter((t) => t.type === 'trade' && (t.a === e.id || t.b === e.id) && !embargoed(state, t.a, t.b)).length;
   if (partners) add('credits', 'Trade agreements', (tradeTotal - tradeLost) * 0.08 * partners + 2 * partners);
   const researchPartners = state.treaties.filter((t) => t.type === 'research' && (t.a === e.id || t.b === e.id)).length;
   if (researchPartners) {
     const rp = lines.filter((l) => l.key === 'research' && l.amount > 0).reduce((a, l) => a + l.amount, 0);
     add('research', 'Research cooperation', rp * 0.1 * researchPartners);
+  }
+
+  // Automata Prime's tithe on its sponsored sovereigns
+  if (sponsorOf(state, e.id)?.id === 'automata') {
+    const credits = lines.filter((l) => l.key === 'credits' && l.amount > 0).reduce((a, l) => a + l.amount, 0);
+    add('credits', 'Automata tithe', -credits * 0.05);
   }
 
   const net = {} as Record<LedgerKey, number>;
@@ -336,11 +346,14 @@ function colonyReport(state: GameState, e: Empire, p: Planet, c: Colony, mods: M
   const gov = governorBonus(state, e.id, sys.sector);
   if (gov.stability) sf.push([`Governor ${gov.name}`, gov.stability]);
   if (c.designation && DESIGNATIONS[c.designation].stability) sf.push([DESIGNATIONS[c.designation].label, DESIGNATIONS[c.designation].stability]);
+  // the Devourer, its scars, Omega corruption and recovery (sim/expansion.ts); null in ordinary systems
+  const cond = systemCondition(state, p.systemId);
+  if (cond) sf.push([cond.label, cond.stability]);
   const ind = industrialistBonus(state, p.id);
   const stabilityTarget = Math.max(0, Math.min(100, sf.reduce((a, [, v]) => a + v, 0)));
 
   const conn = connected ? 1 : 0.5;
-  const outputMult = stabilityOutputMult(c.stability) * (1 - c.resistance / 200) * conn * (1 + gov.output + ind.output);
+  const outputMult = (cond ? cond.output : 1) * stabilityOutputMult(c.stability) * (1 - c.resistance / 200) * conn * (1 + gov.output + ind.output);
   // province designation: matching yields gain, the rest pay a little; a governor adds a third again
   const desig = DESIGNATIONS[c.designation ?? 'balanced'];
   const govSpec = gov.name ? 1 + (gov.output > 0 ? 0.35 : 0.2) : 1;
@@ -353,6 +366,7 @@ function colonyReport(state: GameState, e: Empire, p: Planet, c: Colony, mods: M
     if (d.district === 'agri' && k === 'food') m *= def.yield.food;
     if (d.district === 'mining' && k === 'minerals') m *= def.yield.minerals * (1 + p.deposits.minerals * 0.04);
     if (d.district === 'power' && k === 'energy') m *= def.yield.energy * STAR_TYPES[sys.star].energy;
+    if (cond && k === 'energy') m *= cond.energy;
     if (b === 'rare_extractor' && k === 'rare') m *= Math.max(1, p.deposits.rare);
     if (b === 'research_lab' && k === 'research') m *= 1 + p.deposits.research * 0.05;
     if (k === 'trade') m *= 1 + mod(mods, 'tradeValue');
@@ -410,7 +424,7 @@ function colonyReport(state: GameState, e: Empire, p: Planet, c: Colony, mods: M
       let loss = 0;
       let disrupted = false;
       for (const sid of routePath) {
-        if (hostileArmedPresence(state, e.id, sid)) { disrupted = true; break; }
+        if (hostileArmedPresence(state, e.id, sid) || isCorrupted(state, sid)) { disrupted = true; break; }
         const s2 = state.galaxy.systems[sid];
         const patrolled = (state.patrolled[`${e.id}:${sid}`] ?? -999) > state.tick - 45;
         if (s2.starbase < 2 && !patrolled) loss += 0.025;
@@ -435,6 +449,7 @@ function colonyReport(state: GameState, e: Empire, p: Planet, c: Colony, mods: M
     growth = (0.32 * (0.4 + 0.6 * hab) * (1 + mod(mods, 'growth')) + (c.pops < 4 ? 0.15 : 0)) * room;
     if (c.stability < 25) growth *= 0.5;
   }
+  if (cond?.corrupted) growth = Math.min(growth, -0.3);
 
   let garrison = 2 + c.pops * 0.25;
   for (const b in c.buildings) garrison += (BUILDINGS[b as BuildingId].garrison ?? 0) * (c.buildings[b as BuildingId] ?? 0);

@@ -137,6 +137,17 @@ export const SCREEN_INFO: Partial<Record<ScreenId, ScreenInfo>> = {
     advanced: ['Relics come from quests, ambitions, new eras, won wars and decisive battles. No real money is involved.'],
     codex: [],
   },
+  conclave: {
+    title: 'High Conclave', purpose: 'The galactic assembly: seats, weighted votes, motions, directives in force and the crisis effort.',
+    controls: [['Members', 'Every seat and its voting weight (frozen while a session runs), reputation, and how AI delegates lean; lobby them with + and −.'], ['In session', 'Vote yea, nay or abstain; a Founding Sovereign may veto an ordinary motion. When no session runs, table a motion.'], ['Directives in force', 'What binds you; defy a directive to be free of it, at a price.'], ['Crisis effort', 'During the Omega Incursion, contribute resources, intelligence, a containment lattice or a fleet.']],
+    advanced: ['Weights combine standing, territory, military strength and reputation with diminishing returns, scaled by seat and capped at a third of the chamber. Stockpiles never count.', 'Emergency sessions (Founders and Great Powers, against cosmic threats or an ancient power at war with a member) run 20 days, need two thirds of the votes cast and cannot be vetoed.'],
+    codex: ['mech.conclave'],
+  },
+  cosmos: {
+    title: 'Ancients and threats', purpose: 'The two ancient powers and what wakes them, the War in Heaven, the Void Devourer, the Sentinels and the Omega Incursion.',
+    controls: [['Ancient powers', 'Pressure, who they blame, tribute, restricted knowledge and sponsorship.'], ['War in Heaven', 'Pledge to a side, join the independent coalition, or salvage their outworks.'], ['Omega Incursion', 'The rift, its integrity and the choices at it: seal, destroy or bind.'], ['Void Devourer and Sentinels', 'Where the leviathan is and goes next; what each Sentinel site guards.']],
+    codex: ['mech.ancients', 'mech.threats', 'mech.omega'],
+  },
   codex: {
     title: 'Imperial Codex', purpose: 'The reference of the realm: lessons, an encyclopedia of every mechanic, and guidance settings.',
     controls: [['Lessons', 'Start, resume or replay any of the ten guided lessons.'], ['Encyclopedia', 'Search or browse entries. Links jump to related entries and to the window where you use the mechanic.'], ['Settings', 'Turn lessons, first-visit cards, hints and explanatory tooltips on or off, or reset lesson progress.']],

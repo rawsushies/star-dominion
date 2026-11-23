@@ -2,6 +2,7 @@ import { TECHS, TECH_BY_ID, techCost } from './data/techs';
 import { log } from './util';
 import type { Empire, GameState } from './types';
 import { TIER_COST } from './data/techs';
+import { injunctionBlocks } from './expansion';
 
 export function canResearch(e: Empire, id: string): boolean {
   const t = TECH_BY_ID[id];
@@ -48,6 +49,8 @@ export function progressResearch(state: GameState, e: Empire, perMonth: number) 
     r.progress = Math.min(r.progress + perMonth / 30, 200);
     return;
   }
+  // an Ascension Injunction freezes work on the Omega Theorem for bound members
+  if (r.current === 'era_omega' && injunctionBlocks(state, e.id, 'omega_theorem')) return;
   r.progress += Math.max(0, perMonth) / 30;
   const cost = techCost(r.current);
   if (r.progress >= cost) {

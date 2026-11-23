@@ -34,6 +34,9 @@ import { emptyStock, log, nextId } from './util';
 import { RESOURCES, type Climate, type Colony, type Empire, type GameSettings, type GameState, type GovernmentId, type PlanetType, type BuildingId, type ResId } from './types';
 import { successionMonthly, ensureRuler } from './succession';
 import { espionageTick } from './espionage';
+import { setupExpansion, expansionDaily, expansionMonthly } from './expansion';
+import { precursorTick } from './ancients';
+import { onSentinelsDefeated } from './threats';
 
 export const SAVE_VERSION = 1;
 
@@ -53,7 +56,7 @@ export const DEFAULT_SETTINGS: GameSettings = {
   difficulty: 'standard',
 };
 
-function blankEmpire(id: number, partial: Partial<Empire>): Empire {
+export function blankEmpire(id: number, partial: Partial<Empire>): Empire {
   return {
     id,
     name: 'Unknown',
@@ -233,6 +236,9 @@ export function newGame(settings: Partial<GameSettings> = {}): GameState {
 
   state.empires[state.playerId].relics = START_RELICS;
 
+  // the Grand Expansion: ancient powers, cosmic realms, the Sentinels' charges (own seeded stream)
+  setupExpansion(state);
+
   // Initial exploration & stats
   for (const e of state.empires) {
     if (e.capitalSystemId == null) continue;
@@ -328,7 +334,7 @@ export function step(state: GameState) {
   progressCapitals(state);
 
   for (const e of state.empires) {
-    if (!e.alive || e.kind === 'guardian' || e.kind === 'raiders') continue;
+    if (!e.alive || e.kind === 'guardian' || e.kind === 'raiders' || e.kind === 'cosmic') continue;
     const ledger = getLedger(state, e, true);
     const started = applyLedgerDay(state, e, ledger);
     for (const r of started) {
@@ -360,6 +366,7 @@ export function step(state: GameState) {
     if (e.kind === 'major') for (const sid of visibleSystems(state, e.id)) if (!isExplored(e, sid)) markExplored(state, e, sid);
   }
 
+  expansionDaily(state);
   if (state.tick % 30 === 0) monthly(state);
 
   for (const e of state.empires) {
@@ -370,6 +377,7 @@ export function step(state: GameState) {
     }
   }
   if (state.tick % 3 === 0) runRaiders(state);
+  if (state.tick % 10 === 7) precursorTick(state);
   if (state.prologue && state.tick % 5 === 0) prologueTick(state);
 }
 
@@ -408,6 +416,7 @@ function monthly(state: GameState) {
   successionMonthly(state);
   espionageTick(state, 30);
   operationsMonthly(state);
+  expansionMonthly(state);
   if (state.tick % 360 === 0) refreshCandidates(state);
   updateStats(state);
   if (state.tick % 360 === 0) recordYear(state);
@@ -505,8 +514,10 @@ function guardiansCheck(state: GameState) {
     if (!sys.features.includes('guardian')) continue;
     const alive = Object.values(state.fleets).some((f) => f.systemId === sys.id && state.empires[f.ownerId].kind === 'guardian');
     if (!alive) {
+      // the victor claims what the Sentinels guarded (sim/threats.ts)
+      const victor = onSentinelsDefeated(state, sys.id);
       sys.features = sys.features.filter((f) => f !== 'guardian');
-      log(state, { kind: 'guardian', severity: 'good', title: `Sentinels of ${sys.name} destroyed`, text: 'The precursor ruins are now open to survey by any fleet that arrives.', empires: [], systemId: sys.id });
+      if (victor == null) log(state, { kind: 'guardian', severity: 'good', title: `Sentinels of ${sys.name} destroyed`, text: 'The precursor ruins are now open to survey by any fleet that arrives.', empires: [], systemId: sys.id });
     }
   }
 }
@@ -562,7 +573,7 @@ export function spawnRaiders(state: GameState, target: Empire) {
 
 function eliminationCheck(state: GameState) {
   for (const e of state.empires) {
-    if (!e.alive || e.kind === 'guardian' || e.kind === 'raiders') continue;
+    if (!e.alive || e.kind === 'guardian' || e.kind === 'raiders' || e.kind === 'cosmic') continue;
     const colonies = state.planets.filter((p) => p.colony?.ownerId === e.id);
     if (colonies.length) {
       if (e.capitalPlanetId == null || state.planets[e.capitalPlanetId].colony?.ownerId !== e.id) relocateCapital(state, e.id);
@@ -585,7 +596,7 @@ export function updateStats(state: GameState) {
     for (const p of state.planets) if (p.colony?.ownerId === e.id) { pop += p.colony.pops; col++; stab += p.colony.stability; }
     let mil = 0;
     for (const id in state.fleets) if (state.fleets[id].ownerId === e.id) mil += fleetPower(state, state.fleets[id]);
-    const L = e.kind === 'guardian' || e.kind === 'raiders' ? null : getLedger(state, e, true);
+    const L = e.kind === 'guardian' || e.kind === 'raiders' || e.kind === 'cosmic' ? null : getLedger(state, e, true);
     e.stats = {
       population: Math.round(pop * 10) / 10,
       colonies: col,

@@ -2,6 +2,32 @@
 
 All notable changes to Star Dominion. Versions follow [semantic versioning](https://semver.org/): a new major version may change save files, a minor version adds features, a patch fixes bugs.
 
+## Unreleased: the Grand Expansion
+
+### Added
+
+- **The High Conclave.** A galactic assembly founded in the early game, with seats for Founding Sovereigns, Great Powers, Sponsored Sovereigns, rotating Regional Delegates and Observers.
+  - Weighted votes balance standing, territory, military and reputation with diminishing returns and a cap. Weights freeze when a session opens.
+  - Ordinary and emergency sessions, abstentions, a rare founding veto, quorum, failed motions, lobbying, and defiance with consequences.
+  - Four directives, each enforced in the actual rules: Containment War, Market Embargo, Naval Accords and Ascension Injunction. Directives can also be repealed.
+- **The Stagnant Ascendancies.** The Archons of Veil and Automata Prime sleep in their enclaves until the galaxy provokes them.
+  - Visible, attributed pressure with warnings, then an awakening and war.
+  - Tribute, restricted knowledge, sponsorship with terms, technology-tribute demands, and reactions to intrusion.
+  - The War in Heaven: pledge, join the coalition, stay out, or salvage. Their realms can fall, and they can return to watchfulness.
+- **The Void Devourer.** A roaming leviathan that drains energy, cuts trade, scars systems and eats Dyson Swarm stages. Its next destination is always announced, and it can be hunted for its heart.
+- **Sentinel sites.** Gateways, relic vaults, shipyards and archives, each with its own reward.
+- **The Omega Incursion.** A multi-year crisis: anomalies, warnings, the rift, then spreading corruption, escalating waves, lost worlds and economic disruption.
+  - A counteroffensive with Conclave emergency powers and member contributions.
+  - Three resolutions: seal, destroy or bind. A Warden of the Galaxy is named, with lasting political and economic consequences.
+  - The galaxy can be consumed.
+- **Galactic reputation and permanent boons.**
+- **Two new windows**, High Conclave and Ancients and threats; map markers for the Devourer, the rift, corruption and sacred worlds; Codex entries.
+- **AI realms take part in every system** through the command layer.
+
+### Compatibility
+
+- Saves from 1.0.0 load. The expansion starts in its initial state, with dormant ancients and no Conclave until its founding date, and the save version is unchanged.
+
 ## 1.0.0: first release
 
 The first complete release of the single-player game. This section lists everything that ships in 1.0.0, then the bugs fixed and the work done for release.

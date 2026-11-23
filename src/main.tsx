@@ -44,6 +44,12 @@ if (import.meta.env.DEV) {
       const ui = useUI.getState();
       if (ui.game) { runDays(ui.game, days); ui.bump(); }
     },
+    /** put the Grand Expansion into a later state (browser tests) */
+    expansion: async (what: 'conclave' | 'ancients' | 'omega' | 'devourer') => {
+      const { expansionScenario } = await import('./dev/expansionScenario');
+      const ui = useUI.getState();
+      if (ui.game) { expansionScenario(ui.game, what); ui.bump(); }
+    },
     /** lay an event-chain stage before the council (browser tests) */
     raiseChain: async (def: string, planetId: number | null = null) => {
       const { raiseStage } = await import('./sim/chains');

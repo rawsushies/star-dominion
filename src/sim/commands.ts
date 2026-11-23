@@ -82,7 +82,8 @@ export type Command =
   | { type: 'breakTreaty'; target: number; treaty: TreatyType }
   | { type: 'startMegastructure'; systemId: number; mega: string }
   | { type: 'drawRelic'; count: number }
-  | { type: 'setAutoBuild'; planetId: number | 'all'; on: boolean };
+  | { type: 'setAutoBuild'; planetId: number | 'all'; on: boolean }
+  | ExpansionCommand;
 
 export interface CommandResult { ok: boolean; message?: string; evaluation?: Evaluation }
 
@@ -150,6 +151,10 @@ export function execute(state: GameState, empireId: number, cmd: Command): Comma
     return f && f.ownerId === empireId ? f : null;
   };
   switch (cmd.type) {
+    case 'conclave':
+    case 'ancients':
+    case 'omega':
+      return executeExpansion(state, e, cmd);
     case 'launchCovert': {
       const err = launchOp(state, e, cmd.targetId, cmd.kind, cmd.agentId, cmd.planetId);
       return err ? fail(err) : OK;
@@ -511,6 +516,7 @@ export function execute(state: GameState, empireId: number, cmd: Command): Comma
       return OK;
     }
     case 'setResearch': {
+      if (cmd.tech === 'era_omega' && injunctionBlocks(state, empireId, 'omega_theorem')) return fail('An Ascension Injunction of the High Conclave forbids the Omega Theorem (defy it in the Conclave to proceed)');
       if ((TECH_BY_ID[cmd.tech]?.era ?? 0) > (e.era ?? 0)) return fail(`Requires the ${ERAS[TECH_BY_ID[cmd.tech].era!].name} era`);
       if (!canResearch(e, cmd.tech)) return fail('Prerequisites not met');
       if (e.research.current && e.research.current !== cmd.tech) e.research.queue.unshift(e.research.current);
@@ -520,6 +526,7 @@ export function execute(state: GameState, empireId: number, cmd: Command): Comma
     }
     case 'queueResearch': {
       if (e.research.done.includes(cmd.tech) || e.research.current === cmd.tech || e.research.queue.includes(cmd.tech)) return fail('Already researched or queued');
+      if (cmd.tech === 'era_omega' && injunctionBlocks(state, empireId, 'omega_theorem')) return fail('An Ascension Injunction of the High Conclave forbids the Omega Theorem');
       { const need = TECH_BY_ID[cmd.tech]?.era ?? 0; if (need > (e.era ?? 0)) return fail(`Requires the ${ERAS[need].name} era`); }
       // Auto-queue missing prerequisites in order.
       const order: string[] = [];
@@ -584,8 +591,12 @@ export function execute(state: GameState, empireId: number, cmd: Command): Comma
     case 'propose': {
       if (cmd.to === empireId) return fail('You cannot negotiate with yourself');
       const to = state.empires[cmd.to];
-      if (!to?.alive || to.kind === 'guardian' || to.kind === 'raiders') return fail('They will not negotiate');
+      if (!to?.alive || to.kind === 'guardian' || to.kind === 'raiders' || to.kind === 'cosmic') return fail('They will not negotiate');
+      // the ancients deal only through their own rites (tribute, knowledge, sponsorship), except to demand submission
+      if (to.kind === 'precursor' && !(cmd.give.length === 0 && cmd.receive.length === 1 && cmd.receive[0].kind === 'treaty' && cmd.receive[0].treaty === 'vassal')) return fail('The ancients do not bargain; approach them through the Ancients window');
+      if (e.kind === 'precursor' && !(cmd.give.length === 0 && cmd.receive.length === 1 && cmd.receive[0].kind === 'treaty' && cmd.receive[0].treaty === 'vassal')) return fail('The ancients do not bargain');
       if (!hasContact(state, empireId, cmd.to)) return fail('No contact established');
+      if (embargoed(state, empireId, cmd.to) && [...cmd.give, ...cmd.receive].some((it) => it.kind === 'credits' || it.kind === 'resource' || (it.kind === 'treaty' && it.treaty === 'trade'))) return fail('A Conclave embargo forbids trade between you');
       for (const it of [...cmd.give, ...cmd.receive]) {
         if (it.kind === 'system') {
           const owner = cmd.give.includes(it) ? empireId : cmd.to;
@@ -605,8 +616,9 @@ export function execute(state: GameState, empireId: number, cmd: Command): Comma
     }
     case 'proposeContract': {
       const to = state.empires[cmd.to];
-      if (!to?.alive || to.isPlayer || to.kind === 'guardian' || to.kind === 'raiders') return fail('They will not negotiate');
+      if (!to?.alive || to.isPlayer || to.kind === 'guardian' || to.kind === 'raiders' || to.kind === 'cosmic' || to.kind === 'precursor') return fail('They will not negotiate');
       if (!hasContact(state, empireId, cmd.to)) return fail('No contact established');
+      if (embargoed(state, empireId, cmd.to)) return fail('A Conclave embargo forbids trade between you');
       const clean = (c: Cost) => Object.fromEntries(Object.entries(c).filter(([k, v]) => (v ?? 0) > 0 && k !== 'influence')) as Cost;
       const give = clean(cmd.give), receive = clean(cmd.receive);
       if (!Object.keys(give).length && !Object.keys(receive).length) return fail('Contract is empty');
@@ -712,6 +724,7 @@ export function execute(state: GameState, empireId: number, cmd: Command): Comma
       if (def.starReq && !def.starReq.includes(sys.star)) return fail('Unsuitable star');
       if (sys.megastructures.length >= 2) return fail('System can host at most two megastructures');
       if (sys.megastructures.some((m) => m.id === def.id)) return fail('Already present in this system');
+      { const proj = megaProject(def.id); if (proj && injunctionBlocks(state, empireId, proj)) return fail('An Ascension Injunction of the High Conclave forbids this project (defy it in the Conclave to proceed)'); }
       if (def.unique && state.galaxy.systems.some((s) => s.megastructures.some((m) => m.id === def.id && m.ownerId === empireId))) return fail('Only one per realm');
       if (def.id === 'orbital_ring' && !sys.planetIds.some((p) => state.planets[p].colony?.ownerId === empireId && (state.planets[p].colony?.buildings.shipyard ?? 0) > 0)) return fail('Requires a colony with a shipyard in this system');
       // the first month of instalments must be in the treasury; the rest is paid as work goes on
@@ -731,6 +744,8 @@ import { designateHeir } from './succession';
 import { launchOp, cancelOp } from './espionage';
 import { megaInstalment } from './construction';
 import type { CovertKind } from './types';
+import { executeExpansion, type ExpansionCommand } from './expansionCommands';
+import { embargoed, injunctionBlocks, megaProject } from './expansion';
 const TECHS_REQ: Record<string, string[]> = Object.fromEntries(TECHS.map((t) => [t.id, t.requires]));
 
 export function describeBuildingRequirement(id: BuildingId): string {

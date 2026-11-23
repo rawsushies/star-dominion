@@ -11,17 +11,18 @@ export function GameOver() {
   const [dismissed, setDismissed] = useState<number | null>(null);
   if (!g?.gameOver || dismissed === g.tick || (g.gameOver.won && dismissed != null)) return null;
   const e = g.empires[g.playerId];
-  const winner = g.gameOver.kind ? g.empires[g.gameOver.winner ?? g.playerId] : null;
+  const kind = g.gameOver.kind === 'consumed' ? null : g.gameOver.kind;
+  const winner = kind ? g.empires[g.gameOver.winner ?? g.playerId] : null;
   return (
     <div className="modal-back">
       <div className="modal sheet frame" style={{ width: 'min(560px, calc(100vw - 32px))', maxHeight: 'calc(100vh - 32px)', overflowY: 'auto' }}>
         <div className="sheet-body" style={{ padding: '28px 30px' }}>
-          <div className="serif" style={{ fontSize: 44, fontWeight: 600, lineHeight: 1 }}>{g.gameOver.won ? `${g.gameOver.kind ? VICTORY_LABEL[g.gameOver.kind] : 'Dominion'} victory` : g.gameOver.winner != null ? `${VICTORY_LABEL[g.gameOver.kind!]}: ${g.empires[g.gameOver.winner].name}` : 'The fall of a crown'}</div>
+          <div className="serif" style={{ fontSize: 44, fontWeight: 600, lineHeight: 1 }}>{g.gameOver.kind === 'consumed' ? 'The galaxy is consumed' : g.gameOver.won ? `${kind ? VICTORY_LABEL[kind] : 'Dominion'} victory` : g.gameOver.winner != null && kind ? `${VICTORY_LABEL[kind]}: ${g.empires[g.gameOver.winner].name}` : 'The fall of a crown'}</div>
           <p className="serif" style={{ fontSize: 19, fontStyle: 'italic', color: 'var(--vellum-2)' }}>{g.gameOver.reason}</p>
           {winner && (
             <div style={{ marginTop: 12 }} data-testid="gameover-why">
               <b>{g.gameOver.won ? 'How you won' : `How ${winner.name} won`}</b>
-              <p className="hint" style={{ margin: '4px 0 0' }}>{victoryProgress(g, winner).find((v) => v.kind === g.gameOver!.kind)?.detail}.</p>
+              <p className="hint" style={{ margin: '4px 0 0' }}>{victoryProgress(g, winner).find((v) => v.kind === kind)?.detail}.</p>
             </div>
           )}
           <div style={{ marginTop: 12 }}>

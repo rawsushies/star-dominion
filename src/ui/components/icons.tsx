@@ -25,6 +25,8 @@ const ICONS: Record<ScreenId, JSX.Element> = {
   warroom: <g {...P}><rect x="3" y="5" width="18" height="13" /><path d="M7 14 L10 10 L13 12 L17 8" /><path d="M9 21 H15" /></g>,
   chronicle: <g {...P}><path d="M5 4 H16 A3 3 0 0 1 16 10 H8 A3 3 0 0 0 8 16 H19" /><path d="M5 4 V20 H17" /></g>,
   vault: <g {...P}><path d="M12 3 L19 9 L12 21 L5 9 Z" /><path d="M5 9 H19 M9 9 L12 21 L15 9 M9 9 L12 3 L15 9" /></g>,
+  conclave: <g {...P}><path d="M3 20 H21 M4 17 H20" /><path d="M6 17 V10 M10 17 V10 M14 17 V10 M18 17 V10" /><path d="M3 10 H21 L12 4 Z" /></g>,
+  cosmos: <g {...P}><circle cx="12" cy="12" r="3.2" /><path d="M12 2 V5 M12 19 V22 M2 12 H5 M19 12 H22" /><path d="M5.5 5.5 C9 8 15 8 18.5 5.5 M5.5 18.5 C9 16 15 16 18.5 18.5" /></g>,
   codex: <g {...P}><path d="M4 4 H10 A2 2 0 0 1 12 6 V20 A2 2 0 0 0 10 18 H4 Z" /><path d="M20 4 H14 A2 2 0 0 0 12 6 V20 A2 2 0 0 1 14 18 H20 Z" /><path d="M15 8 H18 M15 11 H18" /></g>,
   techtree: <g {...P}><circle cx="5" cy="12" r="2" /><circle cx="19" cy="6" r="2" /><circle cx="19" cy="18" r="2" /><circle cx="12" cy="12" r="2" /><path d="M7 12 H10 M14 12 L17 7 M14 12 L17 17" /></g>,
 };
